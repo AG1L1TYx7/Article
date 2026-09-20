@@ -18,6 +18,8 @@ export function ToggleButton({
   action,
   disabled,
   disabledTitle,
+  icon,
+  size = "md",
 }: {
   initialActive: boolean;
   initialCount?: number;
@@ -26,6 +28,9 @@ export function ToggleButton({
   action: () => Promise<ToggleResult>;
   disabled?: boolean;
   disabledTitle?: string;
+  /** Drawn before the label; filled in when active. */
+  icon?: React.ReactNode;
+  size?: "sm" | "md";
 }) {
   const [active, setActive] = useState(initialActive);
   const [count, setCount] = useState(initialCount);
@@ -75,16 +80,23 @@ export function ToggleButton({
         title={disabled ? disabledTitle : undefined}
         ref={buttonRef}
         aria-pressed={active}
-        className={`rounded-md border px-3 py-1 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`btn ${size === "sm" ? "btn-sm rounded-full" : "rounded-full"} ${
           active
-            ? "border-neutral-900 bg-neutral-900 text-white"
-            : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
+            ? "border-ink bg-ink text-paper hover:bg-ink/85 [&_svg]:fill-current"
+            : "btn-secondary"
         }`}
       >
+        {icon}
         {active ? activeLabel : inactiveLabel}
-        {typeof count === "number" && count > 0 && <span className="ml-1 tabular-nums">{count}</span>}
+        {typeof count === "number" && count > 0 && (
+          <span className="tabular-nums opacity-80">{count}</span>
+        )}
       </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && (
+        <span className="text-xs text-danger" role="alert">
+          {error}
+        </span>
+      )}
     </span>
   );
 }

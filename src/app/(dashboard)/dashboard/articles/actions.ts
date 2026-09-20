@@ -118,8 +118,12 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
         // few times, readers search against it indefinitely.
         searchText: extractSearchText(bodyHtml),
         excerpt: data.excerpt,
-        categoryId: data.categoryId,
-        coverImageId: data.coverImageId,
+        // `?? null`, not the raw value: the form always sends its whole
+        // state, so an absent id means "none" — clearing the section or
+        // removing the cover — and undefined would tell Prisma to leave
+        // the old value in place.
+        categoryId: data.categoryId ?? null,
+        coverImageId: data.coverImageId ?? null,
         isBreaking: data.isBreaking ?? false,
         authorId: session.user.id,
         status: "DRAFT",
@@ -169,8 +173,12 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
         bodyHtml,
         searchText: extractSearchText(bodyHtml),
         excerpt: data.excerpt,
-        categoryId: data.categoryId,
-        coverImageId: data.coverImageId,
+        // `?? null`, not the raw value: the form always sends its whole
+        // state, so an absent id means "none" — clearing the section or
+        // removing the cover — and undefined would tell Prisma to leave
+        // the old value in place.
+        categoryId: data.categoryId ?? null,
+        coverImageId: data.coverImageId ?? null,
         isBreaking: data.isBreaking ?? false,
       },
     });

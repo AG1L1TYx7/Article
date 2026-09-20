@@ -4,18 +4,51 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { daysAgo } from "@/lib/timeWindow";
+import { PageBody, PageHeader } from "../../PageHeader";
+import { ArrowRightIcon } from "@/components/icons";
+import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Analytics", robots: { index: false, follow: false } };
 
 const TOP_N = 10;
 
-function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
+function Stat({ label, value, hint, tone }: { label: string; value: number; hint?: string; tone?: "warn" }) {
   return (
-    <div className="rounded-md border border-neutral-200 px-4 py-3">
-      <p className="text-2xl font-semibold text-neutral-900">{value.toLocaleString()}</p>
-      <p className="text-sm text-neutral-600">{label}</p>
-      {hint && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
+    <div className={`card px-5 py-4 ${tone === "warn" && value > 0 ? "border-warn/40" : ""}`}>
+      <p className="text-3xl font-semibold tracking-tight tabular-nums">{value.toLocaleString("en-GB")}</p>
+      <p className="mt-1 text-sm text-ink-2">{label}</p>
+      {hint && <p className="mt-1 text-xs text-ink-3">{hint}</p>}
     </div>
+  );
+}
+
+/** A ranked list with a bar behind each row, scaled to the top entry. */
+function Ranked({
+  items,
+  empty,
+}: {
+  items: { id: string; slug: string; title: string; value: number; detail: string }[];
+  empty: string;
+}) {
+  if (items.length === 0) return <p className="card mt-4 px-4 py-8 text-center text-sm text-ink-3">{empty}</p>;
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return (
+    <ol className="card mt-4 divide-y divide-line">
+      {items.map((item, index) => (
+        <li key={item.id} className="relative flex items-center gap-4 px-4 py-3">
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-0 left-0 bg-surface-2"
+            style={{ width: `${(item.value / max) * 100}%` }}
+          />
+          <span className="relative w-5 text-right font-mono text-xs text-ink-3">{index + 1}</span>
+          <Link href={`/article/${item.slug}`} className="relative min-w-0 flex-1 truncate text-sm font-medium hover:underline">
+            {item.title}
+          </Link>
+          <span className="relative shrink-0 text-xs text-ink-2 tabular-nums">{item.detail}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -71,59 +104,68 @@ export default async function AnalyticsPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">Analytics</h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        View counts are raw request counts — a refresh counts twice and a crawler counts as a
-        reader. Useful for ranking these against each other, not for reporting an audience.
-      </p>
+    <main id="main-content">
+      <PageHeader
+        kicker="Newsroom"
+        title="Analytics"
+        description="View counts are raw request counts — a refresh counts twice and a crawler counts as a reader. Useful for ranking these against each other, not for reporting an audience."
+      />
 
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label="Published" value={publishedCount} hint={`${publishedThisWeek} in the last 7 days`} />
-        <Stat label="Drafts" value={draftCount} />
-        <Stat label="Readers" value={readerCount} />
-        <Stat label="Comments awaiting review" value={pendingComments} />
-        <Stat label="Open reports" value={openReports} />
-      </div>
+      <PageBody>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <Stat label="Published" value={publishedCount} hint={`${publishedThisWeek} in the last 7 days`} />
+          <Stat label="Drafts" value={draftCount} />
+          <Stat label="Readers" value={readerCount} />
+          <Stat label="Comments awaiting review" value={pendingComments} tone="warn" />
+          <Stat label="Open reports" value={openReports} tone="warn" />
+        </div>
 
-      {(pendingComments > 0 || openReports > 0) && (
-        <p className="mt-4 text-sm">
-          <Link href="/dashboard/comments" className="underline">
-            Go to the moderation queue →
-          </Link>
-        </p>
-      )}
-
-      <h2 className="mt-12 text-lg font-semibold">Most read</h2>
-      {mostRead.length === 0 && <p className="mt-2 text-sm text-neutral-500">Nothing published yet.</p>}
-      <ol className="mt-3 flex flex-col gap-2">
-        {mostRead.map((article) => (
-          <li key={article.id} className="flex items-baseline justify-between gap-4 text-sm">
-            <Link href={`/article/${article.slug}`} className="truncate hover:underline">
-              {article.title}
+        {(pendingComments > 0 || openReports > 0) && (
+          <p className="mt-4">
+            <Link href="/dashboard/comments" className="btn btn-secondary btn-sm gap-1.5">
+              Go to the moderation queue <ArrowRightIcon size={14} />
             </Link>
-            <span className="shrink-0 text-neutral-500">
-              {article.viewCount.toLocaleString()} view{article.viewCount === 1 ? "" : "s"}
-            </span>
-          </li>
-        ))}
-      </ol>
+          </p>
+        )}
 
-      <h2 className="mt-12 text-lg font-semibold">Most discussed</h2>
-      {mostDiscussed.length === 0 && <p className="mt-2 text-sm text-neutral-500">Nothing yet.</p>}
-      <ol className="mt-3 flex flex-col gap-2">
-        {mostDiscussed.map((article) => (
-          <li key={article.id} className="flex items-baseline justify-between gap-4 text-sm">
-            <Link href={`/article/${article.slug}`} className="truncate hover:underline">
-              {article.title}
-            </Link>
-            <span className="shrink-0 text-neutral-500">
-              {article._count.comments} comment{article._count.comments === 1 ? "" : "s"} ·{" "}
-              {article._count.reactions} like{article._count.reactions === 1 ? "" : "s"}
-            </span>
-          </li>
-        ))}
-      </ol>
+        <div className="mt-10 grid gap-10 lg:grid-cols-2">
+          <section aria-labelledby="most-read-heading">
+            <h2 id="most-read-heading" className="section-title">
+              Most read
+            </h2>
+            <Ranked
+              empty="Nothing published yet."
+              items={mostRead.map((a) => ({
+                id: a.id,
+                slug: a.slug,
+                title: a.title,
+                value: a.viewCount,
+                detail: `${a.viewCount.toLocaleString("en-GB")} view${a.viewCount === 1 ? "" : "s"}${
+                  a.publishedAt ? ` · ${formatDate(a.publishedAt)}` : ""
+                }`,
+              }))}
+            />
+          </section>
+
+          <section aria-labelledby="most-discussed-heading">
+            <h2 id="most-discussed-heading" className="section-title">
+              Most discussed
+            </h2>
+            <Ranked
+              empty="Nothing yet."
+              items={mostDiscussed.map((a) => ({
+                id: a.id,
+                slug: a.slug,
+                title: a.title,
+                value: a._count.comments,
+                detail: `${a._count.comments} comment${a._count.comments === 1 ? "" : "s"} · ${a._count.reactions} like${
+                  a._count.reactions === 1 ? "" : "s"
+                }`,
+              }))}
+            />
+          </section>
+        </div>
+      </PageBody>
     </main>
   );
 }

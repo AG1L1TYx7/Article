@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BellIcon } from "./icons";
 
 /**
  * The header's Notifications link, with an unread count.
@@ -40,12 +41,18 @@ export function NotificationsLink() {
     // Re-checked on navigation, so reading the list updates the badge.
   }, [pathname]);
 
+  const unread = count !== null && count > 0;
+
   return (
-    <Link href="/notifications" className="text-neutral-600 hover:underline">
-      Notifications
-      {count !== null && count > 0 && (
-        <span className="ml-1 rounded-full bg-neutral-900 px-1.5 py-0.5 text-xs text-white">
+    <Link href="/notifications" className="btn btn-ghost btn-icon relative" aria-label="Notifications">
+      <BellIcon size={18} />
+      {/* The accessible name stays "Notifications" whether or not the
+          badge is showing; the count is read out after it. */}
+      <span className="sr-only">Notifications</span>
+      {unread && (
+        <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white ring-2 ring-paper">
           {count > 99 ? "99+" : count}
+          <span className="sr-only"> unread</span>
         </span>
       )}
     </Link>

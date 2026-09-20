@@ -5,6 +5,9 @@ import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { one } from "@/lib/searchParams";
 import type { Prisma } from "@/generated/prisma/client";
+import { PageBody, PageHeader } from "../../PageHeader";
+import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons";
+import { formatDateTime, plural } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Audit log", robots: { index: false, follow: false } };
 
@@ -68,100 +71,98 @@ export default async function AuditLogPage(props: PageProps<"/dashboard/audit-lo
   };
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">Audit log</h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        Append-only. Nothing in this application can edit or delete a row here — see the note on
-        the model in prisma/schema.prisma.
-      </p>
+    <main id="main-content">
+      <PageHeader
+        kicker="Security"
+        title="Audit log"
+        description="Append-only. Nothing in this application can edit or delete a row here — see the note on the model in prisma/schema.prisma."
+      />
 
-      <nav className="mt-6 flex flex-wrap gap-2 text-sm">
-        {FILTERS.map((filter) => (
-          <Link
-            key={filter.value}
-            href={hrefFor({ action: filter.value, page: 1 })}
-            className={`rounded-full border px-3 py-1 ${
-              action === filter.value
-                ? "border-neutral-900 bg-neutral-900 text-white"
-                : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
-            }`}
-          >
-            {filter.label}
-          </Link>
-        ))}
-      </nav>
-
-      <p className="mt-4 text-sm text-neutral-500">
-        {total.toLocaleString()} {total === 1 ? "entry" : "entries"}
-      </p>
-
-      {entries.length === 0 && (
-        <p className="mt-8 text-neutral-600">Nothing recorded under that filter yet.</p>
-      )}
-
-      <ul className="mt-6 flex flex-col gap-2">
-        {entries.map((entry) => {
-          // Failed sign-ins and failed second factors are the lines an
-          // admin is actually scanning for, so they are marked rather
-          // than left to be spotted in a wall of identical rows.
-          const alarming = entry.action.startsWith("auth.login.failed")
-            || entry.action.startsWith("auth.login.mfa_failed")
-            || entry.action.startsWith("auth.login.locked");
-
-          return (
-            <li
-              key={entry.id}
-              className={`rounded-md border px-4 py-3 text-sm ${
-                alarming ? "border-amber-300 bg-amber-50" : "border-neutral-200"
+      <PageBody>
+        <div className="flex flex-wrap gap-1.5">
+          {FILTERS.map((filter) => (
+            <Link
+              key={filter.value}
+              href={hrefFor({ action: filter.value, page: 1 })}
+              aria-current={action === filter.value ? "page" : undefined}
+              className={`btn btn-sm rounded-full ${
+                action === filter.value ? "btn-primary" : "btn-secondary"
               }`}
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-mono text-xs font-medium text-neutral-900">
-                  {entry.action}
-                </span>
-                <span className="text-xs text-neutral-500">
-                  {entry.createdAt.toLocaleString()}
-                </span>
-              </div>
-              <p className="mt-1 text-neutral-700">
-                {entry.actor.name}{" "}
-                <span className="text-neutral-500">({entry.actor.email})</span>
-              </p>
-              <p className="mt-1 text-xs text-neutral-500">
-                {entry.targetType} {entry.targetId}
-                {entry.ip && ` · ${entry.ip}`}
-              </p>
-              {entry.metadata !== null && entry.metadata !== undefined && (
-                <pre className="mt-2 overflow-x-auto rounded bg-neutral-100 p-2 text-xs text-neutral-700">
-                  {JSON.stringify(entry.metadata)}
-                </pre>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              {filter.label}
+            </Link>
+          ))}
+        </div>
 
-      {pageCount > 1 && (
-        <nav className="mt-8 flex items-center justify-between text-sm" aria-label="Audit log pages">
-          {page > 1 ? (
-            <Link href={hrefFor({ page: page - 1 })} className="hover:underline">
-              ← Newer
-            </Link>
-          ) : (
-            <span />
-          )}
-          <span className="text-neutral-500">
-            Page {page} of {pageCount}
-          </span>
-          {page < pageCount ? (
-            <Link href={hrefFor({ page: page + 1 })} className="hover:underline">
-              Older →
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
-      )}
+        <p className="mt-4 text-sm text-ink-3">{plural(total, "entry", "entries")}</p>
+
+        {entries.length === 0 && (
+          <p className="card mt-6 px-4 py-10 text-center text-sm text-ink-3">
+            Nothing recorded under that filter yet.
+          </p>
+        )}
+
+        {entries.length > 0 && (
+          <ul className="card mt-4 divide-y divide-line">
+            {entries.map((entry) => {
+              // Failed sign-ins and failed second factors are the lines an
+              // admin is actually scanning for, so they are marked rather
+              // than left to be spotted in a wall of identical rows.
+              const alarming = entry.action.startsWith("auth.login.failed")
+                || entry.action.startsWith("auth.login.mfa_failed")
+                || entry.action.startsWith("auth.login.locked");
+
+              return (
+                <li
+                  key={entry.id}
+                  className={`px-4 py-3 text-sm ${alarming ? "border-l-4 border-l-warn bg-warn-soft/40" : ""}`}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-mono text-xs font-semibold text-ink">{entry.action}</span>
+                    <time dateTime={entry.createdAt.toISOString()} className="text-xs text-ink-3">
+                      {formatDateTime(entry.createdAt)}
+                    </time>
+                  </div>
+                  <p className="mt-1 text-ink-2">
+                    {entry.actor.name} <span className="text-ink-3">({entry.actor.email})</span>
+                  </p>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-3">
+                    {entry.targetType} {entry.targetId}
+                    {entry.ip && ` · ${entry.ip}`}
+                  </p>
+                  {entry.metadata !== null && entry.metadata !== undefined && (
+                    <pre className="mt-2 overflow-x-auto rounded bg-surface-2 p-2 font-mono text-[11px] text-ink-2">
+                      {JSON.stringify(entry.metadata)}
+                    </pre>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {pageCount > 1 && (
+          <nav className="mt-6 flex items-center justify-between text-sm" aria-label="Audit log pages">
+            {page > 1 ? (
+              <Link href={hrefFor({ page: page - 1 })} className="btn btn-secondary btn-sm gap-1.5">
+                <ArrowLeftIcon size={14} /> Newer
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span className="text-ink-3">
+              Page {page} of {pageCount}
+            </span>
+            {page < pageCount ? (
+              <Link href={hrefFor({ page: page + 1 })} className="btn btn-secondary btn-sm gap-1.5">
+                Older <ArrowRightIcon size={14} />
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        )}
+      </PageBody>
     </main>
   );
 }

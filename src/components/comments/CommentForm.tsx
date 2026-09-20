@@ -46,6 +46,8 @@ export function CommentForm({
     }
   }
 
+  const remaining = 5000 - body.length;
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2">
       <textarea
@@ -57,22 +59,33 @@ export function CommentForm({
         rows={parentId ? 2 : 3}
         autoFocus={autoFocus}
         placeholder={parentId ? "Write a reply…" : "Join the discussion…"}
-        className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+        className="input resize-y leading-relaxed"
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {notice && <p className="text-sm text-amber-700">{notice}</p>}
-      <div className="flex gap-2">
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="alert alert-warn" role="status">
+          {notice}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
         <button
           type="submit"
           disabled={pending || body.trim().length < 2}
-          className="w-fit rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="btn btn-primary"
         >
           {pending ? "Posting…" : parentId ? "Reply" : "Post comment"}
         </button>
         {onDone && (
-          <button type="button" onClick={onDone} className="text-sm text-neutral-600 underline">
+          <button type="button" onClick={onDone} className="btn btn-ghost">
             Cancel
           </button>
+        )}
+        {remaining < 500 && (
+          <span className="ml-auto text-xs text-ink-3 tabular-nums">{remaining} left</span>
         )}
       </div>
     </form>

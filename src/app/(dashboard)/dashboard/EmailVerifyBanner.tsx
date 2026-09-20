@@ -8,8 +8,8 @@ export function EmailVerifyBanner({ email }: { email: string }) {
   const [pending, setPending] = useState(false);
 
   return (
-    <div className="mt-4 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
-      <span className="text-amber-900">
+    <div className="alert alert-warn mb-6 flex flex-wrap items-center justify-between gap-3">
+      <span>
         {sent ? "Check your inbox for a new verification link." : "Your email address isn't verified yet."}
       </span>
       {!sent && (
@@ -21,7 +21,7 @@ export function EmailVerifyBanner({ email }: { email: string }) {
             setPending(false);
             setSent(true);
           }}
-          className="font-medium text-amber-900 underline disabled:opacity-50"
+          className="btn btn-sm btn-secondary"
         >
           {pending ? "Sending…" : "Resend"}
         </button>

@@ -3,9 +3,9 @@
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
 import { useCallback, useRef, useState } from "react";
 import { uploadFile } from "@/lib/uploadClient";
+import { ImageIcon, LinkIcon } from "@/components/icons";
 
 interface ArticleEditorProps {
   initialContent?: object | string;
@@ -22,15 +22,16 @@ export function ArticleEditor({ initialContent, onChange }: ArticleEditorProps) 
     // on the server and once on the client and React flags a hydration
     // mismatch, since the editor's DOM is inherently client-driven.
     immediatelyRender: false,
+    // StarterKit v3 bundles Link; configuring it here rather than adding
+    // a second copy, which Tiptap warns about as a duplicate extension.
     extensions: [
-      StarterKit,
-      Link.configure({ openOnClick: false, autolink: false }),
+      StarterKit.configure({ link: { openOnClick: false, autolink: false } }),
       Image,
     ],
     content: initialContent,
     editorProps: {
       attributes: {
-        class: "prose prose-neutral max-w-none min-h-[300px] focus:outline-none",
+        class: "prose prose-editor max-w-none min-h-[360px] focus:outline-none",
       },
     },
     // Emit once as soon as the editor exists, not just on edits. Without
@@ -68,10 +69,12 @@ export function ArticleEditor({ initialContent, onChange }: ArticleEditorProps) 
     [editor]
   );
 
-  if (!editor) return null;
+  if (!editor) {
+    return <div className="card min-h-[420px] animate-pulse bg-surface-2/50" aria-hidden="true" />;
+  }
 
   return (
-    <div className="rounded-md border border-neutral-300">
+    <div className="card overflow-hidden focus-within:border-ink focus-within:ring-2 focus-within:ring-ink/10">
       <Toolbar editor={editor} onPickImage={() => fileInputRef.current?.click()} uploading={uploading} />
       <input
         ref={fileInputRef}
@@ -84,11 +87,45 @@ export function ArticleEditor({ initialContent, onChange }: ArticleEditorProps) 
           e.target.value = "";
         }}
       />
-      {uploadError && <p className="border-b border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</p>}
-      <div className="px-3 py-2">
+      {uploadError && (
+        <p className="border-b border-danger/30 bg-danger-soft px-4 py-2 text-sm text-danger" role="alert">
+          {uploadError}
+        </p>
+      )}
+      <div className="px-5 py-4 sm:px-8 sm:py-6">
         <EditorContent editor={editor} />
       </div>
     </div>
+  );
+}
+
+function ToolbarButton({
+  title,
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  title: string;
+  active?: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-8 min-w-8 items-center justify-center rounded px-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+        active ? "bg-ink text-paper" : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -101,53 +138,60 @@ function Toolbar({
   onPickImage: () => void;
   uploading: boolean;
 }) {
-  const buttons: Array<{ label: string; active: boolean; onClick: () => void; title: string }> = [
-    { label: "B", title: "Bold", active: editor.isActive("bold"), onClick: () => editor.chain().focus().toggleBold().run() },
-    { label: "I", title: "Italic", active: editor.isActive("italic"), onClick: () => editor.chain().focus().toggleItalic().run() },
-    { label: "H2", title: "Heading", active: editor.isActive("heading", { level: 2 }), onClick: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
-    { label: "H3", title: "Subheading", active: editor.isActive("heading", { level: 3 }), onClick: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
-    { label: "•", title: "Bullet list", active: editor.isActive("bulletList"), onClick: () => editor.chain().focus().toggleBulletList().run() },
-    { label: "1.", title: "Numbered list", active: editor.isActive("orderedList"), onClick: () => editor.chain().focus().toggleOrderedList().run() },
-    { label: "❝", title: "Pull quote", active: editor.isActive("blockquote"), onClick: () => editor.chain().focus().toggleBlockquote().run() },
-  ];
+  const chain = () => editor.chain().focus();
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-neutral-300 bg-neutral-50 px-2 py-1.5">
-      {buttons.map((b) => (
-        <button
-          key={b.title}
-          type="button"
-          title={b.title}
-          onClick={b.onClick}
-          className={`min-w-[28px] rounded px-2 py-1 text-sm font-medium ${
-            b.active ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-200"
-          }`}
-        >
-          {b.label}
-        </button>
-      ))}
-      <button
-        type="button"
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-line bg-surface-2/80 px-2 py-1.5 backdrop-blur">
+      <ToolbarButton title="Bold" active={editor.isActive("bold")} onClick={() => chain().toggleBold().run()}>
+        <span className="font-bold">B</span>
+      </ToolbarButton>
+      <ToolbarButton title="Italic" active={editor.isActive("italic")} onClick={() => chain().toggleItalic().run()}>
+        <span className="font-serif italic">I</span>
+      </ToolbarButton>
+      <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+      <ToolbarButton
+        title="Heading"
+        active={editor.isActive("heading", { level: 2 })}
+        onClick={() => chain().toggleHeading({ level: 2 }).run()}
+      >
+        H2
+      </ToolbarButton>
+      <ToolbarButton
+        title="Subheading"
+        active={editor.isActive("heading", { level: 3 })}
+        onClick={() => chain().toggleHeading({ level: 3 }).run()}
+      >
+        H3
+      </ToolbarButton>
+      <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+      <ToolbarButton title="Bullet list" active={editor.isActive("bulletList")} onClick={() => chain().toggleBulletList().run()}>
+        •
+      </ToolbarButton>
+      <ToolbarButton title="Numbered list" active={editor.isActive("orderedList")} onClick={() => chain().toggleOrderedList().run()}>
+        1.
+      </ToolbarButton>
+      <ToolbarButton title="Pull quote" active={editor.isActive("blockquote")} onClick={() => chain().toggleBlockquote().run()}>
+        <span className="font-serif text-lg leading-none">❝</span>
+      </ToolbarButton>
+      <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+      <ToolbarButton
         title="Link"
+        active={editor.isActive("link")}
         onClick={() => {
+          if (editor.isActive("link")) {
+            chain().unsetLink().run();
+            return;
+          }
           const url = window.prompt("Link URL");
-          if (url) editor.chain().focus().setLink({ href: url }).run();
+          if (url) chain().setLink({ href: url }).run();
         }}
-        className={`min-w-[28px] rounded px-2 py-1 text-sm font-medium ${
-          editor.isActive("link") ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-200"
-        }`}
       >
-        Link
-      </button>
-      <button
-        type="button"
-        title="Insert image"
-        onClick={onPickImage}
-        disabled={uploading}
-        className="min-w-[28px] rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 disabled:opacity-50"
-      >
-        {uploading ? "Uploading…" : "Image"}
-      </button>
+        <LinkIcon size={16} />
+      </ToolbarButton>
+      <ToolbarButton title="Insert image" onClick={onPickImage} disabled={uploading}>
+        <ImageIcon size={16} />
+        {uploading && <span className="ml-1 text-xs">Uploading…</span>}
+      </ToolbarButton>
     </div>
   );
 }

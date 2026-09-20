@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { verifyEmail } from "./actions";
+import { AuthCard } from "@/components/AuthCard";
 
 type State = "idle" | "working" | "verified" | "failed";
 
@@ -11,42 +12,39 @@ export function VerifyEmailButton({ email, token }: { email: string; token: stri
 
   if (state === "verified") {
     return (
-      <>
-        <h1 className="text-2xl font-semibold">Email verified</h1>
-        <p className="mt-2 text-neutral-600">Your email address has been confirmed.</p>
-        <Link
-          href="/login"
-          className="mt-6 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
-        >
+      <AuthCard title="Email verified">
+        <p className="alert alert-ok" role="status">
+          Your email address has been confirmed.
+        </p>
+        <Link href="/login" className="btn btn-primary mt-6">
           Go to login
         </Link>
-      </>
+      </AuthCard>
     );
   }
 
   if (state === "failed") {
     return (
-      <>
-        <h1 className="text-2xl font-semibold">Link expired or invalid</h1>
-        <p className="mt-2 text-neutral-600">
+      <AuthCard title="Link expired or invalid">
+        <p className="text-sm text-ink-2">
           This verification link is no longer valid. Log in and request a new one.
         </p>
-        <Link
-          href="/login"
-          className="mt-6 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
-        >
+        <Link href="/login" className="btn btn-primary mt-6">
           Go to login
         </Link>
-      </>
+      </AuthCard>
     );
   }
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold">Confirm your email</h1>
-      <p className="mt-2 text-neutral-600">
-        Confirming <strong>{email}</strong> for this account.
-      </p>
+    <AuthCard
+      title="Confirm your email"
+      intro={
+        <>
+          Confirming <strong className="text-ink">{email}</strong> for this account.
+        </>
+      }
+    >
       <button
         disabled={state === "working"}
         onClick={async () => {
@@ -57,10 +55,10 @@ export function VerifyEmailButton({ email, token }: { email: string; token: stri
             setState("failed");
           }
         }}
-        className="mt-6 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="btn btn-primary w-full py-2.5"
       >
         {state === "working" ? "Confirming…" : "Confirm my email"}
       </button>
-    </>
+    </AuthCard>
   );
 }

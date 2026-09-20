@@ -1,3 +1,5 @@
+import { ExternalIcon } from "@/components/icons";
+
 export interface RelatedLink {
   id: string;
   url: string;
@@ -22,24 +24,27 @@ export function RelatedLinks({ links }: { links: RelatedLink[] }) {
   if (links.length === 0) return null;
 
   return (
-    <section className="mt-12">
-      <h2 className="text-lg font-semibold">Related links</h2>
-      <ul className="mt-4 flex flex-col gap-3">
+    <section className="mt-12" aria-labelledby="related-links-heading">
+      <h2 id="related-links-heading" className="section-title">
+        Related links
+      </h2>
+      <ul className="mt-5 grid gap-3 sm:grid-cols-2">
         {links.map((link) => (
           <li key={link.id}>
             <a
               href={link.url}
               rel="nofollow noopener noreferrer"
               target="_blank"
-              className="block rounded-md border border-neutral-200 px-4 py-3 hover:border-neutral-400"
+              className="card card-hover flex h-full flex-col gap-1 px-4 py-3"
             >
-              <p className="text-sm font-medium text-neutral-900">
-                {link.label || link.title || link.url}
+              <p className="flex items-start justify-between gap-3 text-sm font-medium text-ink">
+                <span className="line-clamp-2">{link.label || link.title || link.url}</span>
+                <ExternalIcon size={14} className="mt-0.5 shrink-0 text-ink-3" />
               </p>
               {link.description && (
-                <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{link.description}</p>
+                <p className="line-clamp-2 text-sm text-ink-2">{link.description}</p>
               )}
-              <p className="mt-1 truncate text-xs text-neutral-500">
+              <p className="mt-auto truncate pt-1 text-xs text-ink-3">
                 {link.siteName ?? new URL(link.url).hostname}
               </p>
             </a>

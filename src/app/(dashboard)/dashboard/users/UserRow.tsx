@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setUserRole, setUserStatus } from "./actions";
+import { formatDate, initials } from "@/lib/format";
+import { ShieldIcon } from "@/components/icons";
 
 export interface ManagedUser {
   id: string;
@@ -40,20 +42,31 @@ export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }
   const suspended = user.status !== "ACTIVE";
 
   return (
-    <tr className="border-b border-neutral-200 align-top">
-      <td className="py-3 pr-4">
-        <p className="font-medium text-neutral-900">
-          {user.name}
-          {isSelf && <span className="ml-2 text-xs text-neutral-500">(you)</span>}
-        </p>
-        <p className="text-xs text-neutral-500">{user.email}</p>
-        <p className="mt-1 flex gap-2 text-xs">
-          {!user.verified && <span className="text-amber-700">unverified</span>}
-          {user.mfaEnabled && <span className="text-emerald-700">2FA</span>}
-        </p>
+    <tr className={`${pending ? "opacity-60" : ""} hover:bg-surface-2/60`}>
+      <td className="pl-4">
+        <div className="flex items-center gap-3">
+          <span className="avatar h-9 w-9 text-xs">{initials(user.name)}</span>
+          <div className="min-w-0">
+            <p className="font-medium text-ink">
+              {user.name}
+              {isSelf && <span className="ml-2 text-xs font-normal text-ink-3">(you)</span>}
+            </p>
+            <p className="truncate text-xs text-ink-3">
+              {user.email} · @{user.handle}
+            </p>
+            <p className="mt-1 flex flex-wrap gap-1">
+              {!user.verified && <span className="pill pill-warn">unverified</span>}
+              {user.mfaEnabled && (
+                <span className="pill pill-ok">
+                  <ShieldIcon size={11} /> 2FA
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
       </td>
 
-      <td className="py-3 pr-4">
+      <td>
         <label className="sr-only" htmlFor={`role-${user.id}`}>
           Role for {user.name}
         </label>
@@ -65,7 +78,7 @@ export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }
           // being offered and then refused.
           disabled={pending || isSelf}
           onChange={(e) => run(() => setUserRole(user.id, e.target.value))}
-          className="rounded border border-neutral-300 px-2 py-1 text-sm disabled:opacity-50"
+          className="input w-auto py-1 text-xs"
         >
           {ROLES.map((role) => (
             <option key={role} value={role}>
@@ -75,35 +88,37 @@ export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }
         </select>
       </td>
 
-      <td className="py-3 pr-4">
-        <span className={suspended ? "text-red-700" : "text-neutral-700"}>{user.status}</span>
+      <td>
+        <span className={`pill ${suspended ? "pill-danger" : "pill-ok"}`}>{user.status}</span>
       </td>
 
-      <td className="py-3 pr-4 text-neutral-600">
+      <td className="text-ink-2">
         {user.articles} article{user.articles === 1 ? "" : "s"}
         <br />
-        <span className="text-xs text-neutral-500">
+        <span className="text-xs text-ink-3">
           {user.comments} comment{user.comments === 1 ? "" : "s"}
         </span>
       </td>
 
-      <td className="py-3 pr-4 text-xs text-neutral-500">
-        {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : "never"}
+      <td className="text-xs whitespace-nowrap text-ink-3">
+        {user.lastLoginAt ? formatDate(user.lastLoginAt) : "never"}
       </td>
 
-      <td className="py-3">
+      <td className="pr-4 text-right">
         {!isSelf && (
           <button
             disabled={pending}
             onClick={() => run(() => setUserStatus(user.id, suspended ? "ACTIVE" : "SUSPENDED"))}
-            className={`text-sm underline disabled:opacity-50 ${
-              suspended ? "text-emerald-700" : "text-red-700"
-            }`}
+            className={`btn btn-sm ${suspended ? "btn-secondary text-ok" : "btn-ghost text-danger"}`}
           >
             {suspended ? "Reinstate" : "Suspend"}
           </button>
         )}
-        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        {error && (
+          <p className="mt-1 text-xs text-danger" role="alert">
+            {error}
+          </p>
+        )}
       </td>
     </tr>
   );

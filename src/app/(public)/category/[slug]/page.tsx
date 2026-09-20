@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { ArticleCard } from "@/components/articles/ArticleCard";
+import { plural } from "@/lib/format";
 
 const getCategory = cache(async (slug: string) =>
   db.category.findUnique({
@@ -41,22 +42,36 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
       isBreaking: true,
       publishedAt: true,
       author: { select: { name: true, handle: true } },
+      coverImage: { select: { url: true, altText: true } },
     },
   });
 
-  return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">{category.name}</h1>
-      {category.description && <p className="mt-1 text-neutral-600">{category.description}</p>}
+  const [lead, ...rest] = articles;
 
-      <ul className="mt-8 flex flex-col gap-8">
-        {articles.map((article) => (
-          <ArticleCard key={article.id} article={article} />
-        ))}
-        {articles.length === 0 && (
-          <li className="text-neutral-600">Nothing published in this section yet.</li>
-        )}
-      </ul>
+  return (
+    <main id="main-content" className="mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6">
+      <header className="border-b border-line pb-6">
+        <p className="kicker">Section</p>
+        <h1 className="headline mt-2 text-4xl sm:text-5xl">{category.name}</h1>
+        {category.description && <p className="mt-3 max-w-2xl text-ink-2">{category.description}</p>}
+        <p className="mt-3 text-xs text-ink-3">{plural(articles.length, "article")}</p>
+      </header>
+
+      {!lead && <p className="mt-8 text-ink-2">Nothing published in this section yet.</p>}
+
+      {lead && (
+        <ul className="mt-8">
+          <ArticleCard article={lead} variant="lead" />
+        </ul>
+      )}
+
+      {rest.length > 0 && (
+        <ul className="mt-10 grid gap-x-12 border-t border-line md:grid-cols-2 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
+          {rest.map((article) => (
+            <ArticleCard key={article.id} article={article} variant="row" />
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

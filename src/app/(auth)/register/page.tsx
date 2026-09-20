@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { registerUser } from "./actions";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
+import { AuthCard } from "@/components/AuthCard";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,11 +32,28 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="mb-6 text-2xl font-semibold">Create an account</h1>
+    <AuthCard
+      title="Create an account"
+      intro="Save articles, follow writers and join the discussion."
+      footer={
+        <>
+          Already have one?{" "}
+          <Link href="/login" className="text-link font-medium">
+            Log in
+          </Link>
+        </>
+      }
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="Name" name="name" autoComplete="name" required />
-        <Field label="Handle" name="handle" autoComplete="username" required pattern="[a-z0-9_\-]+" />
+        <Field
+          label="Handle"
+          name="handle"
+          autoComplete="username"
+          required
+          pattern="[a-z0-9_\-]+"
+          helper="Lowercase letters, numbers, hyphens and underscores. This is your public @name."
+        />
         <Field label="Email" name="email" type="email" autoComplete="email" required />
         <Field
           label="Password"
@@ -46,16 +65,20 @@ export default function RegisterPage() {
           helper="At least 12 characters."
         />
         <TurnstileWidget onToken={setBotToken} />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p className="text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={pending || (botCheckRequired && !botToken)}
-          className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="btn btn-primary mt-1 w-full py-2.5"
         >
           {pending ? "Creating account…" : "Create account"}
         </button>
       </form>
-    </main>
+    </AuthCard>
   );
 }
 
@@ -71,13 +94,10 @@ function Field(props: {
 }) {
   const { label, helper, ...rest } = props;
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-neutral-700">{label}</span>
-      <input
-        {...rest}
-        className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-      />
-      {helper && <span className="text-xs text-neutral-500">{helper}</span>}
+    <label className="field">
+      <span className="label">{label}</span>
+      <input {...rest} className="input" />
+      {helper && <span className="hint">{helper}</span>}
     </label>
   );
 }

@@ -25,10 +25,7 @@ export function CommentNoticeProvider({ children }: { children: React.ReactNode 
   return (
     <CommentNoticeContext value={setNotice}>
       {notice && (
-        <p
-          role="status"
-          className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-        >
+        <p role="status" className="alert alert-warn mt-4">
           {notice}
         </p>
       )}

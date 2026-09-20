@@ -52,20 +52,24 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#ffffff",
-          padding: "64px 72px",
-          // A card with no border bleeds into a light timeline background.
-          borderBottom: "16px solid #171717",
+          // The site's paper and ink, so a shared link looks like the
+          // site it leads to. Timelines are white, so the warm background
+          // and the red rule also stop the card bleeding into the page.
+          background: "#faf8f4",
+          padding: "64px 72px 56px",
+          borderLeft: "18px solid #b7271f",
+          borderBottom: "6px solid #17140f",
         }}
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
           {kicker && (
             <div
               style={{
-                fontSize: 28,
-                letterSpacing: 4,
-                color: "#a3a3a3",
-                marginBottom: 20,
+                fontSize: 26,
+                letterSpacing: 5,
+                fontWeight: 700,
+                color: "#b7271f",
+                marginBottom: 22,
               }}
             >
               {kicker}
@@ -75,7 +79,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             style={{
               fontSize: title.length > 80 ? 60 : 76,
               lineHeight: 1.1,
-              color: "#171717",
+              fontWeight: 700,
+              letterSpacing: -1,
+              color: "#17140f",
               // Long headlines must not overflow the card.
               display: "-webkit-box",
               WebkitLineClamp: 4,
@@ -93,11 +99,11 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             justifyContent: "space-between",
             alignItems: "flex-end",
             fontSize: 30,
-            color: "#525252",
+            color: "#57524a",
           }}
         >
           <div style={{ display: "flex" }}>{byline}</div>
-          <div style={{ display: "flex", color: "#171717" }}>{SITE_NAME}</div>
+          <div style={{ display: "flex", color: "#17140f", fontWeight: 700 }}>{SITE_NAME}</div>
         </div>
       </div>
     ),

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { markAllNotificationsRead } from "./actions";
+import { CheckIcon } from "@/components/icons";
 
 export function MarkAllReadButton({ count }: { count: number }) {
   const router = useRouter();
@@ -17,8 +18,9 @@ export function MarkAllReadButton({ count }: { count: number }) {
         setPending(false);
         router.refresh();
       }}
-      className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm disabled:opacity-50"
+      className="btn btn-secondary btn-sm gap-1.5"
     >
+      <CheckIcon size={14} />
       {pending ? "Marking…" : `Mark ${count} as read`}
     </button>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { NotificationsLink } from "./NotificationsLink";
+import { BookmarkIcon } from "./icons";
 
 /**
  * Account links read the session on the client on purpose.
@@ -18,32 +19,33 @@ export function HeaderAccountLinks() {
 
   // Render nothing rather than "Log in" while we don't know yet — showing
   // the wrong state for a moment on every page load is worse than a brief
-  // gap.
-  if (status === "loading") return <span className="h-5" />;
+  // gap. The fixed height keeps the row from jumping when links arrive.
+  if (status === "loading") return <span className="block h-9 w-24" />;
 
   const role = session?.user?.role;
   const isStaff = role === "MODERATOR" || role === "ADMIN";
 
   return (
-    <div className="ml-auto flex gap-3 text-sm">
+    <div className="flex items-center gap-1 text-sm">
       {session?.user ? (
         <>
           <NotificationsLink />
-          <Link href="/saved" className="text-neutral-600 hover:underline">
+          <Link href="/saved" className="btn btn-ghost btn-sm gap-1.5">
+            <BookmarkIcon size={16} />
             Saved
           </Link>
           {isStaff && (
-            <Link href="/dashboard" className="text-neutral-600 hover:underline">
+            <Link href="/dashboard" className="btn btn-secondary btn-sm ml-1">
               Dashboard
             </Link>
           )}
         </>
       ) : (
         <>
-          <Link href="/login" className="text-neutral-600 hover:underline">
+          <Link href="/login" className="btn btn-ghost btn-sm">
             Log in
           </Link>
-          <Link href="/register" className="text-neutral-600 hover:underline">
+          <Link href="/register" className="btn btn-primary btn-sm">
             Register
           </Link>
         </>

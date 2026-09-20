@@ -25,22 +25,22 @@ export function DisableMfaForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-neutral-700">Confirm your password to disable MFA</span>
+      <label className="field">
+        <span className="label">Confirm your password to disable MFA</span>
         <input
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+          className="input sm:max-w-xs"
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-fit rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
-      >
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={pending} className="btn btn-danger w-fit">
         {pending ? "Disabling…" : "Disable MFA"}
       </button>
     </form>

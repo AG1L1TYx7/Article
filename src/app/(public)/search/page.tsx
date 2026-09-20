@@ -5,6 +5,7 @@ import { ArticleCard } from "@/components/articles/ArticleCard";
 import { SearchForm, type SearchFormOptions } from "@/components/search/SearchForm";
 import { searchArticles } from "@/lib/search";
 import { parseSearchParams, rangeToSince, searchHref } from "@/lib/searchParams";
+import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons";
 
 export const metadata: Metadata = {
   title: "Search",
@@ -67,15 +68,16 @@ export default async function SearchPage(props: PageProps<"/search">) {
   const hasQuery = query.q.trim().length > 0;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">Search</h1>
+    <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
+      <p className="kicker">Archive</p>
+      <h1 className="headline mt-2 text-4xl">Search</h1>
 
       <div className="mt-6">
         <SearchForm query={query} options={options} />
       </div>
 
       {hasQuery && (
-        <p className="mt-8 text-sm text-neutral-600" role="status">
+        <p className="mt-8 text-sm text-ink-2" role="status">
           {results.total === 0
             ? `No articles match “${query.q}”.`
             : `${results.total} ${results.total === 1 ? "article" : "articles"} matching “${query.q}”.`}
@@ -83,15 +85,21 @@ export default async function SearchPage(props: PageProps<"/search">) {
       )}
 
       {!hasQuery && (
-        <p className="mt-8 text-neutral-600">
+        <p className="mt-8 text-sm leading-relaxed text-ink-2">
           Enter a word or phrase to search published articles. Put a phrase in
           quotes to match it exactly, or put a minus sign before a word to
           exclude it.
         </p>
       )}
 
+      {hasQuery && results.total === 0 && (
+        <p className="mt-2 text-sm text-ink-3">
+          Try fewer words, check the spelling, or widen the date range.
+        </p>
+      )}
+
       {results.hits.length > 0 && (
-        <ul className="mt-8 flex flex-col gap-8">
+        <ul className="mt-4 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
           {results.hits.map((hit) => (
             <ArticleCard key={hit.id} article={hit} />
           ))}
@@ -99,20 +107,20 @@ export default async function SearchPage(props: PageProps<"/search">) {
       )}
 
       {results.pageCount > 1 && (
-        <nav className="mt-10 flex items-center justify-between text-sm" aria-label="Search results pages">
+        <nav className="mt-8 flex items-center justify-between text-sm" aria-label="Search results pages">
           {query.page > 1 ? (
-            <Link href={searchHref({ ...query, page: query.page - 1 })} className="hover:underline">
-              ← Newer matches
+            <Link href={searchHref({ ...query, page: query.page - 1 })} className="btn btn-secondary btn-sm gap-1.5">
+              <ArrowLeftIcon size={14} /> Newer matches
             </Link>
           ) : (
             <span />
           )}
-          <span className="text-neutral-500">
+          <span className="text-ink-3">
             Page {results.page} of {results.pageCount}
           </span>
           {query.page < results.pageCount ? (
-            <Link href={searchHref({ ...query, page: query.page + 1 })} className="hover:underline">
-              Older matches →
+            <Link href={searchHref({ ...query, page: query.page + 1 })} className="btn btn-secondary btn-sm gap-1.5">
+              Older matches <ArrowRightIcon size={14} />
             </Link>
           ) : (
             <span />

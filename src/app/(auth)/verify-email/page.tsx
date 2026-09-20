@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { VerifyEmailButton } from "./VerifyEmailButton";
+import { AuthCard } from "@/components/AuthCard";
 
 // Verification deliberately happens on a button press, not on page load.
 // These tokens are single use, and corporate mail scanners (Outlook Safe
@@ -14,24 +15,18 @@ export default async function VerifyEmailPage({
 }) {
   const { token, email } = await searchParams;
 
+  if (token && email) {
+    return <VerifyEmailButton email={email} token={token} />;
+  }
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 text-center">
-      {token && email ? (
-        <VerifyEmailButton email={email} token={token} />
-      ) : (
-        <>
-          <h1 className="text-2xl font-semibold">Link expired or invalid</h1>
-          <p className="mt-2 text-neutral-600">
-            This verification link is missing information. Log in and request a new one.
-          </p>
-          <Link
-            href="/login"
-            className="mt-6 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
-          >
-            Go to login
-          </Link>
-        </>
-      )}
-    </main>
+    <AuthCard title="Link expired or invalid">
+      <p className="text-sm text-ink-2">
+        This verification link is missing information. Log in and request a new one.
+      </p>
+      <Link href="/login" className="btn btn-primary mt-6">
+        Go to login
+      </Link>
+    </AuthCard>
   );
 }

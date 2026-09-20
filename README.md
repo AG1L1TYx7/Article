@@ -84,6 +84,7 @@ comment at the top of `src/lib/rateLimit.ts`.
 | `npm run test:unit` | Vitest unit tests |
 | `npm run test:e2e` | Playwright end-to-end tests |
 | `npm run seed` | Starter categories (idempotent) |
+| `npm run seed:demo` | Fourteen realistic stories with covers, for judging the front page on an empty site (`-- --remove` takes them away) |
 | `npm run bootstrap:staff` | Create or promote a staff account |
 | `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
 | `npm run audit` | Dependency audit, failing on anything unreviewed |

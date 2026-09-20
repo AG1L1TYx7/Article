@@ -1,10 +1,12 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { checkMfaRequired } from "./actions";
 import { safeRedirectPath } from "@/lib/safeRedirect";
+import { AuthCard } from "@/components/AuthCard";
 
 export default function LoginPage() {
   return (
@@ -92,13 +94,21 @@ function LoginForm() {
 
   if (awaitingTotp) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-        <h1 className="mb-2 text-2xl font-semibold">Enter your code</h1>
-        <p className="mb-4 text-sm text-neutral-600">
-          Open your authenticator app and enter the 6-digit code for this account.
-        </p>
+      <AuthCard
+        title="Enter your code"
+        intro="Open your authenticator app and enter the 6-digit code for this account."
+        footer={
+          <button onClick={() => setAwaitingTotp(null)} className="text-link">
+            Use a different account
+          </button>
+        }
+      >
         <form onSubmit={onSubmitTotp} className="flex flex-col gap-4">
+          <label htmlFor="totp" className="sr-only">
+            6-digit code
+          </label>
           <input
+            id="totp"
             name="totp"
             inputMode="numeric"
             pattern="\d{6}"
@@ -106,73 +116,73 @@ function LoginForm() {
             autoComplete="one-time-code"
             autoFocus
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-center text-lg tracking-[0.4em] outline-none focus:border-neutral-500"
+            className="input py-3 text-center font-mono text-2xl tracking-[0.5em]"
           />
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={pending}
-            className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
+          {error && (
+            <p className="text-sm text-danger" role="alert">
+              {error}
+            </p>
+          )}
+          <button type="submit" disabled={pending} className="btn btn-primary w-full py-2.5">
             {pending ? "Verifying…" : "Verify"}
           </button>
         </form>
-        <button
-          onClick={() => setAwaitingTotp(null)}
-          className="mt-4 text-sm text-neutral-600 underline"
-        >
-          Use a different account
-        </button>
-      </main>
+      </AuthCard>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="mb-2 text-2xl font-semibold">Log in</h1>
+    <AuthCard
+      title="Log in"
+      intro="Welcome back."
+      footer={
+        <>
+          New here?{" "}
+          <Link href="/register" className="text-link font-medium">
+            Create an account
+          </Link>
+        </>
+      }
+    >
       {params.get("registered") && (
-        <p className="mb-4 text-sm text-emerald-700">
+        <p className="alert alert-ok mb-4" role="status">
           Account created — check your email to verify it, then log in below.
         </p>
       )}
       {params.get("reset") && (
-        <p className="mb-4 text-sm text-emerald-700">
+        <p className="alert alert-ok mb-4" role="status">
           Password updated — log in with your new password.
         </p>
       )}
       <form onSubmit={onSubmitCredentials} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-neutral-700">Email</span>
-          <input
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-          />
+        <label className="field">
+          <span className="label">Email</span>
+          <input name="email" type="email" autoComplete="email" required className="input" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-neutral-700">Password</span>
+        <label className="field">
+          <span className="flex items-center justify-between">
+            <span className="label">Password</span>
+            <a href="/forgot-password" className="text-xs text-ink-2 hover:text-ink">
+              Forgot your password?
+            </a>
+          </span>
           <input
             name="password"
             type="password"
             autoComplete="current-password"
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+            className="input"
           />
         </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
+        {error && (
+          <p className="text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={pending} className="btn btn-primary mt-1 w-full py-2.5">
           {pending ? "Logging in…" : "Log in"}
         </button>
       </form>
-      <a href="/forgot-password" className="mt-4 text-sm text-neutral-600 underline">
-        Forgot your password?
-      </a>
-    </main>
+    </AuthCard>
   );
 }

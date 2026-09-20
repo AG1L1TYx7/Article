@@ -5,6 +5,7 @@ import { CommentForm } from "./CommentForm";
 import { CommentThread, type CommentNode } from "./CommentThread";
 import { CommentNoticeProvider } from "./CommentNotice";
 import { isCommentEditable } from "@/lib/commentPolicy";
+import { initials } from "@/lib/format";
 
 /** Counts the comments a reader can actually read, tombstones excluded. */
 function countVisible(nodes: CommentNode[]): number {
@@ -107,28 +108,43 @@ export async function CommentSection({ articleId }: { articleId: string }) {
   const verified = session?.user?.emailConfirmed ?? false;
 
   return (
-    <section className="mt-12">
-      <h2 className="text-lg font-semibold">
+    <section className="mt-14 border-t border-line pt-8" aria-labelledby="comments-heading">
+      <h2 id="comments-heading" className="headline text-2xl">
         {visibleCount} {visibleCount === 1 ? "comment" : "comments"}
       </h2>
 
-      <div className="mt-4">
+      <div className="mt-5">
         {!signedIn && (
-          <p className="text-sm text-neutral-600">
-            <Link href="/login" className="underline">Log in</Link> to join the discussion.
-          </p>
+          <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <p className="text-sm text-ink-2">
+              <Link href="/login" className="text-link font-medium">
+                Log in
+              </Link>{" "}
+              to join the discussion.
+            </p>
+            <Link href="/register" className="btn btn-secondary btn-sm">
+              Create an account
+            </Link>
+          </div>
         )}
         {signedIn && !verified && (
-          <p className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Verify your email address to comment.
-          </p>
+          <p className="alert alert-warn">Verify your email address to comment.</p>
         )}
-        {signedIn && verified && <CommentForm articleId={articleId} />}
+        {signedIn && verified && (
+          <div className="flex gap-3">
+            <span className="avatar mt-1 hidden h-9 w-9 text-xs sm:inline-flex">
+              {initials(session?.user?.name ?? "You")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <CommentForm articleId={articleId} />
+            </div>
+          </div>
+        )}
       </div>
 
       <CommentNoticeProvider>
         {tree.length > 0 && (
-          <ul>
+          <ul className="mt-2">
             {tree.map((c) => (
               <CommentThread
                 key={c.id}

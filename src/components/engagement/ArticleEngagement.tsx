@@ -2,6 +2,7 @@
 
 import { ToggleButton } from "./ToggleButton";
 import { toggleArticleLike, toggleBookmark, toggleFollowAuthor } from "./actions";
+import { BookmarkIcon, HeartIcon, UserPlusIcon } from "@/components/icons";
 
 export function ArticleEngagement({
   articleId,
@@ -27,12 +28,13 @@ export function ArticleEngagement({
   const signedOutTitle = "Log in to do that";
 
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-3 border-y border-neutral-200 py-3">
+    <div className="flex flex-wrap items-center gap-2">
       <ToggleButton
         initialActive={liked}
         initialCount={likeCount}
         activeLabel="Liked"
         inactiveLabel="Like"
+        icon={<HeartIcon size={16} />}
         action={() => toggleArticleLike(articleId)}
         disabled={!signedIn}
         disabledTitle={signedOutTitle}
@@ -41,6 +43,7 @@ export function ArticleEngagement({
         initialActive={bookmarked}
         activeLabel="Saved"
         inactiveLabel="Save"
+        icon={<BookmarkIcon size={16} />}
         action={() => toggleBookmark(articleId)}
         disabled={!signedIn}
         disabledTitle={signedOutTitle}
@@ -51,6 +54,7 @@ export function ArticleEngagement({
           initialActive={followingAuthor}
           activeLabel={`Following ${authorName}`}
           inactiveLabel={`Follow ${authorName}`}
+          icon={<UserPlusIcon size={16} />}
           action={() => toggleFollowAuthor(authorId)}
           disabled={!signedIn}
           disabledTitle={signedOutTitle}

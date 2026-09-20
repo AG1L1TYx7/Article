@@ -7,6 +7,8 @@ import { deleteOwnComment, editComment, reportComment } from "./actions";
 import { useCommentNotice } from "./CommentNotice";
 import { ToggleButton } from "@/components/engagement/ToggleButton";
 import { toggleCommentLike } from "@/components/engagement/actions";
+import { HeartIcon } from "@/components/icons";
+import { formatDate, initials } from "@/lib/format";
 
 export interface CommentNode {
   id: string;
@@ -59,8 +61,8 @@ export function CommentThread({
   const setNotice = useCommentNotice();
 
   const indent = depth > 0
-    ? "mt-4 border-l border-neutral-200 pl-4"
-    : "mt-6 border-t border-neutral-200 pt-6";
+    ? "mt-5 border-l-2 border-line pl-4 sm:pl-5"
+    : "mt-6 border-t border-line pt-6";
 
   const replies =
     comment.replies.length > 0 ? (
@@ -80,7 +82,7 @@ export function CommentThread({
   if (comment.deleted) {
     return (
       <li id={`comment-${comment.id}`} className={indent}>
-        <p className="text-sm text-neutral-500 italic">This comment was deleted by its author.</p>
+        <p className="text-sm text-ink-3 italic">This comment was deleted by its author.</p>
         {replies}
       </li>
     );
@@ -125,123 +127,130 @@ export function CommentThread({
   }
 
   return (
-    <li id={`comment-${comment.id}`} className={indent}>
-      <p className="text-sm font-medium text-neutral-800">{comment.authorName}</p>
-      <p className="text-xs text-neutral-500">
-        {new Date(comment.createdAt).toLocaleDateString()}
-        {comment.editedAt && " · edited"}
-      </p>
+    <li id={`comment-${comment.id}`} className={`${indent} scroll-mt-24 target:rounded-md target:bg-warn-soft/40`}>
+      <div className="flex gap-3">
+        <span className="avatar h-8 w-8 text-[11px]">{initials(comment.authorName)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <span className="font-medium text-ink">{comment.authorName}</span>
+            {comment.isOwn && <span className="pill pill-neutral">You</span>}
+            <span className="text-xs text-ink-3">
+              <time dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>
+              {comment.editedAt && " · edited"}
+            </span>
+          </p>
 
-      {editing ? (
-        <form onSubmit={saveEdit} className="mt-2 flex flex-col gap-2">
-          <label htmlFor={`edit-${comment.id}`} className="sr-only">
-            Edit your comment
-          </label>
-          <textarea
-            id={`edit-${comment.id}`}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            required
-            minLength={2}
-            maxLength={5000}
-            rows={3}
-            autoFocus
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={pending || draft.trim().length < 2}
-              className="w-fit rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          {editing ? (
+            <form onSubmit={saveEdit} className="mt-2 flex flex-col gap-2">
+              <label htmlFor={`edit-${comment.id}`} className="sr-only">
+                Edit your comment
+              </label>
+              <textarea
+                id={`edit-${comment.id}`}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                required
+                minLength={2}
+                maxLength={5000}
+                rows={3}
+                autoFocus
+                className="input resize-y leading-relaxed"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={pending || draft.trim().length < 2}
+                  className="btn btn-primary btn-sm"
+                >
+                  {pending ? "Saving…" : "Save changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(comment.body);
+                    setEditing(false);
+                    setError(null);
+                  }}
+                  className="btn btn-ghost btn-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* Rendered as text, never HTML — comments are plain text by design.
+               data-comment-body marks this as the rendered text of one comment:
+               a stable hook that cannot match the compose box (whose value
+               Playwright also counts as text) or an ancestor comment in a
+               nested thread. */
+            <p
+              data-comment-body
+              className="mt-1.5 text-[15px] leading-relaxed whitespace-pre-wrap text-ink"
             >
-              {pending ? "Saving…" : "Save changes"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(comment.body);
-                setEditing(false);
-                setError(null);
-              }}
-              className="text-sm text-neutral-600 underline"
-            >
-              Cancel
-            </button>
+              {comment.body}
+            </p>
+          )}
+
+          {error && (
+            <p className="mt-2 text-sm text-danger" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-1">
+            <ToggleButton
+              initialActive={comment.likedByViewer}
+              initialCount={comment.likeCount}
+              activeLabel="Liked"
+              inactiveLabel="Like"
+              icon={<HeartIcon size={14} />}
+              size="sm"
+              action={() => toggleCommentLike(comment.id)}
+              disabled={!canReply}
+              disabledTitle="Log in to like comments"
+            />
+            {canReply && (
+              <button onClick={() => setReplying((v) => !v)} className="btn btn-ghost btn-sm">
+                {replying ? "Cancel" : "Reply"}
+              </button>
+            )}
+            {canManage && comment.editable && !editing && (
+              <button onClick={() => setEditing(true)} className="btn btn-ghost btn-sm">
+                Edit
+              </button>
+            )}
+            {canManage && (
+              <button onClick={remove} disabled={pending} className="btn btn-ghost btn-sm">
+                Delete
+              </button>
+            )}
+            {/* You can't report yourself, and offering it makes no sense. */}
+            {canReply && !comment.isOwn && (
+              <button
+                disabled={reported}
+                onClick={async () => {
+                  await reportComment({ commentId: comment.id, reason: "ABUSE" });
+                  setReported(true);
+                }}
+                className="btn btn-ghost btn-sm text-ink-3 disabled:opacity-100"
+              >
+                {reported ? "Reported — thank you" : "Report"}
+              </button>
+            )}
           </div>
-        </form>
-      ) : (
-        /* Rendered as text, never HTML — comments are plain text by design.
-           data-comment-body marks this as the rendered text of one comment:
-           a stable hook that cannot match the compose box (whose value
-           Playwright also counts as text) or an ancestor comment in a
-           nested thread. */
-        <p
-          data-comment-body
-          className="mt-2 text-sm whitespace-pre-wrap text-neutral-800"
-        >
-          {comment.body}
-        </p>
-      )}
 
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-
-      <div className="mt-2">
-        <ToggleButton
-          initialActive={comment.likedByViewer}
-          initialCount={comment.likeCount}
-          activeLabel="Liked"
-          inactiveLabel="Like"
-          action={() => toggleCommentLike(comment.id)}
-          disabled={!canReply}
-          disabledTitle="Log in to like comments"
-        />
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-        {canReply && (
-          <button onClick={() => setReplying((v) => !v)} className="text-neutral-600 underline">
-            {replying ? "Cancel" : "Reply"}
-          </button>
-        )}
-        {canManage && comment.editable && !editing && (
-          <button onClick={() => setEditing(true)} className="text-neutral-600 underline">
-            Edit
-          </button>
-        )}
-        {canManage && (
-          <button
-            onClick={remove}
-            disabled={pending}
-            className="text-neutral-600 underline disabled:opacity-50"
-          >
-            Delete
-          </button>
-        )}
-        {/* You can't report yourself, and offering it makes no sense. */}
-        {canReply && !comment.isOwn && (
-          <button
-            disabled={reported}
-            onClick={async () => {
-              await reportComment({ commentId: comment.id, reason: "ABUSE" });
-              setReported(true);
-            }}
-            className="text-neutral-500 underline disabled:no-underline"
-          >
-            {reported ? "Reported — thank you" : "Report"}
-          </button>
-        )}
-      </div>
-
-      {replying && (
-        <div className="mt-3">
-          <CommentForm
-            articleId={articleId}
-            parentId={comment.id}
-            autoFocus
-            onDone={() => setReplying(false)}
-          />
+          {replying && (
+            <div className="mt-3">
+              <CommentForm
+                articleId={articleId}
+                parentId={comment.id}
+                autoFocus
+                onDone={() => setReplying(false)}
+              />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {replies}
     </li>

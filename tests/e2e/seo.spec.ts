@@ -147,11 +147,19 @@ test.describe("Public reading experience", () => {
     const title = `SEO Image ${Date.now()}`;
     const slug = await writeArticle(page, title, true);
 
-    const response = await page.goto(`/article/${slug}/opengraph-image`);
-    expect(response?.status()).toBe(200);
-    expect(response?.headers()["content-type"]).toContain("image/png");
+    // Fetch the URL the page actually advertises rather than a guessed
+    // path: Next.js appends a content hash to the generated image route
+    // (…/opengraph-image-<hash>), and that advertised URL is the one every
+    // crawler and chat unfurler will request.
+    await page.goto(`/article/${slug}`);
+    const imageUrl = await page.locator('meta[property="og:image"]').getAttribute("content");
+    expect(imageUrl).toBeTruthy();
 
-    const body = await response?.body();
+    const response = await page.request.get(imageUrl!);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("image/png");
+
+    const body = await response.body();
     expect(body && body.length).toBeGreaterThan(1000);
     // PNG magic bytes: a 200 response of the wrong thing is still a
     // broken card everywhere it is shared.

@@ -74,3 +74,6 @@ next-env.d.ts
 
 # Linux native-binary tarballs fetched by npm run build:cpanel (re-downloaded if missing).
 /.cpanel-cache/
+
+# Log of the dev server when started in the background.
+.dev-server.log

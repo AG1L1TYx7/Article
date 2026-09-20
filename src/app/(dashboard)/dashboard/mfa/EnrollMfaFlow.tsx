@@ -42,29 +42,54 @@ export function EnrollMfaFlow() {
 
   if (!enrollment) {
     return (
-      <button
-        onClick={start}
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
-        {pending ? "Generating…" : "Set up authenticator app"}
-      </button>
+      <div>
+        <ol className="flex flex-col gap-2 text-sm text-ink-2">
+          <li className="flex gap-3">
+            <span className="avatar h-6 w-6 text-[11px]">1</span>
+            Install an authenticator app — Google Authenticator, 1Password, Authy or similar.
+          </li>
+          <li className="flex gap-3">
+            <span className="avatar h-6 w-6 text-[11px]">2</span>
+            Scan the QR code this page shows you.
+          </li>
+          <li className="flex gap-3">
+            <span className="avatar h-6 w-6 text-[11px]">3</span>
+            Enter the six-digit code the app shows to confirm.
+          </li>
+        </ol>
+        {error && (
+          <p className="mt-4 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <button onClick={start} disabled={pending} className="btn btn-primary mt-6">
+          {pending ? "Generating…" : "Set up authenticator app"}
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-neutral-600">
-        Scan this with your authenticator app (Google Authenticator, 1Password, Authy, …), or enter
-        the key manually.
-      </p>
-      {/* eslint-disable-next-line @next/next/no-img-element -- locally generated data: URI, not a remote image */}
-      <img src={enrollment.qrCodeDataUrl} alt="MFA enrollment QR code" width={200} height={200} />
-      <p className="font-mono text-xs break-all text-neutral-500">{enrollment.manualEntryKey}</p>
+    <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
+      <div className="flex flex-col items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element -- locally generated data: URI, not a remote image */}
+        <img
+          src={enrollment.qrCodeDataUrl}
+          alt="MFA enrollment QR code"
+          width={200}
+          height={200}
+          className="rounded-md border border-line bg-white p-2"
+        />
+        <p className="text-center text-xs text-ink-3">Can&apos;t scan? Enter this key by hand:</p>
+        <p className="font-mono text-xs break-all text-ink-2 select-all">{enrollment.manualEntryKey}</p>
+      </div>
 
       <form onSubmit={onConfirm} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-neutral-700">Enter the 6-digit code to confirm</span>
+        <p className="text-sm text-ink-2">
+          Scan this with your authenticator app, then enter the code it shows to confirm.
+        </p>
+        <label className="field">
+          <span className="label">Enter the 6-digit code to confirm</span>
           <input
             name="code"
             inputMode="numeric"
@@ -72,15 +97,15 @@ export function EnrollMfaFlow() {
             maxLength={6}
             autoComplete="one-time-code"
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-center text-lg tracking-[0.4em] outline-none focus:border-neutral-500"
+            className="input py-3 text-center font-mono text-2xl tracking-[0.5em]"
           />
         </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
+        {error && (
+          <p className="text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Confirming…" : "Confirm and enable"}
         </button>
       </form>

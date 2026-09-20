@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { FollowAuthorButton } from "./FollowAuthorButton";
+import { initials, plural } from "@/lib/format";
 
 // cache() so generateMetadata and the page share one query — see the note
 // on the article page.
@@ -13,7 +14,7 @@ const getAuthor = cache(async (handle: string) =>
     // Suspended and banned accounts have no public page. Readers don't
     // either: this is an author page, and a reader has nothing to show.
     where: { handle, status: "ACTIVE", role: { in: ["MODERATOR", "ADMIN"] } },
-    select: { id: true, name: true, handle: true },
+    select: { id: true, name: true, handle: true, createdAt: true },
   })
 );
 
@@ -57,6 +58,7 @@ export default async function AuthorPage(props: PageProps<"/author/[handle]">) {
         publishedAt: true,
         author: { select: { name: true, handle: true } },
         category: { select: { name: true, slug: true } },
+        coverImage: { select: { url: true, altText: true } },
       },
     }),
     db.follow.count({ where: { authorId: author.id } }),
@@ -66,33 +68,36 @@ export default async function AuthorPage(props: PageProps<"/author/[handle]">) {
   ]);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">{author.name}</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        {articles.length} {articles.length === 1 ? "article" : "articles"} · {followerCount}{" "}
-        {followerCount === 1 ? "follower" : "followers"}
-      </p>
-
-      {/* Following yourself is meaningless, so the control isn't offered. */}
-      {viewerId !== author.id && (
-        <div className="mt-4">
+    <main id="main-content" className="mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6">
+      <header className="flex flex-wrap items-center gap-6 border-b border-line pb-8">
+        <span className="avatar h-20 w-20 text-2xl">{initials(author.name)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="kicker">Author</p>
+          <h1 className="headline mt-1 text-4xl">{author.name}</h1>
+          <p className="mt-2 text-sm text-ink-3">
+            {plural(articles.length, "article")} · {plural(followerCount, "follower")} · @{author.handle}
+          </p>
+        </div>
+        {/* Following yourself is meaningless, so the control isn't offered. */}
+        {viewerId !== author.id && (
           <FollowAuthorButton
             authorId={author.id}
             authorName={author.name}
             signedIn={!!viewerId}
             following={!!following}
           />
-        </div>
-      )}
-
-      <ul className="mt-8 flex flex-col gap-8">
-        {articles.map((article) => (
-          <ArticleCard key={article.id} article={article} />
-        ))}
-        {articles.length === 0 && (
-          <li className="text-neutral-600">No published articles yet.</li>
         )}
-      </ul>
+      </header>
+
+      {articles.length === 0 && <p className="mt-8 text-ink-2">No published articles yet.</p>}
+
+      {articles.length > 0 && (
+        <ul className="mt-2 grid gap-x-12 md:grid-cols-2 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
+          {articles.map((article) => (
+            <ArticleCard key={article.id} article={article} variant="row" />
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

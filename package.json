@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "bootstrap:staff": "tsx --env-file-if-exists=.env scripts/bootstrap-staff.ts",
     "seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
+    "seed:demo": "tsx --env-file-if-exists=.env scripts/seed-demo.ts",
     "cleanup:test-data": "tsx --env-file-if-exists=.env scripts/cleanup-test-data.ts",
     "e2e:fixture": "tsx --env-file-if-exists=.env scripts/e2e-fixture.ts",
     "audit": "node scripts/audit-dependencies.mjs",

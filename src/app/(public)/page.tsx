@@ -1,0 +1,119 @@
+import Link from "next/link";
+import { db } from "@/lib/db";
+import { ArticleCard } from "@/components/articles/ArticleCard";
+import { withDatabaseFallback } from "@/lib/buildSafe";
+import { daysAgo } from "@/lib/timeWindow";
+import { ArrowRightIcon } from "@/components/icons";
+
+const CARD_SELECT = {
+  id: true,
+  slug: true,
+  title: true,
+  dek: true,
+  isBreaking: true,
+  publishedAt: true,
+  author: { select: { name: true, handle: true } },
+  category: { select: { name: true, slug: true } },
+  coverImage: { select: { url: true, altText: true } },
+} as const;
+
+export default async function Home() {
+  // This page is prerendered at build time, so it must survive being
+  // built before any database exists. See lib/buildSafe.ts — publishing
+  // an article revalidates this path, so the real list appears as soon as
+  // there is one.
+  const articles = await withDatabaseFallback(
+    () =>
+      db.article.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { publishedAt: "desc" },
+        take: 24,
+        // Explicit select, not include: the default pulls every scalar
+        // column, which on this table means bodyHtml and bodyJson —
+        // roughly 19KB and 21KB of article text each, fetched and
+        // decompressed for 24 articles just to render titles and deks.
+        select: CARD_SELECT,
+      }),
+    [],
+    "homepage article list"
+  );
+
+  // A breaking story leads the page only while it is actually breaking;
+  // after a day the flag is still shown on the card but the story takes
+  // its ordinary place in the list.
+  const dayAgo = daysAgo(1);
+  const breakingIndex = articles.findIndex(
+    (a) => a.isBreaking && a.publishedAt && a.publishedAt > dayAgo
+  );
+  const ordered =
+    breakingIndex > 0
+      ? [articles[breakingIndex]!, ...articles.filter((_, i) => i !== breakingIndex)]
+      : articles;
+
+  const [lead, ...rest] = ordered;
+  const secondary = rest.slice(0, 3);
+  // The image-led row takes the next three stories that have a cover, so
+  // the grid is three pictures rather than two pictures and a gap.
+  const remaining = rest.slice(3);
+  const featured = remaining.filter((a) => a.coverImage).slice(0, 3);
+  const latest = remaining.filter((a) => !featured.includes(a));
+
+  if (!lead) {
+    return (
+      <main id="main-content" className="mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
+        <p className="eyebrow">Latest</p>
+        <h1 className="headline mt-3 text-4xl">Nothing published yet.</h1>
+        <p className="mt-3 text-ink-2">The first story will appear here the moment it goes live.</p>
+      </main>
+    );
+  }
+
+  return (
+    <main id="main-content" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6 sm:pt-10">
+      <h1 className="sr-only">Latest</h1>
+
+      {/* Top of the page: the lead story and the three after it. */}
+      <section aria-label="Top stories" className="grid gap-10 lg:grid-cols-[1.55fr_1fr] lg:gap-14">
+        <ul>
+          <ArticleCard article={lead} variant="lead" />
+        </ul>
+        {secondary.length > 0 && (
+          <ul className="flex flex-col border-t border-line lg:border-t-0 lg:border-l lg:pl-14 [&>li]:border-b [&>li]:border-line [&>li]:py-5 [&>li:last-child]:border-b-0 lg:[&>li:first-child]:pt-0">
+            {secondary.map((article) => (
+              <ArticleCard key={article.id} article={article} variant="compact" />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {featured.length > 0 && (
+        <section aria-label="Featured" className="mt-14 border-t border-line pt-10">
+          <ul className="grid gap-10 md:grid-cols-3">
+            {featured.map((article) => (
+              <ArticleCard key={article.id} article={article} variant="featured" />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {latest.length > 0 && (
+        <section aria-labelledby="latest-heading" className="mt-16">
+          <h2 id="latest-heading" className="section-title">
+            More stories
+          </h2>
+          <ul className="mt-2 grid gap-x-12 md:grid-cols-2 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
+            {latest.map((article) => (
+              <ArticleCard key={article.id} article={article} variant="row" />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="mt-12 flex justify-center">
+        <Link href="/search" className="btn btn-secondary gap-2">
+          Search the archive <ArrowRightIcon size={16} />
+        </Link>
+      </div>
+    </main>
+  );
+}
