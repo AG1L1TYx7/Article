@@ -24,6 +24,9 @@ export default async function MfaSettingsPage() {
         {session.user.role === "ADMIN" && !session.user.mfaEnabled && (
           <p className="alert alert-warn mb-6">
             Admin accounts are required to enable this before using the rest of the dashboard.
+            The other pages in the sidebar unlock as soon as you confirm a code below — it takes
+            about a minute. No phone to hand? A password manager (1Password, Bitwarden) or a
+            browser authenticator extension works the same way.
           </p>
         )}
 

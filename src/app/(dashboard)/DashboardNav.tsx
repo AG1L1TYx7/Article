@@ -6,6 +6,7 @@ import {
   ChartIcon,
   HomeIcon,
   ListIcon,
+  LockIcon,
   MessageIcon,
   PenIcon,
   ShieldIcon,
@@ -32,14 +33,30 @@ const ITEMS: Item[] = [
   { href: "/dashboard/audit-log", label: "Audit log", icon: ListIcon, adminOnly: true },
 ];
 
-export function DashboardNav({ role, mfaEnabled }: { role?: string; mfaEnabled: boolean }) {
+const MFA_HREF = "/dashboard/mfa";
+
+/**
+ * @param locked  True for an admin who has not yet enabled two-factor
+ *   authentication. proxy.ts sends every other dashboard URL back to the
+ *   MFA page for them, so the links are shown as locked rather than
+ *   letting them click and silently land where they started.
+ */
+export function DashboardNav({
+  role,
+  mfaEnabled,
+  locked = false,
+}: {
+  role?: string;
+  mfaEnabled: boolean;
+  locked?: boolean;
+}) {
   const pathname = usePathname();
   const isAdmin = role === "ADMIN";
 
   const items: Item[] = [
     ...ITEMS.filter((item) => !item.adminOnly || isAdmin),
     {
-      href: "/dashboard/mfa",
+      href: MFA_HREF,
       label: mfaEnabled ? "Manage two-factor authentication" : "Set up two-factor authentication",
       icon: ShieldIcon,
     },
@@ -52,17 +69,27 @@ export function DashboardNav({ role, mfaEnabled }: { role?: string; mfaEnabled: 
     >
       {items.map(({ href, label, icon: Icon, exact }) => {
         const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+        const isLocked = locked && href !== MFA_HREF;
+        const classes = `flex shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+          active ? "bg-ink text-paper" : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+        }`;
+
+        if (isLocked) {
+          return (
+            <span
+              key={href}
+              aria-disabled="true"
+              title="Set up two-factor authentication first"
+              className={`${classes} cursor-not-allowed opacity-50 hover:bg-transparent hover:text-ink-2`}
+            >
+              <LockIcon size={16} className="shrink-0" />
+              <span className="whitespace-nowrap md:whitespace-normal">{label}</span>
+            </span>
+          );
+        }
+
         return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={`flex shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
-              active
-                ? "bg-ink text-paper"
-                : "text-ink-2 hover:bg-surface-2 hover:text-ink"
-            }`}
-          >
+          <Link key={href} href={href} aria-current={active ? "page" : undefined} className={classes}>
             <Icon size={16} className="shrink-0" />
             <span className="whitespace-nowrap md:whitespace-normal">{label}</span>
           </Link>

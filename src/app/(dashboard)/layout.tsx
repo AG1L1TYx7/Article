@@ -31,7 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className="kicker hidden md:inline">Newsroom</span>
         </div>
 
-        <DashboardNav role={role} mfaEnabled={!!mfaEnabled} />
+        <DashboardNav role={role} mfaEnabled={!!mfaEnabled} locked={role === "ADMIN" && !mfaEnabled} />
 
         <div className="mt-auto border-t border-line px-3 py-2 md:p-4">
           {/* Who is signed in — on a phone the nav row is enough, and this
