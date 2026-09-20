@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { sanitizedArticleHtml } from "@/lib/sanitizeCache";
+import { countArticleView } from "@/lib/viewCount";
 import { ShareLinks } from "./ShareLinks";
 import { CommentSection } from "@/components/comments/CommentSection";
 import { RelatedLinks } from "@/components/articles/RelatedLinks";
@@ -87,6 +88,10 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   // Still sanitized at render time — defense in depth, per the security
   // blueprint — but memoised per article revision so every visitor to the
   // same article isn't re-parsing the same 20KB. See lib/sanitizeCache.ts.
+  // Scheduled for after the response is sent, so the reader never waits
+  // on the write. See lib/viewCount.ts.
+  countArticleView(article.id);
+
   const safeHtml = sanitizedArticleHtml(article.id, article.updatedAt, article.bodyHtml);
 
   // The viewer's own like/save/follow state. Counted once here rather

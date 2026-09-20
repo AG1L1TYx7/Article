@@ -10,6 +10,7 @@ import { recordAudit } from "@/lib/audit";
 import { getClientIp } from "@/lib/request";
 import { linkPreviewLimiter } from "@/lib/rateLimit";
 import { fetchLinkPreview } from "@/lib/linkPreview";
+import { notifyBreakingNews } from "@/lib/notifications";
 import { revalidatePath } from "next/cache";
 import type { Article } from "@/generated/prisma/client";
 
@@ -212,6 +213,11 @@ export async function publishArticle(articleId: string): Promise<ArticleActionRe
         publishedAt: article.publishedAt ?? new Date(),
       },
     });
+
+    // Only does anything for an article flagged breaking, and only
+    // reaches readers who follow this author or section. See
+    // lib/notifications.ts.
+    await notifyBreakingNews(articleId);
 
     await recordAudit({
       actorId: session.user.id,

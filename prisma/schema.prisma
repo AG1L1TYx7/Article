@@ -336,6 +336,7 @@ model Follow {
 enum NotificationType {
   COMMENT_REPLY
   COMMENT_APPROVED
+  BREAKING_NEWS
 }
 
 // Tells a reader that something happened to their contribution: someone
@@ -366,6 +367,11 @@ model Notification {
   // path tries to notify. This makes the second attempt a no-op instead of
   // a duplicate in someone's list.
   @@unique([userId, type, commentId])
+  // The comment constraint above cannot deduplicate an article
+  // notification: commentId is NULL for those, and Postgres lets NULLs
+  // repeat in a unique index. Someone following both an author and the
+  // section they published in would otherwise be told twice.
+  @@unique([userId, type, articleId])
   @@index([userId, readAt])
   @@index([userId, createdAt])
 }

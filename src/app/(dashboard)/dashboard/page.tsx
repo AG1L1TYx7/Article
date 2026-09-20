@@ -32,10 +32,21 @@ export default async function DashboardPage() {
         <Link href="/dashboard/comments" className="text-neutral-600 underline">
           Comment moderation
         </Link>
+        <Link href="/dashboard/analytics" className="text-neutral-600 underline">
+          Analytics
+        </Link>
         {session.user.role === "ADMIN" && (
-          <Link href="/dashboard/categories" className="text-neutral-600 underline">
-            Categories
-          </Link>
+          <>
+            <Link href="/dashboard/categories" className="text-neutral-600 underline">
+              Categories
+            </Link>
+            <Link href="/dashboard/users" className="text-neutral-600 underline">
+              People
+            </Link>
+            <Link href="/dashboard/audit-log" className="text-neutral-600 underline">
+              Audit log
+            </Link>
+          </>
         )}
         <Link href="/dashboard/mfa" className="text-neutral-600 underline">
           {session.user.mfaEnabled ? "Manage two-factor authentication" : "Set up two-factor authentication"}

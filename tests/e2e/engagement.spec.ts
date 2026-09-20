@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
+import { waitForHydration } from "./support/hydration";
 import { scalar, sql } from "./support/db";
 
 const PASSWORD = "correct-horse-battery-staple";
@@ -8,21 +9,6 @@ const promoteTo = (role: string, email: string) =>
   sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
-
-/**
- * Waits until the article page is interactive.
- *
- * Playwright will happily click server-rendered markup before React has
- * hydrated, in which case the handler never runs and nothing is sent —
- * the single biggest source of flakiness in this file. ToggleButton
- * sets data-hydrated in an effect, which only runs on the client, so it
- * is a direct signal that this specific control is interactive.
- */
-async function waitForHydration(page: Page, name: string | RegExp) {
-  await expect(
-    page.getByRole("button", { name, exact: typeof name === "string" })
-  ).toHaveAttribute("data-hydrated", "true", { timeout: 15000 });
-}
 
 /**
  * Clicks a toggle and waits for that toggle's own server action to

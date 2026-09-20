@@ -96,3 +96,71 @@ export async function notifyCommentApproved(commentId: string, moderatorId: stri
 export async function unreadNotificationCount(userId: string): Promise<number> {
   return db.notification.count({ where: { userId, readAt: null } });
 }
+
+/**
+ * How many readers one breaking story will alert in a single publish.
+ *
+ * A bound, not a target. Writing the rows takes one query regardless, but
+ * an unbounded fan-out in the request that publishes the article means
+ * the editor waits on it — and at real subscriber numbers this belongs in
+ * a queue rather than inline. See the note in docs/ on scaling this.
+ */
+const BREAKING_FANOUT_LIMIT = 5_000;
+
+/**
+ * Alerts readers that a breaking story has been published.
+ *
+ * Goes to people who asked to hear from this author or this section —
+ * never to everyone. An alert that is not opted into is a notification
+ * people turn off, and then the one that matters is missed too.
+ *
+ * Only for articles flagged breaking. Every publish alerting every
+ * follower would make the flag meaningless within a week.
+ */
+export async function notifyBreakingNews(articleId: string): Promise<void> {
+  const article = await db.article.findUnique({
+    where: { id: articleId },
+    select: {
+      id: true,
+      status: true,
+      isBreaking: true,
+      authorId: true,
+      categoryId: true,
+    },
+  });
+
+  // Re-checked here rather than trusted from the caller: this is the one
+  // place that decides whether a story is worth interrupting people for.
+  if (!article || article.status !== "PUBLISHED" || !article.isBreaking) return;
+
+  const followers = await db.follow.findMany({
+    where: {
+      OR: [
+        { authorId: article.authorId },
+        ...(article.categoryId ? [{ categoryId: article.categoryId }] : []),
+      ],
+      // Not the author's own alert about their own story.
+      followerId: { not: article.authorId },
+    },
+    select: { followerId: true },
+    take: BREAKING_FANOUT_LIMIT,
+  });
+
+  if (followers.length === 0) return;
+
+  // A reader following both the author and the section appears twice.
+  const recipients = [...new Set(followers.map((f) => f.followerId))];
+
+  // One query, and skipDuplicates makes a re-publish a no-op rather than
+  // a second alert about the same story — which is what the unique index
+  // on (userId, type, articleId) is there to enforce.
+  await db.notification.createMany({
+    data: recipients.map((userId) => ({
+      userId,
+      type: "BREAKING_NEWS" as const,
+      actorId: article.authorId,
+      articleId: article.id,
+    })),
+    skipDuplicates: true,
+  });
+}

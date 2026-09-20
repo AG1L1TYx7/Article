@@ -61,7 +61,9 @@ export default async function NotificationsPage() {
           const headline =
             n.type === "COMMENT_REPLY"
               ? `${n.actor?.name ?? "Someone"} replied to your comment`
-              : "Your comment was approved and is now public";
+              : n.type === "BREAKING_NEWS"
+                ? "Breaking news"
+                : "Your comment was approved and is now public";
 
           return (
             <li

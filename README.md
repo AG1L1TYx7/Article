@@ -122,7 +122,8 @@ end-to-end suite against a real PostgreSQL service container in another.
 src/
   app/                    Routes (App Router)
     (auth)/               Register, login, verify, reset
-    (dashboard)/          Staff: articles, categories, comment queue, MFA
+    (dashboard)/          Staff: articles, categories, comment queue, analytics,
+                          people, audit log, MFA
     api/                  Route handlers (uploads, auth, unread count)
     article/ author/ category/ search/ saved/ notifications/
   components/             UI, grouped by feature
@@ -207,6 +208,12 @@ resolving the name a second time, every redirect hop is re-checked, and
 failures are reported coarsely so this cannot be used to map the internal
 network. [`docs/link-previews.md`](docs/link-previews.md) walks through each
 attack and what stops it.
+
+**Newsroom tooling.** `/dashboard/audit-log` reads the audit trail with filters
+for the security-relevant actions; `/dashboard/users` manages roles and
+suspensions, and refuses the two changes that cannot be undone from inside the
+application — changing your own role, and removing the last active admin.
+`/dashboard/analytics` shows what is being read and discussed.
 
 **Audit.** Every privileged action writes an append-only `AuditLog` row, and
 so does every authentication event — successes, failures, lockouts, and a
