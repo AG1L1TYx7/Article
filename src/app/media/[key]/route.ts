@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import sharp from "sharp";
 import { db } from "@/lib/db";
 import { readLocalObject, isS3Configured } from "@/lib/storage";
 import { contentRange, parseRange } from "@/lib/httpRange";
+import { parseImageWidth } from "@/lib/imageUrl";
 
 // Local-disk media serving — dev only. When S3 is configured, Media.url
 // already points at the bucket/CDN directly (see lib/storage.ts) and this
@@ -32,6 +36,34 @@ const MEDIA_HEADERS = {
   "Cache-Control": "public, max-age=31536000, immutable",
 };
 
+// Resized copies live beside the originals, one directory down, so
+// deleting an upload's directory takes its variants with it.
+const VARIANTS_DIR = join(process.cwd(), ".local-uploads", "_variants");
+
+/**
+ * A resized copy for `?w=`, made on first request and kept.
+ *
+ * Only images, only the listed widths (see lib/imageUrl.ts), and never
+ * upscaled: asking for 1600 of an 800px original returns the original.
+ * The variant keeps the upload's format so the Content-Type stays true.
+ */
+async function resizedVariant(key: string, width: number, original: () => Promise<Buffer>): Promise<Buffer> {
+  const path = join(VARIANTS_DIR, `${key}.w${width}`);
+  try {
+    return await readFile(path);
+  } catch {
+    // Not made yet.
+  }
+  const source = await original();
+  const resized = await sharp(source)
+    .rotate() // honour EXIF orientation, as the upload pipeline did
+    .resize({ width, withoutEnlargement: true })
+    .toBuffer();
+  await mkdir(VARIANTS_DIR, { recursive: true });
+  await writeFile(path, resized);
+  return resized;
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ key: string }> }) {
   if (isS3Configured()) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -43,9 +75,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const width = parseImageWidth(new URL(request.url).searchParams.get("w"));
+
   let buffer: Buffer;
   try {
-    buffer = await readLocalObject(key);
+    buffer =
+      width && media.type === "IMAGE"
+        ? await resizedVariant(key, width, () => readLocalObject(key))
+        : await readLocalObject(key);
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

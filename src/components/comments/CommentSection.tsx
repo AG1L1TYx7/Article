@@ -7,6 +7,21 @@ import { CommentNoticeProvider } from "./CommentNotice";
 import { isCommentEditable } from "@/lib/commentPolicy";
 import { initials } from "@/lib/format";
 
+export const COMMENT_SORTS = [
+  { value: "oldest", label: "Oldest first" },
+  { value: "newest", label: "Newest first" },
+  { value: "top", label: "Most liked" },
+] as const;
+export type CommentSort = (typeof COMMENT_SORTS)[number]["value"];
+
+export function parseCommentSort(raw: string | string[] | undefined): CommentSort {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return COMMENT_SORTS.some((s) => s.value === value) ? (value as CommentSort) : "oldest";
+}
+
+/** How many top-level comments show before "Show all". */
+const INITIAL_ROOTS = 20;
+
 /** Counts the comments a reader can actually read, tombstones excluded. */
 function countVisible(nodes: CommentNode[]): number {
   return nodes.reduce((n, node) => n + (node.deleted ? 0 : 1) + countVisible(node.replies), 0);
@@ -32,13 +47,36 @@ function pruneTombstones(nodes: CommentNode[]): CommentNode[] {
 }
 
 /**
+ * Sorting applies to top-level comments only. Replies always stay in the
+ * order they were written: a conversation read out of order is not a
+ * conversation.
+ */
+function sortRoots(roots: CommentNode[], sort: CommentSort): CommentNode[] {
+  const byTime = (a: CommentNode, b: CommentNode) => a.createdAt.localeCompare(b.createdAt);
+  if (sort === "newest") return [...roots].sort((a, b) => byTime(b, a));
+  if (sort === "top") return [...roots].sort((a, b) => b.likeCount - a.likeCount || byTime(a, b));
+  return roots;
+}
+
+/**
  * PENDING comments are waiting on a moderator and HIDDEN ones were taken
  * down by staff — neither is ever loaded here. DELETED ones are loaded
  * only so a removed comment can leave a tombstone above its replies; their
  * text is replaced before the node reaches the client, so a deleted body
  * is never sent to a browser.
  */
-export async function CommentSection({ articleId }: { articleId: string }) {
+export async function CommentSection({
+  articleId,
+  articlePath,
+  sort = "oldest",
+  showAll = false,
+}: {
+  articleId: string;
+  /** Where the sort links point back to, e.g. /article/slug. */
+  articlePath: string;
+  sort?: CommentSort;
+  showAll?: boolean;
+}) {
   const session = await auth();
   const viewerId = session?.user?.id ?? null;
 
@@ -101,17 +139,38 @@ export async function CommentSection({ articleId }: { articleId: string }) {
     else roots.push(node);
   }
 
-  const tree = pruneTombstones(roots);
+  const tree = sortRoots(pruneTombstones(roots), sort);
   const visibleCount = countVisible(tree);
+  const shown = showAll ? tree : tree.slice(0, INITIAL_ROOTS);
+  const hidden = tree.length - shown.length;
 
   const signedIn = !!session?.user;
   const verified = session?.user?.emailConfirmed ?? false;
 
+  const sortHref = (value: CommentSort) =>
+    `${articlePath}${value === "oldest" ? "" : `?comments=${value}`}#comments`;
+
   return (
-    <section className="mt-14 border-t border-line pt-8" aria-labelledby="comments-heading">
-      <h2 id="comments-heading" className="headline text-2xl">
-        {visibleCount} {visibleCount === 1 ? "comment" : "comments"}
-      </h2>
+    <section id="comments" className="mt-14 scroll-mt-20 border-t border-line pt-8" aria-labelledby="comments-heading">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 id="comments-heading" className="headline text-2xl">
+          {visibleCount} {visibleCount === 1 ? "comment" : "comments"}
+        </h2>
+        {tree.length > 1 && (
+          <div className="flex gap-1" role="group" aria-label="Sort comments">
+            {COMMENT_SORTS.map((option) => (
+              <Link
+                key={option.value}
+                href={sortHref(option.value)}
+                aria-current={sort === option.value ? "true" : undefined}
+                className={`btn btn-sm rounded-full ${sort === option.value ? "btn-primary" : "btn-ghost"}`}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="mt-5">
         {!signedIn && (
@@ -143,9 +202,9 @@ export async function CommentSection({ articleId }: { articleId: string }) {
       </div>
 
       <CommentNoticeProvider>
-        {tree.length > 0 && (
+        {shown.length > 0 && (
           <ul className="mt-2">
-            {tree.map((c) => (
+            {shown.map((c) => (
               <CommentThread
                 key={c.id}
                 comment={c}
@@ -154,6 +213,16 @@ export async function CommentSection({ articleId }: { articleId: string }) {
               />
             ))}
           </ul>
+        )}
+        {hidden > 0 && (
+          <p className="mt-6 text-center">
+            <Link
+              href={`${articlePath}?${sort === "oldest" ? "" : `comments=${sort}&`}all=1#comments`}
+              className="btn btn-secondary"
+            >
+              Show {hidden} more {hidden === 1 ? "comment" : "comments"}
+            </Link>
+          </p>
         )}
       </CommentNoticeProvider>
     </section>

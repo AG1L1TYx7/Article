@@ -10,6 +10,9 @@ import { toggleCommentLike } from "@/components/engagement/actions";
 import { HeartIcon } from "@/components/icons";
 import { formatDate, initials } from "@/lib/format";
 
+/** Replies shown under a comment before the rest fold behind a button. */
+const REPLIES_SHOWN = 3;
+
 export interface CommentNode {
   id: string;
   body: string;
@@ -56,6 +59,7 @@ export function CommentThread({
   const [draft, setDraft] = useState(comment.body);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAllReplies, setShowAllReplies] = useState(false);
   // Notices live above the thread, not here: an edit that trips
   // moderation unmounts this very component. See CommentNotice.tsx.
   const setNotice = useCommentNotice();
@@ -64,19 +68,37 @@ export function CommentThread({
     ? "mt-5 border-l-2 border-line pl-4 sm:pl-5"
     : "mt-6 border-t border-line pt-6";
 
+  // Long reply chains fold after a few so a busy thread stays scannable;
+  // the fold remembers nothing across reloads on purpose — a permalink
+  // to a hidden reply still works because the browser scrolls to the id
+  // only once the reader has opened the chain it is in.
+  const visibleReplies = showAllReplies ? comment.replies : comment.replies.slice(0, REPLIES_SHOWN);
+  const foldedReplies = comment.replies.length - visibleReplies.length;
+
   const replies =
     comment.replies.length > 0 ? (
-      <ul>
-        {comment.replies.map((reply) => (
-          <CommentThread
-            key={reply.id}
-            comment={reply}
-            articleId={articleId}
-            canReply={canReply}
-            depth={depth + 1}
-          />
-        ))}
-      </ul>
+      <>
+        <ul>
+          {visibleReplies.map((reply) => (
+            <CommentThread
+              key={reply.id}
+              comment={reply}
+              articleId={articleId}
+              canReply={canReply}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+        {foldedReplies > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllReplies(true)}
+            className="btn btn-ghost btn-sm mt-3 ml-4 gap-1 text-ink-2 sm:ml-5"
+          >
+            Show {foldedReplies} more {foldedReplies === 1 ? "reply" : "replies"}
+          </button>
+        )}
+      </>
     ) : null;
 
   if (comment.deleted) {

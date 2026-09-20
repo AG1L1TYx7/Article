@@ -6,13 +6,22 @@ import { db } from "@/lib/db";
 import { sanitizedArticleHtml } from "@/lib/sanitizeCache";
 import { countArticleView } from "@/lib/viewCount";
 import { ShareLinks } from "./ShareLinks";
-import { CommentSection } from "@/components/comments/CommentSection";
+import { CommentSection, parseCommentSort } from "@/components/comments/CommentSection";
 import { RelatedLinks } from "@/components/articles/RelatedLinks";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { ArticleEngagement } from "@/components/engagement/ArticleEngagement";
+import { TagIcon } from "@/components/icons";
 import { auth } from "@/lib/auth/config";
 import { getBaseUrl } from "@/lib/url";
 import { formatDate, initials, readingTime } from "@/lib/format";
+import { imageSrcSet, imageVariantUrl } from "@/lib/imageUrl";
+
+/**
+ * An article counts as updated when it was edited a meaningful time after
+ * it went live. Anything inside this window is the usual post-publish
+ * tidy-up — a typo, a missing link — that readers do not need flagged.
+ */
+const UPDATED_AFTER_MS = 30 * 60 * 1000;
 
 // Wrapped in React's cache() because generateMetadata and the page
 // component both need the article: without it every article view runs the
@@ -40,6 +49,7 @@ const getArticle = cache(async (slug: string) =>
       author: { select: { id: true, name: true, handle: true } },
       category: { select: { name: true, slug: true } },
       coverImage: { select: { url: true, altText: true } },
+      tags: { select: { tag: { select: { slug: true, name: true } } } },
       links: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -88,6 +98,15 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   const { slug } = await props.params;
   const article = await getArticle(slug);
   if (!article) notFound();
+
+  const search = await props.searchParams;
+  const commentSort = parseCommentSort(search.comments);
+  const showAllComments = search.all === "1";
+
+  const updatedAfterPublish =
+    article.publishedAt && article.updatedAt.getTime() - article.publishedAt.getTime() > UPDATED_AFTER_MS
+      ? article.updatedAt
+      : null;
 
   // Still sanitized at render time — defense in depth, per the security
   // blueprint — but memoised per article revision so every visitor to the
@@ -175,6 +194,14 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
                   )}
                   <span aria-hidden="true"> · </span>
                   {minutes} min read
+                  {updatedAfterPublish && (
+                    <>
+                      <span aria-hidden="true"> · </span>
+                      <span className="text-ink-2">
+                        Updated <time dateTime={updatedAfterPublish.toISOString()}>{formatDate(updatedAfterPublish)}</time>
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -186,7 +213,9 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
           <figure className="mx-auto mt-8 max-w-5xl px-4 sm:px-6">
             {/* eslint-disable-next-line @next/next/no-img-element -- served from this site's own media route or object storage */}
             <img
-              src={article.coverImage.url}
+              src={imageVariantUrl(article.coverImage.url, 1200)}
+              srcSet={imageSrcSet(article.coverImage.url)}
+              sizes="(min-width: 1024px) 960px, 100vw"
               alt={article.coverImage.altText ?? ""}
               className="aspect-[16/9] w-full rounded-lg bg-surface-2 object-cover"
               loading="eager"
@@ -220,9 +249,29 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
 
+          {article.tags.length > 0 && (
+            <ul className="mt-10 flex flex-wrap items-center gap-2" aria-label="Tags">
+              <li className="flex items-center gap-1 text-xs font-medium tracking-wide text-ink-3 uppercase">
+                <TagIcon size={12} /> Tagged
+              </li>
+              {article.tags.map(({ tag }) => (
+                <li key={tag.slug}>
+                  <Link href={`/tag/${tag.slug}`} className="btn btn-secondary btn-sm rounded-full">
+                    {tag.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <RelatedLinks links={article.links} />
 
-          <CommentSection articleId={article.id} />
+          <CommentSection
+            articleId={article.id}
+            articlePath={`/article/${article.slug}`}
+            sort={commentSort}
+            showAll={showAllComments}
+          />
         </div>
       </article>
 

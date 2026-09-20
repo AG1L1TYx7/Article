@@ -22,7 +22,7 @@ export const revalidate = 3600;
  * /dashboard, /saved and /notifications (all require a session).
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [articles, categories, authors] = await Promise.all([
+  const [articles, categories, authors, tags] = await Promise.all([
     withDatabaseFallback(
       () =>
         db.article.findMany({
@@ -57,6 +57,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       [],
       "sitemap authors"
     ),
+    withDatabaseFallback(
+      () =>
+        db.tag.findMany({
+          where: { articles: { some: { article: { status: "PUBLISHED" } } } },
+          select: { slug: true },
+        }),
+      [],
+      "sitemap tags"
+    ),
   ]);
 
   const newest = articles[0]?.publishedAt ?? new Date();
@@ -79,6 +88,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: newest,
       changeFrequency: "weekly" as const,
       priority: 0.5,
+    })),
+    ...tags.map((tag) => ({
+      url: absoluteUrl(`/tag/${tag.slug}`),
+      lastModified: newest,
+      changeFrequency: "weekly" as const,
+      priority: 0.4,
     })),
     ...articles.map((article) => ({
       url: absoluteUrl(`/article/${article.slug}`),

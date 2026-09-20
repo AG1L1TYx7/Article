@@ -81,6 +81,34 @@ a button everywhere.
   component — the server and the browser disagree on locale and React
   reports it as a hydration mismatch.
 
+## Images
+
+Uploads are stored once, at up to 1600px. Nothing should ever render
+that file at thumbnail size: use `imageVariantUrl(url, width)` for `src`
+and `imageSrcSet(url)` for `srcset` (both in `lib/imageUrl.ts`), with a
+`sizes` attribute that says how wide the image really is. The local
+media route resizes on request (`/media/<key>?w=480`, listed widths only)
+and caches each variant under `.local-uploads/_variants/`. A phone at 2×
+then fetches ~4KB for a card thumbnail rather than ~20KB+.
+
+With object storage configured, `Media.url` points at the bucket and the
+helpers return the plain URL; put an image CDN in front of the bucket to
+get the same effect there.
+
+## Small things that are deliberate
+
+- Every tag is a page (`/tag/<slug>`), listed on the article and in the
+  sitemap. Tags entered in the editor are never a dead end.
+- "Updated <date>" appears on an article only when it was edited more
+  than 30 minutes after publishing. View counting uses raw SQL so it
+  cannot touch `updatedAt` (`lib/viewCount.ts`).
+- Comments sort by oldest / newest / most liked via `?comments=`; replies
+  keep their written order, and long reply chains fold after three.
+- `app/error.tsx` and `app/global-error.tsx` are the friendly faces of a
+  crash; the 404 is `app/not-found.tsx`. All three match the site.
+- `app/manifest.ts` and `public/icons/` make the site installable; the
+  icons come from `scripts/make-icons.mjs`.
+
 ## Rules that are easy to break
 
 - One `<nav>` per public page: the section bar. Footer lists are `<ul>`.

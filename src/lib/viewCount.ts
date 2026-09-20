@@ -13,14 +13,18 @@ import { db } from "@/lib/db";
  * these is being read more than the others", which it does honestly, and
  * not "how many humans read this", which it cannot. Anything better needs
  * a real analytics pipeline rather than a column.
+ *
+ * Raw SQL rather than `db.article.update`, on purpose: Prisma's
+ * `@updatedAt` is applied by the client on every update, so counting a
+ * view through it stamped `updatedAt` with the time of the view. That
+ * made "Updated 3 hours ago" on the article meaningless, and — worse —
+ * busted the sanitised-HTML cache (keyed on updatedAt) on every single
+ * request. `updatedAt` now means what it says: the article was edited.
  */
 export function countArticleView(articleId: string): void {
   after(async () => {
     try {
-      await db.article.update({
-        where: { id: articleId },
-        data: { viewCount: { increment: 1 } },
-      });
+      await db.$executeRaw`UPDATE \`Article\` SET \`viewCount\` = \`viewCount\` + 1 WHERE \`id\` = ${articleId}`;
     } catch {
       // A missed count is not worth an error anywhere. The article was
       // already served successfully by the time this runs.

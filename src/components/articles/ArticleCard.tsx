@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
+import { imageSrcSet, imageVariantUrl } from "@/lib/imageUrl";
 
 export interface ArticleCardData {
   id: string;
@@ -81,7 +82,8 @@ export function ArticleCard({
       <Link href={href} tabIndex={-1} aria-hidden="true" className={`block overflow-hidden rounded-md bg-surface-2 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- served from this site's own media route or object storage; next/image would need every host allow-listed */}
         <img
-          src={image.url}
+          src={imageVariantUrl(image.url, variant === "lead" ? 1200 : 800)}
+          srcSet={imageSrcSet(image.url)}
           alt={image.altText ?? ""}
           sizes={sizes}
           loading={variant === "lead" ? "eager" : "lazy"}

@@ -60,7 +60,31 @@ interface Story {
   breaking?: boolean;
   cover?: { palette: [string, string]; caption: string };
   views: number;
+  tags?: string[];
   body: Array<{ type: "p" | "h2" | "quote"; text: string }>;
+}
+
+// Tags by story slug, kept apart from the prose so the list above stays
+// readable. A slug not listed here simply has no tags.
+const TAGS: Record<string, string[]> = {
+  "council-approves-riverside-housing-plan": ["housing", "city council", "planning"],
+  "central-bank-holds-rates-signals-cuts": ["interest rates", "economy"],
+  "open-source-model-beats-benchmarks": ["artificial intelligence", "open source"],
+  "ceasefire-talks-resume-third-round": ["diplomacy", "humanitarian aid"],
+  "national-theatre-new-season": ["theatre"],
+  "city-win-derby-late-penalty": ["football", "var"],
+  "electric-bus-fleet-doubles": ["transport", "city council"],
+  "coastal-erosion-village-relocation": ["climate", "coast"],
+  "hospital-waiting-times-fall": ["health", "nhs"],
+  "quantum-error-correction-milestone": ["quantum computing", "physics"],
+  "independent-bookshops-record-year": ["books", "high street"],
+  "marathon-course-record-broken": ["athletics", "marathon"],
+  "school-phone-ban-first-term-results": ["schools", "phones"],
+  "small-business-lending-review": ["small business", "economy"],
+};
+
+function tagSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 const STORIES: Story[] = [
@@ -446,12 +470,21 @@ async function seed() {
         viewCount: story.views,
         publishedAt,
         createdAt: publishedAt,
+        // Same moment: an "Updated" line on the article means it was
+        // edited after publication, and these never were.
+        updatedAt: publishedAt,
         authorId: author.id,
         categoryId: categories.get(story.category),
         coverImageId,
       },
     });
     created += 1;
+
+    for (const name of TAGS[story.slug] ?? []) {
+      const slug = tagSlug(name);
+      const tag = await db.tag.upsert({ where: { slug }, create: { slug, name }, update: {} });
+      await db.articleTag.create({ data: { articleId: article.id, tagId: tag.id } });
+    }
 
     // A short, civil thread on the lead story, so the comment design has
     // something to show.
