@@ -26,28 +26,12 @@ import { execSync } from "node:child_process";
  * merely inconvenient to fix.
  */
 const ACCEPTED = [
-  {
-    id: "GHSA-ggr8-5vv4-36mx",
-    package: "deepmerge-ts",
-    reason:
-      "Reached only through @prisma/config, which parses prisma7.config.ts for the CLI. " +
-      "Not imported by the application, and verified absent from .next/standalone — the " +
-      "traced bundle that is the production artifact.",
-  },
-  {
-    id: "GHSA-3f6p-5ww8-9rcr",
-    package: "mysql2",
-    reason:
-      "A MySQL driver. This application talks to PostgreSQL through @prisma/adapter-pg and " +
-      "never loads mysql2; it arrives only as a dependency of the Prisma CLI, which supports " +
-      "every database. Verified absent from .next/standalone. The advisory requires " +
-      "connecting to a hostile MySQL server, which nothing here does.",
-  },
-  {
-    id: "GHSA-rgwj-5xj2-c3m3",
-    package: "mysql2",
-    reason: "Same package and same reasoning as GHSA-3f6p-5ww8-9rcr: mysql2 is never loaded.",
-  },
+  // Empty at the time of writing. The advisories that used to sit here
+  // (deepmerge-ts and mysql2 via the Prisma CLI, and the mariadb driver's
+  // cleartext-credential issues) are resolved by the `overrides` block in
+  // package.json, which pins patched versions until Prisma updates its
+  // own pins. If Prisma later requires an older version, the override is
+  // the first thing to look at.
 ];
 
 const FAIL_AT = ["moderate", "high", "critical"];
