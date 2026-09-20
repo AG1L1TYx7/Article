@@ -39,6 +39,7 @@ async function register(page: Page, prefix: string, name = "Test Person") {
   await page.fill('input[name="handle"]', `${prefix}${stamp}`);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="consent"]');
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/login/);
   return email;
@@ -362,6 +363,7 @@ test.describe("A07 Authentication failures", () => {
     await page.fill('input[name="handle"]', `secenum2${Date.now()}`);
     await page.fill('input[name="email"]', email);
     await page.fill('input[name="password"]', PASSWORD);
+    await page.check('input[name="consent"]');
     await page.click('button[type="submit"]');
 
     // Either outcome is fine as long as it does not say "already taken":

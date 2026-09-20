@@ -40,6 +40,7 @@ async function register(page: Page, prefix: string, name = "Test Person") {
   await page.fill('input[name="handle"]', `${prefix}${stamp}`);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="consent"]');
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/login/);
   return email;
@@ -210,15 +211,21 @@ test.describe("People", () => {
   });
 
   test("an admin can add a person with a role, and they can log in with the temporary password", async ({ page }) => {
+    // Six sign-in round trips plus a forced password change: comfortably
+    // inside the budget alone, over it when the whole suite is competing
+    // for the machine. Same treatment as the MFA journeys.
+    test.slow();
     await signInAsAdmin(page, "nradder");
     const stamp = Date.now();
     const email = `nradded+${stamp}@example.com`;
 
     await page.goto("/dashboard/users");
     await page.getByRole("button", { name: "Add person" }).click();
-    await page.getByLabel("Name").fill("Added Writer");
-    await page.getByLabel("Handle").fill(`nradded${stamp}`);
-    await page.getByLabel("Email").fill(email);
+    // Exact: the people rows behind the dialog carry labels like "Role for
+    // <name>", and another spec's renamed user can contain these words.
+    await page.getByLabel("Name", { exact: true }).fill("Added Writer");
+    await page.getByLabel("Handle", { exact: true }).fill(`nradded${stamp}`);
+    await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Writer & moderator").check();
     await page.getByRole("button", { name: "Create account" }).click();
 

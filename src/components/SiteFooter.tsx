@@ -86,11 +86,29 @@ export async function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-ink-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-xs text-ink-3 sm:px-6">
           <p>
             © {new Date().getUTCFullYear()} {SITE_NAME}
           </p>
-          <p>Independent reporting, published daily.</p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+            <li>
+              <Link href="/privacy" className="hover:text-ink">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link href="/terms" className="hover:text-ink">
+                Terms
+              </Link>
+            </li>
+            <li>
+              {/* CCPA/CPRA: a "privacy choices" link in the footer, even
+                  though nothing is sold — the section says so. */}
+              <Link href="/privacy#california" className="hover:text-ink">
+                Your privacy choices
+              </Link>
+            </li>
+          </ul>
         </div>
       </div>
     </footer>

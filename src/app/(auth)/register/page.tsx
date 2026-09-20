@@ -72,6 +72,20 @@ export default function RegisterPage() {
           helper="At least 12 characters."
         />
         <TurnstileWidget onToken={setBotToken} />
+        <label className="flex items-start gap-2.5 text-sm">
+          <input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />
+          <span className="text-ink-2">
+            I am 16 or older and I agree to the{" "}
+            <Link href="/terms" className="text-link" target="_blank">
+              terms of use
+            </Link>{" "}
+            and the{" "}
+            <Link href="/privacy" className="text-link" target="_blank">
+              privacy policy
+            </Link>
+            .
+          </span>
+        </label>
         {error && (
           <p className="text-sm text-danger" role="alert">
             {error}

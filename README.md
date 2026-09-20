@@ -152,7 +152,8 @@ src/
 prisma/                   Schema, migrations, seed
 tests/                    unit/ and e2e/
 docs/                     Architecture and security plan, search, link previews,
-                          deployment, security testing
+                          deployment, security testing, privacy compliance
+                          (docs/compliance.md — read it before going live)
 ```
 
 A few conventions that aren't obvious from the tree:

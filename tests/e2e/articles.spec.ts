@@ -48,6 +48,7 @@ async function registerModerator(page: Page, email: string, handle: string) {
   await page.fill('input[name="handle"]', handle);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="consent"]');
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/login/);
   promoteTo("MODERATOR", email);
@@ -107,6 +108,7 @@ test.describe("Article authoring", () => {
     await page.fill('input[name="handle"]', `unverifauth${Date.now()}`);
     await page.fill('input[name="email"]', email);
     await page.fill('input[name="password"]', PASSWORD);
+    await page.check('input[name="consent"]');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/login/);
     promoteTo("MODERATOR", email);

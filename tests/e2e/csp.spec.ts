@@ -42,6 +42,7 @@ async function signInAsModerator(page: Page) {
   await page.fill('input[name="handle"]', `csp${stamp}`);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="consent"]');
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/login/);
 

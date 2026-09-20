@@ -6,6 +6,7 @@ import { auth, signOut } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { TRUST_COOKIE, trustTokenExpiry, verifyTrustToken } from "@/lib/auth/trustedDevice";
 import { forgetThisDevice } from "./actions";
+import { AccountPrivacy } from "./AccountPrivacy";
 import { EmailVerifyBanner } from "@/app/(dashboard)/dashboard/EmailVerifyBanner";
 import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
@@ -54,7 +55,7 @@ export default async function AccountPage() {
       sessionVersion: true,
       emailVerifiedAt: true,
       createdAt: true,
-      _count: { select: { bookmarks: true, comments: true, follows: true } },
+      _count: { select: { bookmarks: true, comments: true, follows: true, articles: true } },
     },
   });
   if (!user) redirect("/login");
@@ -201,6 +202,8 @@ export default async function AccountPage() {
           </div>
         )}
       </section>
+
+      <AccountPrivacy name={user.name} canDelete={user._count.articles === 0} />
 
       <section className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1" aria-label="Session">
         <p className="text-sm text-ink-3">

@@ -42,6 +42,13 @@ model User {
   // issued): proxy.ts sends the person to /account/password before any
   // other page until they have chosen their own. See lib/auth/config.ts.
   mustChangePassword Boolean @default(false)
+  // When they ticked "I agree to the terms and privacy policy" at
+  // registration — the record of consent GDPR Art. 7(1) asks for.
+  termsAcceptedAt  DateTime?
+  // Set by "Delete my account". The row stays so comments and audit
+  // entries keep their foreign keys, but every personal field on it is
+  // blanked and it can never sign in again. See lib/accountDeletion.ts.
+  anonymisedAt     DateTime?
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?
   // Bumped to instantly invalidate every outstanding JWT for this user —

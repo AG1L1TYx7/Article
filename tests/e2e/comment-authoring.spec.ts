@@ -52,6 +52,7 @@ async function register(page: Page, email: string, handle: string, name = "Comme
   await page.fill('input[name="handle"]', handle);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="consent"]');
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/login/);
 }

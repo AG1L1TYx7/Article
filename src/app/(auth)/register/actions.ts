@@ -43,6 +43,14 @@ export async function registerUser(formData: FormData): Promise<RegisterResult> 
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
+  // Consent is a server-side fact, not a checkbox the browser enforces:
+  // the account is only created with a timestamp recording that the terms
+  // and privacy policy were accepted (GDPR Art. 7(1) — the controller must
+  // be able to demonstrate consent).
+  if (formData.get("consent") !== "on") {
+    return { ok: false, error: "Please confirm you are 16 or older and agree to the terms and privacy policy." };
+  }
+
   const { name, handle, email, password } = parsed.data;
 
   // Every input above was already validated server-side by registerSchema —
@@ -66,7 +74,7 @@ export async function registerUser(formData: FormData): Promise<RegisterResult> 
   const passwordHash = await hashPassword(password);
 
   await db.user.create({
-    data: { name, handle, email, passwordHash },
+    data: { name, handle, email, passwordHash, termsAcceptedAt: new Date() },
   });
 
   const token = await createToken("email-verify", email, EMAIL_VERIFY_TTL_MS);
