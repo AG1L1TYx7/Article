@@ -236,10 +236,14 @@ soft-removed via status flags, never hard-deleted, so the trail survives.
 Stated plainly so nobody assumes otherwise:
 
 - **Google OAuth** is not scaffolded — it needs a Google Cloud OAuth client.
-- **Search has no GIN index yet.** Fine into the low tens of thousands of
-  articles; [`docs/search.md`](docs/search.md) has the exact migration for
-  when it isn't.
-- No internationalization.
+- **Email, object storage, Redis rate limiting and the CAPTCHA** all run on
+  local fallbacks until their keys are in `.env` (see `.env.example`).
+- **Video uploads need ClamAV and ffmpeg on the server** — the Docker setup
+  provides both; shared cPanel hosting cannot.
+- **Load testing, a backup-and-restore drill and an outside penetration
+  review** need the deployed server and a person; the code-side hardening
+  (CSP, headers, MFA, audit log, dependency gate) is in.
+- No push notifications, internationalization or personalization.
 
 ## Deploying
 
