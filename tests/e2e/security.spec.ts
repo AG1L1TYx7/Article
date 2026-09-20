@@ -302,10 +302,22 @@ test.describe("A07 Authentication failures", () => {
       )
     ).not.toBe("none");
 
-    // And the correct password does not work while locked.
+    // And the correct password does not work while locked. Because the
+    // password IS right, the page says so plainly (the person already
+    // knows the account exists) instead of the generic message that had
+    // people retyping a correct password and extending the lock.
     await page.goto("/login");
     await page.fill('input[name="email"]', email);
     await page.fill('input[name="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await expect(page.getByText(/locked for another/)).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+
+    // A wrong password on the locked account still gets the generic
+    // message — the lock is never revealed to someone without the password.
+    await page.goto("/login");
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', "still-wrong");
     await page.click('button[type="submit"]');
     await expect(page.getByText("Incorrect email or password.")).toBeVisible();
   });

@@ -79,8 +79,20 @@ function LoginForm() {
     const email = String(formData.get("email"));
     const password = String(formData.get("password"));
 
-    const needsTotp = await checkMfaRequired(email, password);
-    if (needsTotp) {
+    const check = await checkMfaRequired(email, password);
+    if (check.lockedUntil) {
+      // Right password, locked account: say so, rather than the generic
+      // "incorrect" that makes people retype a correct password five more
+      // times and extend the lock.
+      const until = new Date(check.lockedUntil);
+      const minutes = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60_000));
+      setError(
+        `Too many failed attempts. This account is locked for another ${minutes} minute${minutes === 1 ? "" : "s"} — your password is right, so just wait and try again.`
+      );
+      setPending(false);
+      return;
+    }
+    if (check.mfa) {
       setAwaitingTotp({ email, password });
       setPending(false);
       return;
