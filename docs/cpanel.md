@@ -11,10 +11,11 @@ Apache cannot run a Node process — but **cPanel's "Setup Node.js App"
 can**, because it runs Phusion Passenger, which keeps a Node process
 alive and proxies to it.
 
-The native dependencies are also less of a problem than they look.
-`argon2` ships prebuilt binaries for `linux-x64` and `sharp` installs a
-prebuilt `@img/sharp-linux-x64`, so neither needs a compiler on a normal
-Linux host.
+The native dependencies are handled for you. The bundle carries the
+**Linux** builds of `argon2` (passwords) and `sharp` (image processing)
+no matter which machine ran the build — `npm run build:cpanel` fetches
+them and checks they really are Linux binaries — so nothing needs a
+compiler on the host.
 
 ## Check these four things first
 
@@ -25,7 +26,7 @@ If any of them is a no, stop — the rest will not save you.
 | **Node 20.9+** | cPanel → Setup Node.js App → the version dropdown | Next.js 16 refuses to start on anything older. Many hosts still cap at 18. |
 | **"Setup Node.js App" exists** | Look for it under Software | Without Passenger there is nothing to keep the process running. |
 | **MySQL** | cPanel → MySQL Databases | The app needs it, and you already have it locally. |
-| **SSH, or a terminal** | cPanel → Terminal, or SSH access | Migrations and the first admin account are command-line only. |
+| **Terminal, or SSH** | cPanel → Terminal | Migrations and the first admin account are run from a command line. There is a phpMyAdmin-only route for the schema (below), but not for the admin account. |
 
 ## What will not work on shared cPanel
 
@@ -60,30 +61,42 @@ npm run build
 npm run build:cpanel
 ```
 
-That produces `cpanel-dist/` — around 140MB, containing the server, the
-traced dependencies, the static assets and `app.js`.
+That produces `cpanel-dist/` — around 160MB. Inside:
+
+| File | What it is |
+| --- | --- |
+| `app.js` | The entry point Passenger starts |
+| `server.js`, `.next/`, `public/`, `node_modules/` | The site itself |
+| `setup.js` | Migrations, starter categories and the first admin — runs with plain `node`, no Prisma CLI needed |
+| `migrations/` | The SQL `setup.js` applies |
+| `database.sql` | The same schema as one file, for phpMyAdmin's Import tab |
+
+The first run downloads two small packages (the Linux builds of sharp)
+into `.cpanel-cache/`; later builds are offline.
 
 ### 2. Upload
 
 Upload the **contents** of `cpanel-dist/` into your application root on
 the server (not the directory itself). File Manager's zip upload and
-extract is far quicker than uploading 140MB of small files individually.
+extract is far quicker than uploading 160MB of small files individually.
 
 Do **not** upload your local `.env`. It points at `127.0.0.1:3307` and
-holds development secrets.
+holds development secrets. (The build strips it from the bundle, so it
+is not there by accident either.)
 
 ### 3. Create the database
 
-cPanel → MySQL Databases. Create a database and a user, and grant the
-user all privileges on it. Note the names: cPanel prefixes both with your
-account name, so `news` becomes something like `acct_news`.
+cPanel → MySQL Databases. Create a database and a user, and add the user
+to the database with **All Privileges**. Note the names: cPanel prefixes
+both with your account name, so `news` becomes something like
+`acct_news` and `dbuser` becomes `acct_dbuser`.
 
 ### 4. Write .env on the server
 
 Create `.env` in the application root:
 
 ```bash
-DATABASE_URL="mysql://acct_user:password@localhost:3306/acct_news"
+DATABASE_URL="mysql://acct_dbuser:password@localhost:3306/acct_news"
 
 # Generate with: openssl rand -base64 32
 # This also encrypts stored MFA secrets — changing it later invalidates
@@ -92,11 +105,15 @@ AUTH_SECRET="..."
 NEXTAUTH_URL="https://yourdomain.com"
 ```
 
+If the database password contains `@`, `:`, `/` or `%`, URL-encode it
+(`@` becomes `%40`, and so on).
+
 > **Ask your host to set `innodb_ft_min_token_size=2`.** The default is 3,
 > which means MySQL indexes no word shorter than three characters —
 > searching for "AI", "EU" or "US" silently returns nothing, with no
 > error. It can only be set at server startup, so on shared hosting it is
-> a support ticket. See [database.md](database.md).
+> a support ticket. `node setup.js check` below tells you what it is
+> currently set to. See [database.md](database.md).
 
 ### 5. Set up the Node app
 
@@ -105,6 +122,7 @@ cPanel → Setup Node.js App → Create Application:
 | Field | Value |
 | --- | --- |
 | Node.js version | 20.9 or newer |
+| Application mode | Production |
 | Application root | wherever you uploaded to |
 | Application URL | your domain |
 | Application startup file | `app.js` |
@@ -112,24 +130,40 @@ cPanel → Setup Node.js App → Create Application:
 Do not click Run NPM Install — the dependencies are already in the bundle,
 and reinstalling on the server risks the memory limit.
 
-### 6. Migrations and the first admin
+### 6. Migrations, categories and the first admin
 
-Open the virtual environment cPanel shows you (it prints a `source ...`
-command), then:
+Open cPanel → Terminal (or SSH in), enter the app's environment using
+the `source ...` command that Setup Node.js App shows at the top of the
+page, `cd` to the application root, then:
 
 ```bash
-npx prisma migrate deploy
-npm run seed
-npm run bootstrap:staff -- --email you@yourdomain.com --role ADMIN
+node setup.js check
 ```
 
-That last one prints a generated password **once**.
+It connects with your `.env`, and tells you what is wrong in plain
+words — wrong database name, wrong password, Node too old, token size
+not set, migrations pending. Fix whatever it lists, then:
 
-If `npx prisma` is not available — the bundle carries only the traced
-runtime dependencies, not the CLI — run the migrations from your own
-machine against the server's database instead, if your host allows remote
-MySQL. Otherwise upload a full `node_modules` temporarily, migrate, and
-remove it.
+```bash
+node setup.js migrate
+node setup.js seed
+node setup.js admin --email you@yourdomain.com
+```
+
+That last one prints a generated password **once**. Run `check` again
+and it should say everything checks out.
+
+`setup.js` records what it applied in the same `_prisma_migrations`
+table, with the same checksums, that Prisma uses — so if you later run
+`npx prisma migrate deploy` against this database from your own machine,
+the two agree.
+
+**No Terminal?** Some hosts disable it. For the schema, use phpMyAdmin:
+open your (empty) database, Import tab, choose `database.sql`, Go. That
+gives you every table plus the migration records. It cannot create the
+admin account, though — the password hash has to be generated by
+`setup.js admin` — so ask your host to enable the Terminal or SSH, which
+they almost always will.
 
 ### 7. Restart and check
 
@@ -138,14 +172,19 @@ Click Restart in Setup Node.js App, then load your domain.
 **If you get a 503 or a Passenger error page**, the log is in
 `~/logs/` or shown in the cPanel interface. The usual causes, in order:
 Node version too old, `.env` missing or unreadable, and the database
-credentials being wrong.
+credentials being wrong. `node setup.js check` catches the last two.
+
+**If pages load but logging in fails**, or an image upload returns a
+500, the bundle is missing its Linux binaries. Rebuild with
+`npm run build:cpanel` — it refuses to finish without them — and upload
+`node_modules/argon2` and `node_modules/@img` again.
 
 ## Keeping it updated
 
 Rebuild locally, re-run `npm run build:cpanel`, upload the contents
-again, and Restart. Run `npx prisma migrate deploy` if the update
-included a migration — `git log --stat` shows whether
-`prisma/migrations-mysql/` changed.
+again, then in the Terminal run `node setup.js migrate` (it does nothing
+if there is nothing new) and Restart. `git log --stat` shows whether
+`prisma/migrations-mysql/` changed, if you want to know in advance.
 
 ## Honestly, should you?
 

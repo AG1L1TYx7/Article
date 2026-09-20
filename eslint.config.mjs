@@ -18,6 +18,14 @@ const eslintConfig = defineConfig([
     // The Prisma client is generated, not written.
     "src/generated/**",
   ]),
+  {
+    // CommonJS by necessity: this file is copied into the cPanel bundle
+    // as setup.js and run there with plain `node`, alongside app.js,
+    // which Passenger also loads as CommonJS. It require()s the driver
+    // lazily so a missing package produces a message instead of a stack.
+    files: ["scripts/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
 ]);
 
 export default eslintConfig;

@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   // It tells an attacker which framework to look up exploits for and
   // does nothing for anyone else.
   poweredByHeader: false,
+
+  // Keep the MySQL driver as a real package in .next/standalone/node_modules
+  // instead of folding it into the server chunks. The cPanel bundle's
+  // setup.js (scripts/cpanel-setup.cjs) runs migrations with the same
+  // driver, and it can only require() what exists as a package.
+  serverExternalPackages: ["mariadb"],
 };
 
 export default nextConfig;

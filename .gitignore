@@ -71,3 +71,6 @@ next-env.d.ts
 
 # Built by npm run build:cpanel — an upload artifact, not source.
 /cpanel-dist/
+
+# Linux native-binary tarballs fetched by npm run build:cpanel (re-downloaded if missing).
+/.cpanel-cache/
