@@ -73,6 +73,11 @@ export async function SiteFooter() {
               </Link>
             </li>
             <li>
+              <Link href="/account" className="text-ink-2 hover:text-ink">
+                Your account
+              </Link>
+            </li>
+            <li>
               <Link href="/register" className="text-ink-2 hover:text-ink">
                 Create an account
               </Link>

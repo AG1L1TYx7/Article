@@ -34,7 +34,14 @@ export default function RegisterPage() {
   return (
     <AuthCard
       title="Create an account"
-      intro="Save articles, follow writers and join the discussion."
+      intro={
+        <>
+          Save articles, follow writers and join the discussion.
+          <span className="mt-1 block text-xs text-ink-3">
+            This creates a reader account. Newsroom access is granted by an editor, never by signing up.
+          </span>
+        </>
+      }
       footer={
         <>
           Already have one?{" "}

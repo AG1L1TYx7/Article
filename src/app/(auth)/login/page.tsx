@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { checkMfaRequired } from "./actions";
 import { safeRedirectPath } from "@/lib/safeRedirect";
 import { AuthCard } from "@/components/AuthCard";
@@ -50,7 +50,15 @@ function LoginForm() {
     // This used to check `from.startsWith("/")`, which is not enough —
     // "//evil.com" satisfies it and browsers resolve it to
     // https://evil.com. See lib/safeRedirect.ts.
-    const destination = safeRedirectPath(params.get("from"), "/dashboard");
+    // Staff go to the newsroom; readers go to the front page. Readers used
+    // to be sent to /dashboard and bounced back by proxy.ts — a wasted
+    // round trip that also flashed the wrong page. The role is read from
+    // the session the sign-in just created, so a stale client value can't
+    // send anyone the wrong way.
+    const session = await getSession();
+    const role = session?.user?.role;
+    const home = role === "ADMIN" || role === "MODERATOR" ? "/dashboard" : "/";
+    const destination = safeRedirectPath(params.get("from"), home);
 
     // A full navigation, not router.push(), for two reasons. The client
     // Router Cache still holds pages rendered for the signed-out visitor,

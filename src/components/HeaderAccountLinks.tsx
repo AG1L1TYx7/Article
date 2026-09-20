@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { NotificationsLink } from "./NotificationsLink";
 import { BookmarkIcon } from "./icons";
+import { initials } from "@/lib/format";
 
 /**
  * Account links read the session on the client on purpose.
@@ -39,6 +40,14 @@ export function HeaderAccountLinks() {
               Dashboard
             </Link>
           )}
+          <Link
+            href="/account"
+            className="avatar ml-1 h-8 w-8 text-[11px] transition-shadow hover:ring-ink"
+            title="Your account"
+          >
+            {initials(session.user.name ?? session.user.email ?? "?")}
+            <span className="sr-only">Your account</span>
+          </Link>
         </>
       ) : (
         <>
