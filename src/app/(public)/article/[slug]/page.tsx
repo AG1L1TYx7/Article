@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/lib/db";
@@ -9,12 +8,11 @@ import { ShareLinks } from "./ShareLinks";
 import { CommentSection, parseCommentSort } from "@/components/comments/CommentSection";
 import { RelatedLinks } from "@/components/articles/RelatedLinks";
 import { ArticleCard } from "@/components/articles/ArticleCard";
+import { ArticleBody, ArticleCover, ArticleHeader, ArticleTags } from "@/components/articles/ArticleView";
 import { ArticleEngagement } from "@/components/engagement/ArticleEngagement";
-import { TagIcon } from "@/components/icons";
 import { auth } from "@/lib/auth/config";
 import { getBaseUrl } from "@/lib/url";
-import { formatDate, initials, readingTime } from "@/lib/format";
-import { imageSrcSet, imageVariantUrl } from "@/lib/imageUrl";
+import { readingTime } from "@/lib/format";
 
 /**
  * An article counts as updated when it was edited a meaningful time after
@@ -116,7 +114,6 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   countArticleView(article.id);
 
   const safeHtml = sanitizedArticleHtml(article.id, article.updatedAt, article.bodyHtml);
-  const minutes = readingTime(article.bodyHtml);
 
   // The viewer's own like/save/follow state. Counted once here rather
   // than inside the client component so the first paint is already
@@ -163,69 +160,19 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   return (
     <main id="main-content" className="pb-16">
       <article>
-        {/* Headline block */}
-        <header className="mx-auto max-w-3xl px-4 pt-10 sm:px-6 sm:pt-14">
-          <div className="flex items-center gap-2">
-            {article.isBreaking && <span className="badge-breaking">Breaking</span>}
-            {article.category && (
-              <Link href={`/category/${article.category.slug}`} className="eyebrow hover:underline">
-                {article.category.name}
-              </Link>
-            )}
-          </div>
-          <h1 className="headline mt-4 text-[36px] leading-[1.06] sm:text-[52px]">{article.title}</h1>
-          {article.dek && (
-            <p className="mt-5 font-serif text-xl leading-snug text-ink-2 sm:text-2xl">{article.dek}</p>
-          )}
+        <ArticleHeader
+          title={article.title}
+          dek={article.dek}
+          isBreaking={article.isBreaking}
+          category={article.category}
+          author={article.author}
+          publishedAt={article.publishedAt}
+          updatedAt={updatedAfterPublish}
+          minutes={readingTime(article.bodyHtml)}
+          aside={<ShareLinks title={article.title} url={shareUrl} />}
+        />
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-y border-line py-4">
-            <div className="flex items-center gap-3">
-              <span className="avatar h-10 w-10 text-sm">{initials(article.author.name)}</span>
-              <div className="text-sm">
-                <p>
-                  <span className="text-ink-3">By </span>
-                  <Link href={`/author/${article.author.handle}`} className="font-medium text-ink hover:underline">
-                    {article.author.name}
-                  </Link>
-                </p>
-                <p className="text-xs text-ink-3">
-                  {article.publishedAt && (
-                    <time dateTime={article.publishedAt.toISOString()}>{formatDate(article.publishedAt)}</time>
-                  )}
-                  <span aria-hidden="true"> · </span>
-                  {minutes} min read
-                  {updatedAfterPublish && (
-                    <>
-                      <span aria-hidden="true"> · </span>
-                      <span className="text-ink-2">
-                        Updated <time dateTime={updatedAfterPublish.toISOString()}>{formatDate(updatedAfterPublish)}</time>
-                      </span>
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-            <ShareLinks title={article.title} url={shareUrl} />
-          </div>
-        </header>
-
-        {article.coverImage && (
-          <figure className="mx-auto mt-8 max-w-5xl px-4 sm:px-6">
-            {/* eslint-disable-next-line @next/next/no-img-element -- served from this site's own media route or object storage */}
-            <img
-              src={imageVariantUrl(article.coverImage.url, 1200)}
-              srcSet={imageSrcSet(article.coverImage.url)}
-              sizes="(min-width: 1024px) 960px, 100vw"
-              alt={article.coverImage.altText ?? ""}
-              className="aspect-[16/9] w-full rounded-lg bg-surface-2 object-cover"
-              loading="eager"
-              decoding="async"
-            />
-            {article.coverImage.altText && (
-              <figcaption className="mt-2 text-xs text-ink-3">{article.coverImage.altText}</figcaption>
-            )}
-          </figure>
-        )}
+        <ArticleCover image={article.coverImage} />
 
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <div className="mt-8">
@@ -242,27 +189,9 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
             />
           </div>
 
-          {/* The one dangerouslySetInnerHTML in the codebase — sanitized on
-              save and again just above at render time. See lib/sanitize.ts. */}
-          <div
-            className="prose prose-article mt-10 max-w-none"
-            dangerouslySetInnerHTML={{ __html: safeHtml }}
-          />
+          <ArticleBody html={safeHtml} />
 
-          {article.tags.length > 0 && (
-            <ul className="mt-10 flex flex-wrap items-center gap-2" aria-label="Tags">
-              <li className="flex items-center gap-1 text-xs font-medium tracking-wide text-ink-3 uppercase">
-                <TagIcon size={12} /> Tagged
-              </li>
-              {article.tags.map(({ tag }) => (
-                <li key={tag.slug}>
-                  <Link href={`/tag/${tag.slug}`} className="btn btn-secondary btn-sm rounded-full">
-                    {tag.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ArticleTags tags={article.tags.map((t) => t.tag)} />
 
           <RelatedLinks links={article.links} />
 

@@ -26,6 +26,21 @@ export const articleInputSchema = z.object({
   tagSlugs: z.array(z.string().min(1).max(50)).max(10).optional(),
   isBreaking: z.boolean().optional(),
   coverImageId: z.string().min(1).optional(),
+  // Describes the cover for readers who cannot see it; stored on the
+  // Media row, so it is only meaningful alongside coverImageId.
+  coverAltText: z.string().max(200).optional(),
+  // Search-result title and description. Google truncates around 60 and
+  // 160 characters; the limits leave a little room rather than enforcing
+  // the exact cut-off, which changes.
+  seoTitle: z.string().max(70).optional(),
+  seoDescription: z.string().max(170).optional(),
+  // ISO timestamp. Set (in the future) to schedule; absent to leave the
+  // article as a draft, or to cancel a schedule.
+  scheduledFor: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .refine((v) => !v || new Date(v).getTime() > Date.now() - 60_000, "The publish time must be in the future."),
 });
 export type ArticleInput = z.infer<typeof articleInputSchema>;
 

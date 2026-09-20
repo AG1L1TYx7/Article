@@ -109,6 +109,24 @@ get the same effect there.
 - `app/manifest.ts` and `public/icons/` make the site installable; the
   icons come from `scripts/make-icons.mjs`.
 
+## Newsroom conventions
+
+- Every status action goes through `ActionButton` (`components/`), which
+  runs a server action and shows its `{ ok, error }`. Pass the action and
+  its arguments separately (`action={publishArticle} args={[id]}`); a
+  server component cannot hand a closure to a client component. Anything
+  irreversible from the interface gets a `confirm`.
+- The article form autosaves 2.5s after a pause once there is a title,
+  creates the draft on its first save and moves the address bar to the
+  edit page without a navigation. The rail shows the save state; leaving
+  with unsaved changes asks first. Publish, unpublish, schedule, preview
+  and archive all save first, so nothing typed is lost.
+- Scheduled publishing needs no worker: `lib/scheduledPublishing.ts` runs
+  after each public response, at most once a minute per process.
+- The preview at `/dashboard/articles/<id>/preview` uses the same
+  `ArticleView` pieces as the public page, so a draft reads exactly as it
+  will live.
+
 ## Rules that are easy to break
 
 - One `<nav>` per public page: the section bar. Footer lists are `<ul>`.

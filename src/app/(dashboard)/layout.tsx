@@ -33,15 +33,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         <DashboardNav role={role} mfaEnabled={!!mfaEnabled} />
 
-        <div className="mt-auto border-t border-line p-3 md:p-4">
-          <div className="flex items-center gap-3">
+        <div className="mt-auto border-t border-line px-3 py-2 md:p-4">
+          {/* Who is signed in — on a phone the nav row is enough, and this
+              would push the page's own title below the fold. */}
+          <div className="hidden items-center gap-3 md:flex">
             <span className="avatar h-9 w-9 text-xs">{initials(name ?? email ?? "?")}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{name}</p>
               <p className="truncate text-xs text-ink-3">{email}</p>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="flex items-center gap-2 md:mt-3">
             <Link href="/" className="btn btn-ghost btn-sm flex-1 justify-start gap-1.5">
               <ExternalIcon size={14} /> View site
             </Link>

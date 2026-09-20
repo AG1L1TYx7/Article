@@ -40,6 +40,45 @@ export async function createCategory(formData: FormData): Promise<CategoryAction
   });
 }
 
+/**
+ * Renames or re-describes a category. The slug is left alone on purpose:
+ * it is in every published URL for the section, and changing it would
+ * break links from outside — a rename is what people actually want.
+ */
+export async function updateCategory(
+  categoryId: string,
+  input: { name: string; description?: string }
+): Promise<CategoryActionResult> {
+  return guardAction(async () => {
+    const session = await requireRole("ADMIN");
+
+    const parsed = categoryInputSchema.pick({ name: true, description: true }).safeParse({
+      name: input.name,
+      description: input.description || undefined,
+    });
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+
+    const existing = await db.category.findUnique({ where: { id: categoryId }, select: { id: true } });
+    if (!existing) return { ok: false, error: "That category no longer exists." };
+
+    await db.category.update({
+      where: { id: categoryId },
+      data: { name: parsed.data.name, description: parsed.data.description ?? null },
+    });
+    await recordAudit({
+      actorId: session.user.id,
+      action: "category.update",
+      targetType: "Category",
+      targetId: categoryId,
+      ip: await getClientIp(),
+    });
+
+    revalidatePath("/dashboard/categories");
+    revalidatePath("/");
+    return { ok: true };
+  });
+}
+
 export async function deleteCategory(categoryId: string): Promise<CategoryActionResult> {
   return guardAction(async () => {
     const session = await requireRole("ADMIN");

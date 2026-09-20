@@ -4,12 +4,11 @@ import { auth } from "@/lib/auth/config";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ArticleForm } from "../ArticleForm";
-import { updateArticle } from "../actions";
 import { ArticleLinks } from "@/components/articles/ArticleLinks";
 import { PageBody, PageHeader } from "../../../PageHeader";
 import { StatusPill } from "../StatusPill";
 import { ExternalIcon } from "@/components/icons";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Edit article", robots: { index: false, follow: false } };
 
@@ -33,6 +32,13 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
 
   const categories = await db.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
 
+  const when =
+    article.status === "PUBLISHED" && article.publishedAt
+      ? `Published ${formatDate(article.publishedAt)}`
+      : article.status === "SCHEDULED" && article.scheduledFor
+        ? `Goes live ${formatDateTime(article.scheduledFor)}`
+        : `Last saved ${formatDate(article.updatedAt)}`;
+
   return (
     <main id="main-content">
       <PageHeader
@@ -42,10 +48,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
           <span className="flex flex-wrap items-center gap-2">
             <StatusPill status={article.status} />
             <span>
-              {article.status === "PUBLISHED" && article.publishedAt
-                ? `Published ${formatDate(article.publishedAt)} · `
-                : ""}
-              last saved {formatDate(article.updatedAt)}
+              {when} · {article.viewCount.toLocaleString("en-GB")} views
             </span>
           </span>
         }
@@ -70,6 +73,9 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
       <PageBody>
         <ArticleForm
           categories={categories}
+          articleId={article.id}
+          status={article.status}
+          canPublish={session.user.emailConfirmed}
           initial={{
             title: article.title,
             dek: article.dek ?? "",
@@ -81,13 +87,10 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             bodyJson: article.bodyJson as object,
             bodyHtml: article.bodyHtml,
             coverImage: article.coverImage,
+            seoTitle: article.seoTitle ?? "",
+            seoDescription: article.seoDescription ?? "",
+            scheduledFor: article.scheduledFor?.toISOString() ?? null,
           }}
-          // A plain arrow function closing over article.id can't cross the
-          // server/client boundary — only an actual Server Action, or one
-          // curried with .bind(), can be passed as a prop to a Client
-          // Component. (Caught by an e2e test: the edit page 500'd with
-          // "Functions cannot be passed directly to Client Components".)
-          action={updateArticle.bind(null, article.id)}
         />
 
         <ArticleLinks

@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth/config";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { ArticleForm } from "../ArticleForm";
-import { createArticle } from "../actions";
 import { PageBody, PageHeader } from "../../../PageHeader";
 
 export const metadata: Metadata = { title: "New article", robots: { index: false, follow: false } };
@@ -20,15 +19,15 @@ export default async function NewArticlePage() {
       <PageHeader
         kicker="Articles"
         title="New article"
-        description="Saved as a draft. Publish it from the articles list when it's ready."
+        description="Autosaves as you type. Publish from the panel on the right, or set a time and it publishes itself."
         actions={
           <Link href="/dashboard/articles" className="btn btn-ghost">
-            Cancel
+            Back to list
           </Link>
         }
       />
       <PageBody>
-        <ArticleForm categories={categories} action={createArticle} />
+        <ArticleForm categories={categories} canPublish={session.user.emailConfirmed} />
       </PageBody>
     </main>
   );

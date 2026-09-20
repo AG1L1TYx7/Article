@@ -93,6 +93,45 @@ async function syncTags(articleId: string, tagSlugs: string[] | undefined) {
   });
 }
 
+/**
+ * The alt text lives on the Media row, so the same image reused as a
+ * cover elsewhere keeps its description. Only written when a cover is
+ * set and the form sent a value; an absent field leaves it alone.
+ */
+async function applyCoverAlt(data: ArticleInput) {
+  if (!data.coverImageId || data.coverAltText === undefined) return;
+  await db.media.update({
+    where: { id: data.coverImageId },
+    data: { altText: data.coverAltText.trim() || null },
+  });
+}
+
+/**
+ * What saving does to a draft's schedule.
+ *
+ * A future time on a DRAFT or SCHEDULED article schedules it; no time on
+ * a SCHEDULED article cancels the schedule and returns it to DRAFT. A
+ * PUBLISHED or ARCHIVED article is never touched — its status is changed
+ * by the publish/unpublish/archive actions, not by saving text.
+ *
+ * Scheduling is publishing with a delay, so it needs the same confirmed
+ * email address that publishing does.
+ */
+function scheduleFields(
+  data: ArticleInput,
+  current: { status: string } | null,
+  emailConfirmed: boolean
+): { error?: string; data: { status?: "DRAFT" | "SCHEDULED"; scheduledFor?: Date | null } } {
+  const status = current?.status ?? "DRAFT";
+  if (status !== "DRAFT" && status !== "SCHEDULED") return { data: {} };
+  if (data.scheduledFor) {
+    if (!emailConfirmed) return { error: "Verify your email address to schedule publishing.", data: {} };
+    return { data: { status: "SCHEDULED", scheduledFor: new Date(data.scheduledFor) } };
+  }
+  if (status === "SCHEDULED") return { data: { status: "DRAFT", scheduledFor: null } };
+  return { data: {} };
+}
+
 export async function createArticle(input: ArticleInput): Promise<ArticleActionResult> {
   return guardAction(async () => {
     const session = await requireRole("MODERATOR");
@@ -106,6 +145,9 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
 
     const slug = await uniqueSlug(data.slug || data.title);
     const bodyHtml = sanitizeArticleHtml(data.bodyHtml);
+
+    const schedule = scheduleFields(data, null, session.user.emailConfirmed);
+    if (schedule.error) return { ok: false, error: schedule.error };
 
     const article = await db.article.create({
       data: {
@@ -125,12 +167,16 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
         categoryId: data.categoryId ?? null,
         coverImageId: data.coverImageId ?? null,
         isBreaking: data.isBreaking ?? false,
+        seoTitle: data.seoTitle?.trim() || null,
+        seoDescription: data.seoDescription?.trim() || null,
         authorId: session.user.id,
-        status: "DRAFT",
+        status: schedule.data.status ?? "DRAFT",
+        scheduledFor: schedule.data.scheduledFor ?? null,
       },
     });
 
     await syncTags(article.id, data.tagSlugs);
+    await applyCoverAlt(data);
     await recordAudit({
       actorId: session.user.id,
       action: "article.create",
@@ -163,6 +209,9 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
       data.slug && data.slug !== article.slug ? await uniqueSlug(data.slug, articleId) : article.slug;
     const bodyHtml = sanitizeArticleHtml(data.bodyHtml);
 
+    const schedule = scheduleFields(data, article, session.user.emailConfirmed);
+    if (schedule.error) return { ok: false, error: schedule.error };
+
     await db.article.update({
       where: { id: articleId },
       data: {
@@ -180,10 +229,14 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
         categoryId: data.categoryId ?? null,
         coverImageId: data.coverImageId ?? null,
         isBreaking: data.isBreaking ?? false,
+        seoTitle: data.seoTitle?.trim() || null,
+        seoDescription: data.seoDescription?.trim() || null,
+        ...schedule.data,
       },
     });
 
     await syncTags(articleId, data.tagSlugs);
+    await applyCoverAlt(data);
     await recordAudit({
       actorId: session.user.id,
       action: "article.update",

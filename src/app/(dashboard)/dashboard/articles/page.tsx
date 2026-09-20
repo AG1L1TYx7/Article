@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { publishArticle, unpublishArticle, archiveArticle } from "./actions";
 import { PageBody, PageHeader } from "../../PageHeader";
 import { StatusPill } from "./StatusPill";
+import { ActionButton } from "@/components/ActionButton";
 import { PlusIcon } from "@/components/icons";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Articles", robots: { index: false, follow: false } };
 
@@ -31,6 +32,7 @@ export default async function ArticlesListPage() {
       status: true,
       updatedAt: true,
       publishedAt: true,
+      scheduledFor: true,
       viewCount: true,
       author: { select: { name: true } },
       category: { select: { name: true } },
@@ -103,29 +105,49 @@ export default async function ArticlesListPage() {
                   <td>
                     <StatusPill status={article.status} />
                   </td>
-                  <td className="text-ink-2 whitespace-nowrap">{formatDate(article.updatedAt)}</td>
+                  <td className="text-ink-2 whitespace-nowrap">
+                    {formatDate(article.updatedAt)}
+                    {article.status === "SCHEDULED" && article.scheduledFor && (
+                      <span className="block text-xs text-warn">
+                        goes live {formatDateTime(article.scheduledFor)}
+                      </span>
+                    )}
+                  </td>
                   <td className="text-right text-ink-2 tabular-nums">{article.viewCount.toLocaleString("en-GB")}</td>
                   <td className="pr-4">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex items-start justify-end gap-1">
                       {article.status !== "PUBLISHED" ? (
-                        <form action={async () => { "use server"; await publishArticle(article.id); }}>
-                          <button
-                            disabled={!canPublish}
-                            title={canPublish ? undefined : "Verify your email address to publish"}
-                            className="btn btn-sm btn-secondary text-ok disabled:text-ink-3"
-                          >
-                            Publish
-                          </button>
-                        </form>
+                        <ActionButton
+                          action={publishArticle}
+                          args={[article.id]}
+                          disabled={!canPublish}
+                          title={canPublish ? undefined : "Verify your email address to publish"}
+                          className="btn btn-sm btn-secondary text-ok disabled:text-ink-3"
+                          pendingLabel="Publishing…"
+                        >
+                          {article.status === "SCHEDULED" ? "Publish now" : "Publish"}
+                        </ActionButton>
                       ) : (
-                        <form action={async () => { "use server"; await unpublishArticle(article.id); }}>
-                          <button className="btn btn-sm btn-ghost">Unpublish</button>
-                        </form>
+                        <ActionButton
+                          action={unpublishArticle}
+                          args={[article.id]}
+                          className="btn btn-sm btn-ghost"
+                          pendingLabel="Unpublishing…"
+                          confirm="Take this article off the site? It goes back to being a draft and its address will stop working until it is published again."
+                        >
+                          Unpublish
+                        </ActionButton>
                       )}
                       {article.status !== "ARCHIVED" && (
-                        <form action={async () => { "use server"; await archiveArticle(article.id); }}>
-                          <button className="btn btn-sm btn-ghost text-danger">Archive</button>
-                        </form>
+                        <ActionButton
+                          action={archiveArticle}
+                          args={[article.id]}
+                          className="btn btn-sm btn-ghost text-danger"
+                          pendingLabel="Archiving…"
+                          confirm={`Archive "${article.title}"? It leaves the site and the articles list keeps it for the record.`}
+                        >
+                          Archive
+                        </ActionButton>
                       )}
                     </div>
                   </td>
