@@ -7,61 +7,77 @@ import { existsSync } from "node:fs";
  * These tests need to do two things the application deliberately offers no
  * UI for — promoting an account to staff, and backdating a row — and to
  * check that a write really landed rather than trusting the screen. Both
- * are legitimate reasons to talk to Postgres directly.
+ * are legitimate reasons to talk to MySQL directly.
  *
  * Connection details come from the environment so the suite runs against
  * whatever local database a contributor has, rather than assuming the
- * author's. `psql` is taken from PATH by default, which also means this
- * file is not Windows-only: an absolute path to psql.exe was previously
- * hardcoded in all eleven spec files, so nobody on macOS or Linux — or on
- * a different PostgreSQL version — could run the suite at all.
+ * author's. The client is taken from PATH by default, which also means
+ * this file is not Windows-only.
  *
- * Override with PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE, or
- * point E2E_PSQL at a specific binary.
+ * Override with MYSQL_HOST / MYSQL_PORT / MYSQL_USER / MYSQL_PASSWORD /
+ * MYSQL_DATABASE, or point E2E_MYSQL at a specific binary.
  */
-/**
- * Finds psql: an explicit override, then PATH, then the usual install
- * locations.
- *
- * The PATH step is what most machines will use, but a stock PostgreSQL
- * installer on Windows does not add its bin directory to PATH, so falling
- * back to the standard install path keeps the suite working there without
- * anyone having to configure anything.
- */
-function resolvePsql(): string {
-  if (process.env.E2E_PSQL) return process.env.E2E_PSQL;
 
-  const onPath = spawnSync("psql", ["--version"], { stdio: "ignore" });
-  if (onPath.status === 0) return "psql";
+/**
+ * Finds the mysql client: an explicit override, then PATH, then the usual
+ * install locations.
+ *
+ * Neither XAMPP nor the MySQL installer puts its bin directory on PATH on
+ * Windows, so falling back to the standard install paths keeps the suite
+ * working there without anyone having to configure anything.
+ */
+function resolveMysql(): string {
+  if (process.env.E2E_MYSQL) return process.env.E2E_MYSQL;
+
+  const onPath = spawnSync("mysql", ["--version"], { stdio: "ignore" });
+  if (onPath.status === 0) return "mysql";
 
   const candidates = [
-    ...[18, 17, 16, 15, 14].map((v) => `C:\\Program Files\\PostgreSQL\\${v}\\bin\\psql.exe`),
-    "/usr/local/bin/psql",
-    "/usr/bin/psql",
-    "/opt/homebrew/bin/psql",
+    "C:/xampp/mysql/bin/mysql.exe",
+    ...["8.4", "8.0"].map((v) => `C:/Program Files/MySQL/MySQL Server ${v}/bin/mysql.exe`),
+    "/usr/local/bin/mysql",
+    "/usr/bin/mysql",
+    "/opt/homebrew/bin/mysql",
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
   }
 
   throw new Error(
-    "Could not find psql. Add it to PATH, or set E2E_PSQL to its full path. " +
+    "Could not find the mysql client. Add it to PATH, or set E2E_MYSQL to its full path. " +
       "The e2e suite needs it for setup the application deliberately exposes no UI for."
   );
 }
 
-const PSQL = resolvePsql();
-const HOST = process.env.PGHOST ?? "localhost";
-const PORT = process.env.PGPORT ?? "5432";
-const USER = process.env.PGUSER ?? "postgres";
-const PASSWORD = process.env.PGPASSWORD ?? "postgres";
-const DATABASE = process.env.PGDATABASE ?? "news_platform_dev";
+const MYSQL = resolveMysql();
+const HOST = process.env.MYSQL_HOST ?? "127.0.0.1";
+const PORT = process.env.MYSQL_PORT ?? "3307";
+const USER = process.env.MYSQL_USER ?? "root";
+const PASSWORD = process.env.MYSQL_PASSWORD ?? "";
+const DATABASE = process.env.MYSQL_DATABASE ?? "news_platform";
 
 function run(args: string[], query: string): string {
-  return execFileSync(PSQL, ["-U", USER, "-h", HOST, "-p", PORT, "-d", DATABASE, ...args, "-c", query], {
-    env: { ...process.env, PGPASSWORD: PASSWORD },
-    encoding: "utf8",
-  });
+  return execFileSync(
+    MYSQL,
+    [
+      "-u",
+      USER,
+      "-h",
+      HOST,
+      "-P",
+      PORT,
+      // Without this the client uses a named pipe on Windows and ignores
+      // the port entirely, which quietly reaches the wrong server when
+      // more than one is installed.
+      "--protocol=TCP",
+      ...(PASSWORD ? [`-p${PASSWORD}`] : []),
+      ...args,
+      DATABASE,
+      "-e",
+      query,
+    ],
+    { encoding: "utf8" }
+  );
 }
 
 /** Runs a statement for its effect. */
@@ -69,9 +85,14 @@ export function sql(query: string): void {
   run([], query);
 }
 
-/** Runs a query and returns the single value it produced, as text. */
+/**
+ * Runs a query and returns the single value it produced, as text.
+ *
+ * -N drops the header row and -B gives tab-separated output, which
+ * together are the equivalent of psql's -t -A.
+ */
 export function scalar(query: string): string {
-  return run(["-t", "-A"], query).trim();
+  return run(["-N", "-B"], query).trim();
 }
 
 /** Runs a query and returns the single value it produced, as a number. */

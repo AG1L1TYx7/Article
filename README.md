@@ -3,14 +3,17 @@
 A publishing platform for a news site: staff write and publish articles with
 photo and video, readers register, comment, react, save, follow and share.
 
-Built with Next.js 16 (App Router), PostgreSQL via Prisma 7, and Auth.js.
+Built with Next.js 16 (App Router), MySQL via Prisma 7, and Auth.js.
 The full architecture and security plan this implements is in [`docs/`](docs/).
 
 ---
 
 ## Getting started
 
-**You need:** Node 20+, PostgreSQL 15+ running locally, and npm.
+**You need:** Node 20+, MySQL 8 or MariaDB 10.4+ running locally, and npm.
+
+The database needs `innodb_ft_min_token_size=2`, or searching for "AI", "EU"
+or "US" silently matches nothing. See [docs/database.md](docs/database.md).
 
 ```bash
 npm install
@@ -104,15 +107,16 @@ these tests register real accounts and publish real articles. Cleanup is scoped
 to `@example.com`, a domain RFC 2606 reserves for testing, so it can never
 match a real account.
 
-The suite talks to Postgres directly for a few things the application
+The suite talks to the database directly for a few things the application
 deliberately offers no UI for — promoting an account to staff, backdating a row
 — through `tests/e2e/support/db.ts`. Connection details come from the usual
-`PG*` environment variables, and `psql` is found on PATH or at a standard
-install location, so you don't need the same setup as whoever wrote the test.
+`MYSQL_*` environment variables, and the `mysql` client is found on PATH or at
+a standard install location, so you don't need the same setup as whoever wrote
+the test.
 
 Everything runs on push and on pull requests via GitHub Actions
 (`.github/workflows/ci.yml`): typecheck, lint and unit tests in one job, the
-end-to-end suite against a real PostgreSQL service container in another.
+end-to-end suite against a real MySQL service container in another.
 
 ---
 
@@ -265,5 +269,5 @@ classes of flaw, not a penetration test.
 
 `npx prisma studio` opens a schema-aware browser on http://localhost:5555.
 Adminer — the phpMyAdmin-style option, which unlike phpMyAdmin speaks
-PostgreSQL — is set up in XAMPP at http://localhost/adminer.php. See
+MySQL and MariaDB — is set up in XAMPP at http://localhost/adminer.php. See
 [docs/database-gui.md](docs/database-gui.md) for connection details.

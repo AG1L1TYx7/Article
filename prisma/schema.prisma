@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +160,20 @@ model Article {
   reports  Report[]
   notifications Notification[]
 
+  // MATCH ... AGAINST requires a real FULLTEXT index — unlike Postgres,
+  // MySQL cannot compute one per row at query time. MATCH must also name
+  // exactly the columns some index was built over, which is why there are
+  // four rather than one.
+  //
+  // The combined index decides *whether* a row matches. The three
+  // single-column ones exist so relevance can be scored per column and
+  // weighted, which is how a headline match outranks a passing mention
+  // halfway down the body. Postgres did that with setweight() on a single
+  // tsvector; MySQL has no equivalent, so it costs three more indexes.
+  @@fulltext([title, dek, searchText])
+  @@fulltext([title])
+  @@fulltext([dek])
+  @@fulltext([searchText])
   @@index([status, publishedAt])
   @@index([categoryId])
   @@index([authorId])

@@ -6,7 +6,7 @@ import { sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteTo(role: "ADMIN" | "MODERATOR", email: string) {
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 }
 const promoteToAdmin = (email: string) => promoteTo("ADMIN", email);
 

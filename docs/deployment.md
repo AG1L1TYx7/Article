@@ -52,8 +52,8 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Note what is *not* opened: 5432. The database is reachable only from the
-other containers. An exposed Postgres port is among the most reliably
+Note what is *not* opened: 3306. The database is reachable only from the
+other containers. An exposed database port is among the most reliably
 scanned things on the internet.
 
 ---
@@ -91,12 +91,11 @@ nano /srv/news-platform/.env
 
 ```bash
 # --- database -------------------------------------------------------
-POSTGRES_USER=news
-POSTGRES_PASSWORD=<a long random password, generated below>
-POSTGRES_DB=news_platform
+MYSQL_ROOT_PASSWORD=<a long random password, generated below>
+MYSQL_DATABASE=news_platform
 # "db" is the service name in docker-compose.yml, not a hostname you
 # need to create.
-DATABASE_URL=postgresql://news:<same password>@db:5432/news_platform?schema=public
+DATABASE_URL=mysql://root:<same password>@db:3306/news_platform
 
 # --- app ------------------------------------------------------------
 # Generate with: openssl rand -base64 32
@@ -110,8 +109,13 @@ Generate the two secrets:
 
 ```bash
 openssl rand -base64 32   # AUTH_SECRET
-openssl rand -base64 24   # POSTGRES_PASSWORD
+openssl rand -base64 24   # MYSQL_ROOT_PASSWORD
 ```
+
+The compose file starts MySQL with `--innodb-ft-min-token-size=2`. Do not
+remove that: the default of 3 means MySQL indexes no word shorter than three
+characters, so searching for "AI", "EU" or "US" silently returns nothing.
+See [database.md](database.md).
 
 Lock the file down — it holds every credential the site has:
 
@@ -292,7 +296,7 @@ crontab -e
 
 ```cron
 # Database, nightly at 03:00, keeping 14 days.
-0 3 * * * cd /srv/news-platform && docker compose exec -T db pg_dump -U news news_platform | gzip > /srv/backups/db-$(date +\%F).sql.gz && find /srv/backups -name 'db-*.sql.gz' -mtime +14 -delete
+0 3 * * * cd /srv/news-platform && docker compose exec -T db mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction news_platform | gzip > /srv/backups/db-$(date +\%F).sql.gz && find /srv/backups -name 'db-*.sql.gz' -mtime +14 -delete
 ```
 
 **A backup you have never restored is not a backup.** Test it:

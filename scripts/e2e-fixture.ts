@@ -16,14 +16,14 @@
  * run's cleanup removes it again.
  */
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 export const FIXTURE_EMAIL = "e2e-fixture@example.com";
 export const BALLAST_ARTICLE_ID = "e2e-trust-ballast";
 
 async function main() {
   const db = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+    adapter: new PrismaMariaDb(process.env.DATABASE_URL!),
   });
 
   const user = await db.user.upsert({

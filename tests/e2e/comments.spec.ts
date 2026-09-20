@@ -6,13 +6,13 @@ import { commentInThread } from "./support/comments";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 /** Fakes an established account, so its next comment skips the new-account queue. */
 const grantCommentTrust = (email: string) =>
   sql(
-    `UPDATE "Comment" SET status = 'APPROVED' WHERE "userId" = (SELECT id FROM "User" WHERE email = '${email}');`
+    `UPDATE \`Comment\` SET status = 'APPROVED' WHERE \`userId\` = (SELECT id FROM \`User\` WHERE email = '${email}');`
   );
 
 /**
@@ -26,7 +26,7 @@ const grantCommentTrust = (email: string) =>
  * revalidation timing.
  */
 function articleSlug(title: string): string {
-  return scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  return scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 }
 
 test.beforeEach(async ({ page }) => {

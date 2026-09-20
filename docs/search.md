@@ -1,5 +1,20 @@
 # Search
 
+> **This page described the PostgreSQL implementation.** The project now
+> runs on MySQL, and search was rewritten with it — `MATCH ... AGAINST`
+> over four FULLTEXT indexes rather than a `tsvector`, and a query
+> sanitiser in place of `websearch_to_tsquery`.
+>
+> See **[database.md](database.md)** for the current design, including
+> the `innodb_ft_min_token_size` setting that search will not work
+> correctly without.
+
+The original PostgreSQL notes are kept below, because the reasoning
+behind the ranking and the query-safety requirements carried over even
+though the implementation did not.
+
+---
+
 Full-text search over published articles, backed by Postgres. No external
 search service, no extra infrastructure to run or secure.
 
