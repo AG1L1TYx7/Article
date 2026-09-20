@@ -204,11 +204,13 @@ export default async function AccountPage() {
 
       <section className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1" aria-label="Session">
         <p className="text-sm text-ink-3">
-          Forgotten your password?{" "}
-          <Link href="/forgot-password" className="text-link">
-            Reset it by email
+          <Link href="/account/password" className="text-link">
+            Change your password
           </Link>
-          .
+          {" · "}
+          <Link href="/forgot-password" className="text-link">
+            Forgotten it? Reset by email
+          </Link>
         </p>
         <form
           action={async () => {

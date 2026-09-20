@@ -51,6 +51,15 @@ const newUserSchema = z.object({
     .max(30)
     .regex(/^[a-z0-9_-]+$/, "Handle can only contain lowercase letters, numbers, - and _"),
   role: z.enum(ASSIGNABLE_ROLES),
+  // Optional: the admin picks the temporary password (to read out over
+  // the phone, say). Same length rule as registration. Empty means
+  // "generate one".
+  temporaryPassword: z
+    .string()
+    .max(256)
+    .optional()
+    .transform((v) => (v?.trim() ? v.trim() : undefined))
+    .refine((v) => !v || v.length >= 12, "A temporary password must be at least 12 characters"),
 });
 
 export interface CreateUserResult extends UserActionResult {
@@ -72,6 +81,7 @@ export async function createUser(input: {
   email: string;
   handle: string;
   role: string;
+  temporaryPassword?: string;
 }): Promise<CreateUserResult> {
   return guardAction(async () => {
     const session = await requireRole("ADMIN");
@@ -91,7 +101,7 @@ export async function createUser(input: {
       };
     }
 
-    const temporaryPassword = randomBytes(12).toString("base64url");
+    const temporaryPassword = parsed.data.temporaryPassword ?? randomBytes(12).toString("base64url");
     const user = await db.user.create({
       data: {
         name,
@@ -100,6 +110,9 @@ export async function createUser(input: {
         role,
         passwordHash: await hashPassword(temporaryPassword),
         emailVerifiedAt: new Date(),
+        // Whoever made this password up, it is not the person's own: the
+        // first thing they do after signing in is choose one that is.
+        mustChangePassword: true,
       },
       select: { id: true },
     });

@@ -38,6 +38,10 @@ model User {
   status           UserStatus @default(ACTIVE)
   mfaSecret        String?
   mfaEnabled       Boolean   @default(false)
+  // Set when an admin creates the account (or a temporary password is
+  // issued): proxy.ts sends the person to /account/password before any
+  // other page until they have chosen their own. See lib/auth/config.ts.
+  mustChangePassword Boolean @default(false)
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?
   // Bumped to instantly invalidate every outstanding JWT for this user —

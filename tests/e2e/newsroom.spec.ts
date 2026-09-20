@@ -228,11 +228,32 @@ test.describe("People", () => {
     expect(temporary).toBeTruthy();
     expect(roleOf(email)).toBe("MODERATOR");
 
-    // And it works: the new person signs in and lands in the newsroom.
+    // The new person signs in with it and is made to choose their own
+    // password before anything else opens.
     await page.context().clearCookies();
     await page.goto("/login");
     await page.fill('input[name="email"]', email);
     await page.fill('input[name="password"]', temporary!);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/account\/password/);
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/account\/password/);
+
+    const own = `my-own-password-${stamp}`;
+    await page.fill('input[name="current"]', temporary!);
+    await page.fill('input[name="next"]', own);
+    await page.fill('input[name="confirm"]', own);
+    await page.getByRole("button", { name: "Set my password and continue" }).click();
+    await page.waitForURL("/dashboard");
+
+    // The temporary password no longer works; the new one does.
+    await page.context().clearCookies();
+    await page.goto("/login");
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', temporary!);
+    await page.click('button[type="submit"]');
+    await expect(page.getByText("Incorrect email or password.")).toBeVisible();
+    await page.fill('input[name="password"]', own);
     await page.click('button[type="submit"]');
     await page.waitForURL("/dashboard");
   });

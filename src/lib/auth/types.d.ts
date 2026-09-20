@@ -9,6 +9,8 @@ declare module "next-auth" {
       role: AppRole;
       mfaEnabled: boolean;
       emailConfirmed: boolean;
+      /** Signed in with a temporary password; must choose their own first. */
+      mustChangePassword: boolean;
     } & DefaultSession["user"];
   }
 
@@ -17,6 +19,7 @@ declare module "next-auth" {
     sessionVersion: number;
     mfaEnabled: boolean;
     emailConfirmed: boolean;
+    mustChangePassword: boolean;
   }
 }
 
@@ -26,5 +29,6 @@ declare module "next-auth/jwt" {
     sessionVersion?: number;
     mfaEnabled?: boolean;
     emailConfirmed?: boolean;
+    mustChangePassword?: boolean;
   }
 }

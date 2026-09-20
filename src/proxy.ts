@@ -20,8 +20,23 @@ const ADMIN_ONLY_PREFIXES = [
   "/dashboard/categories",
 ];
 
+// Where someone with a temporary password may still go. Everything else
+// redirects to the change-password page until they have chosen their
+// own — that is what makes the temporary password temporary.
+const ALLOWED_WHILE_CHANGING_PASSWORD = ["/account/password", "/login", "/register", "/forgot-password", "/reset-password"];
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  if (
+    req.auth?.user?.mustChangePassword &&
+    // Page navigations only: the manifest, icons and feeds a page pulls in
+    // must keep loading, or the change-password page itself renders broken.
+    req.headers.get("accept")?.includes("text/html") &&
+    !ALLOWED_WHILE_CHANGING_PASSWORD.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  ) {
+    return NextResponse.redirect(new URL("/account/password?required=1", req.nextUrl));
+  }
 
   if (pathname.startsWith("/dashboard")) {
     const user = req.auth?.user;

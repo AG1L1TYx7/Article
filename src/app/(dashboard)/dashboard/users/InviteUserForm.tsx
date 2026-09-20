@@ -26,6 +26,9 @@ export function InviteUserForm() {
   const [handle, setHandle] = useState("");
   const [handleTouched, setHandleTouched] = useState(false);
   const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("MODERATOR");
+  // Empty = let the server generate one. Filled in when the admin wants
+  // to read a password out to someone, or has a house convention.
+  const [temporaryPassword, setTemporaryPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ name: string; email: string; password: string; emailed: boolean } | null>(null);
@@ -37,6 +40,7 @@ export function InviteUserForm() {
     setHandle("");
     setHandleTouched(false);
     setRole("MODERATOR");
+    setTemporaryPassword("");
     setError(null);
     setCreated(null);
     setCopied(false);
@@ -46,7 +50,7 @@ export function InviteUserForm() {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const result = await createUser({ name, email, handle, role });
+    const result = await createUser({ name, email, handle, role, temporaryPassword: temporaryPassword || undefined });
     setPending(false);
     if (!result.ok) {
       setError(result.error ?? "Couldn't create that account.");
@@ -193,6 +197,40 @@ export function InviteUserForm() {
                 maxLength={254}
                 className="input"
               />
+            </div>
+            <div className="field">
+              <label htmlFor="invite-password" className="label">
+                Temporary password <span className="font-normal text-ink-3">(optional)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="invite-password"
+                  type="text"
+                  value={temporaryPassword}
+                  onChange={(e) => setTemporaryPassword(e.target.value)}
+                  minLength={12}
+                  maxLength={256}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Leave empty to generate one"
+                  className="input font-mono text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const bytes = new Uint8Array(12);
+                    crypto.getRandomValues(bytes);
+                    setTemporaryPassword(btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "").slice(0, 16));
+                  }}
+                  className="btn btn-secondary shrink-0"
+                >
+                  Generate
+                </button>
+              </div>
+              <p className="hint">
+                At least 12 characters. Whatever it is, they must replace it with their own the first time they
+                sign in.
+              </p>
             </div>
             <fieldset className="field">
               <legend className="label">Role</legend>

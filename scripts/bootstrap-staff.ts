@@ -66,6 +66,9 @@ async function main() {
           // whoever has server access, and publishing requires a
           // confirmed address (see requireVerifiedEmail in lib/auth/rbac.ts).
           emailVerifiedAt: new Date(),
+          // The password came from this script, not from them: the site
+          // asks for a new one at first sign-in (see proxy.ts).
+          mustChangePassword: true,
         },
       });
 

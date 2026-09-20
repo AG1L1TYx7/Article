@@ -171,6 +171,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           sessionVersion: user.sessionVersion,
           mfaEnabled: user.mfaEnabled,
           emailConfirmed: user.emailVerifiedAt !== null,
+          mustChangePassword: user.mustChangePassword,
         };
       },
     }),
@@ -182,6 +183,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sessionVersion = user.sessionVersion;
         token.mfaEnabled = user.mfaEnabled;
         token.emailConfirmed = user.emailConfirmed;
+        token.mustChangePassword = user.mustChangePassword;
         token.sub = user.id;
       }
 
@@ -194,7 +196,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.sub) {
         const current = await db.user.findUnique({
           where: { id: token.sub },
-          select: { role: true, status: true, sessionVersion: true, mfaEnabled: true, emailVerifiedAt: true },
+          select: {
+            role: true,
+            status: true,
+            sessionVersion: true,
+            mfaEnabled: true,
+            emailVerifiedAt: true,
+            mustChangePassword: true,
+          },
         });
         if (!current || current.status !== "ACTIVE" || current.sessionVersion !== token.sessionVersion) {
           return null;
@@ -202,6 +211,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = current.role;
         token.mfaEnabled = current.mfaEnabled;
         token.emailConfirmed = current.emailVerifiedAt !== null;
+        token.mustChangePassword = current.mustChangePassword;
       }
 
       return token;
@@ -212,6 +222,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as "READER" | "MODERATOR" | "ADMIN";
         session.user.mfaEnabled = (token.mfaEnabled as boolean | undefined) ?? false;
         session.user.emailConfirmed = (token.emailConfirmed as boolean | undefined) ?? false;
+        session.user.mustChangePassword = (token.mustChangePassword as boolean | undefined) ?? false;
       }
       return session;
     },

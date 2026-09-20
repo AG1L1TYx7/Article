@@ -363,9 +363,11 @@ async function admin(conn) {
     const taken = (await conn.query("SELECT 1 FROM `User` WHERE handle = ?", [handleBase])).length > 0;
     const handle = taken ? handleBase + "-" + randomBytes(2).toString("hex") : handleBase;
 
+    // mustChangePassword: the site asks for a new password at first
+    // sign-in, since this one was made up here rather than chosen.
     await conn.query(
-      "INSERT INTO `User` (id, email, name, handle, passwordHash, role, emailVerifiedAt, createdAt, updatedAt) " +
-        "VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))",
+      "INSERT INTO `User` (id, email, name, handle, passwordHash, role, emailVerifiedAt, mustChangePassword, createdAt, updatedAt) " +
+        "VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))",
       [cuid(), email, name, handle, passwordHash, role]
     );
     console.log("\nCreated " + email);

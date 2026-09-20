@@ -32,7 +32,12 @@ Two of those steps are easy to skip and then wonder why things look broken:
   account. Registration always creates a `READER`, by design — there is no
   "first user becomes admin" path, because that is a privilege-escalation
   race on any publicly reachable install. It prints a generated password once
-  if you don't pass one.
+  if you don't pass one. After that, admins add everyone else from
+  Dashboard → People → **Add person**, choosing the role and (optionally)
+  a temporary password. Any account created this way — by the script or
+  by an admin — must choose its own password at first sign-in before
+  anything else on the site opens (`mustChangePassword`, enforced in
+  `src/proxy.ts`).
 
 Set `NEXTAUTH_URL` to the real public origin before deploying: it is also what
 the sitemap, the RSS feed and every share card use to build absolute URLs.
