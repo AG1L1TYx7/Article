@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { one } from "@/lib/searchParams";
 import type { Prisma } from "@/generated/prisma/client";
 import { UserRow } from "./UserRow";
+import { InviteUserForm } from "./InviteUserForm";
 import { PageBody, PageHeader } from "../../PageHeader";
 import { SearchIcon } from "@/components/icons";
 
@@ -85,6 +86,7 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
             Roles take effect immediately — changing one signs that person out everywhere.
           </>
         }
+        actions={<InviteUserForm />}
       />
 
       <PageBody>

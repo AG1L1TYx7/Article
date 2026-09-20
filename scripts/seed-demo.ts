@@ -480,6 +480,25 @@ async function seed() {
     });
     created += 1;
 
+    // Spread the story's view total over the days since it was published
+    // (front-loaded, the way real stories decay) so the analytics charts
+    // have a shape rather than a single spike on the day of seeding.
+    {
+      const daysLive = Math.max(1, Math.min(30, Math.ceil(story.hoursAgo / 24) + 1));
+      const weights = Array.from({ length: daysLive }, (_, i) => 1 / (i + 1));
+      const weightSum = weights.reduce((s, w) => s + w, 0);
+      let allocated = 0;
+      for (let i = 0; i < daysLive; i++) {
+        const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const dayStart = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
+        const views = i === daysLive - 1 ? story.views - allocated : Math.round((story.views * weights[i]!) / weightSum);
+        allocated += views;
+        if (views > 0) {
+          await db.articleViewDaily.create({ data: { articleId: article.id, day: dayStart, views } });
+        }
+      }
+    }
+
     for (const name of TAGS[story.slug] ?? []) {
       const slug = tagSlug(name);
       const tag = await db.tag.upsert({ where: { slug }, create: { slug, name }, update: {} });

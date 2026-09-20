@@ -209,6 +209,34 @@ test.describe("People", () => {
     );
   });
 
+  test("an admin can add a person with a role, and they can log in with the temporary password", async ({ page }) => {
+    await signInAsAdmin(page, "nradder");
+    const stamp = Date.now();
+    const email = `nradded+${stamp}@example.com`;
+
+    await page.goto("/dashboard/users");
+    await page.getByRole("button", { name: "Add person" }).click();
+    await page.getByLabel("Name").fill("Added Writer");
+    await page.getByLabel("Handle").fill(`nradded${stamp}`);
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Writer & moderator").check();
+    await page.getByRole("button", { name: "Create account" }).click();
+
+    // The temporary password is shown once, in the dialog.
+    await expect(page.getByText("Account created")).toBeVisible();
+    const temporary = (await page.locator("code").textContent())?.trim();
+    expect(temporary).toBeTruthy();
+    expect(roleOf(email)).toBe("MODERATOR");
+
+    // And it works: the new person signs in and lands in the newsroom.
+    await page.context().clearCookies();
+    await page.goto("/login");
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', temporary!);
+    await page.click('button[type="submit"]');
+    await page.waitForURL("/dashboard");
+  });
+
   test("a moderator cannot reach the people page", async ({ page }) => {
     await signInAsModerator(page, "nrpeoplemod");
     await page.goto("/dashboard/users");

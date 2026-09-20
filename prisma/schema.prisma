@@ -159,6 +159,7 @@ model Article {
   bookmarks Bookmark[]
   reports  Report[]
   notifications Notification[]
+  viewDays ArticleViewDaily[]
 
   // MATCH ... AGAINST requires a real FULLTEXT index — unlike Postgres,
   // MySQL cannot compute one per row at query time. MATCH must also name
@@ -359,6 +360,21 @@ enum NotificationType {
 //
 // Only ever created for content that is already public, so a notification
 // can never reveal a comment still waiting on a moderator.
+// One row per article per UTC day, bumped by the view counter. Exists so
+// the analytics page can draw views over time; Article.viewCount alone
+// only ever says "how many, in total". Written with INSERT ... ON
+// DUPLICATE KEY UPDATE from lib/viewCount.ts, never through the client.
+model ArticleViewDaily {
+  articleId String
+  day       DateTime @db.Date
+  views     Int      @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, day])
+  @@index([day])
+}
+
 model Notification {
   id        String           @id @default(cuid())
   // The person being told.

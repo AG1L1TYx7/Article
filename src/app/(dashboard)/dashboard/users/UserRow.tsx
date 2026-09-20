@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { setUserRole, setUserStatus } from "./actions";
+import { sendPasswordResetTo, setUserRole, setUserStatus } from "./actions";
 import { formatDate, initials } from "@/lib/format";
 import { ShieldIcon } from "@/components/icons";
+import { ActionButton } from "@/components/ActionButton";
 
 export interface ManagedUser {
   id: string;
@@ -105,15 +106,26 @@ export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }
       </td>
 
       <td className="pr-4 text-right">
-        {!isSelf && (
-          <button
-            disabled={pending}
-            onClick={() => run(() => setUserStatus(user.id, suspended ? "ACTIVE" : "SUSPENDED"))}
-            className={`btn btn-sm ${suspended ? "btn-secondary text-ok" : "btn-ghost text-danger"}`}
+        <div className="flex justify-end gap-1">
+          <ActionButton
+            action={sendPasswordResetTo}
+            args={[user.id]}
+            className="btn btn-sm btn-ghost"
+            pendingLabel="Sending…"
+            title="Email them a link to choose a new password"
           >
-            {suspended ? "Reinstate" : "Suspend"}
-          </button>
-        )}
+            Reset link
+          </ActionButton>
+          {!isSelf && (
+            <button
+              disabled={pending}
+              onClick={() => run(() => setUserStatus(user.id, suspended ? "ACTIVE" : "SUSPENDED"))}
+              className={`btn btn-sm ${suspended ? "btn-secondary text-ok" : "btn-ghost text-danger"}`}
+            >
+              {suspended ? "Reinstate" : "Suspend"}
+            </button>
+          )}
+        </div>
         {error && (
           <p className="mt-1 text-xs text-danger" role="alert">
             {error}
