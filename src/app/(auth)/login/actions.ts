@@ -1,10 +1,14 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth/config";
 import { verifyPassword } from "@/lib/auth/password";
 import { isLocked } from "@/lib/auth/lockout";
+import { issueTrustToken, TRUST_COOKIE, verifyTrustToken } from "@/lib/auth/trustedDevice";
 import { mfaCheckLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
+import { recordAuthEvent } from "@/lib/audit";
 import { z } from "zod";
 
 const inputSchema = z.object({ email: z.email(), password: z.string().min(1) });
@@ -42,7 +46,15 @@ export async function checkMfaRequired(email: string, password: string): Promise
 
   const user = await db.user.findUnique({
     where: { email: parsed.data.email },
-    select: { passwordHash: true, lockedUntil: true, status: true, mfaEnabled: true },
+    select: {
+      id: true,
+      passwordHash: true,
+      lockedUntil: true,
+      status: true,
+      mfaEnabled: true,
+      mfaSecret: true,
+      sessionVersion: true,
+    },
   });
 
   if (!user || !user.passwordHash) {
@@ -60,5 +72,38 @@ export async function checkMfaRequired(email: string, password: string): Promise
   if (isLocked(user.lockedUntil)) return { mfa: false, lockedUntil: user.lockedUntil!.toISOString() };
   if (user.status !== "ACTIVE") return { mfa: false };
 
-  return { mfa: user.mfaEnabled };
+  if (!user.mfaEnabled) return { mfa: false };
+
+  // Same check the real sign-in makes; if the device is trusted, the code
+  // step is skipped there too, so don't show it here.
+  const trustCookie = (await cookies()).get(TRUST_COOKIE)?.value;
+  return { mfa: !verifyTrustToken(trustCookie, user) };
+}
+
+/**
+ * Called by the login page right after a sign-in that included a correct
+ * code, when "remember this device" was ticked. Requires the session that
+ * sign-in just created — nobody can mint a trust cookie for an account
+ * they are not signed into.
+ */
+export async function rememberThisDevice(): Promise<{ ok: boolean }> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false };
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, sessionVersion: true, mfaSecret: true, mfaEnabled: true },
+  });
+  if (!user?.mfaEnabled || !user.mfaSecret) return { ok: false };
+
+  const { token, expires } = issueTrustToken({ id: user.id, sessionVersion: user.sessionVersion, mfaSecret: user.mfaSecret });
+  (await cookies()).set(TRUST_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires,
+  });
+  await recordAuthEvent({ userId: user.id, action: "auth.mfa.device_trusted", ip: await getClientIp() });
+  return { ok: true };
 }

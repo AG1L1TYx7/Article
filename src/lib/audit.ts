@@ -48,7 +48,9 @@ export async function recordAuthEvent(entry: {
     | "auth.login.failed"
     | "auth.login.locked"
     | "auth.login.mfa_failed"
-    | "auth.login.blocked";
+    | "auth.login.blocked"
+    | "auth.mfa.device_trusted"
+    | "auth.mfa.device_forgotten";
   metadata?: Prisma.InputJsonValue;
   ip?: string | null;
 }): Promise<void> {

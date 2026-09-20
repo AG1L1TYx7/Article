@@ -104,6 +104,46 @@ test.describe("MFA enrollment and TOTP login", () => {
     await page.waitForURL("/dashboard");
   });
 
+  test("a remembered device skips the code for later logins, and can be forgotten", async ({ page }) => {
+    test.slow();
+    const email = `admin-trust+${Date.now()}@example.com`;
+    await register(page, email, `admintrust${Date.now()}`);
+    promoteToAdmin(email);
+    await login(page, email);
+    await page.waitForURL(/\/dashboard\/mfa/);
+    const secret = await enrollMfa(page);
+
+    // First login after enrolment: code required, "remember" is ticked by default.
+    await page.getByRole("button", { name: "Log out" }).click();
+    await page.waitForURL(/\/login/);
+    await login(page, email);
+    await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
+    await expect(page.getByRole("checkbox")).toBeChecked();
+    await page.fill('input[name="totp"]', codeFor(secret));
+    await page.getByRole("button", { name: "Verify" }).click();
+    await page.waitForURL("/dashboard");
+
+    // Second login on the same browser: password only.
+    await page.getByRole("button", { name: "Log out" }).click();
+    await page.waitForURL(/\/login/);
+    await login(page, email);
+    await page.waitForURL("/dashboard");
+    await expect(page.getByRole("heading", { name: "Enter your code" })).toHaveCount(0);
+
+    // The account page knows, and can undo it.
+    await page.goto("/account");
+    await expect(page.getByText("This browser is remembered")).toBeVisible();
+    await page.getByRole("button", { name: "Forget this device" }).click();
+    await expect(page.getByText("This browser is not remembered.")).toBeVisible();
+
+    // Third login: the code is back.
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Log out" }).click();
+    await page.waitForURL(/\/login/);
+    await login(page, email);
+    await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
+  });
+
   test("a wrong TOTP code is rejected at login", async ({ page }) => {
     // Same long enrol-then-re-login journey as the test above.
     test.slow();

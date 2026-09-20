@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
-import { checkMfaRequired } from "./actions";
+import { checkMfaRequired, rememberThisDevice } from "./actions";
 import { safeRedirectPath } from "@/lib/safeRedirect";
 import { AuthCard } from "@/components/AuthCard";
 
@@ -25,6 +25,10 @@ function LoginForm() {
   const [awaitingTotp, setAwaitingTotp] = useState<{ email: string; password: string } | null>(
     null
   );
+  // "Don't ask again on this device" — on by default because the people
+  // who reach this step have already proved the second factor once, and
+  // the label spells out what it means on a shared machine.
+  const [rememberDevice, setRememberDevice] = useState(true);
 
   async function signInAndRedirect(email: string, password: string, totp?: string) {
     // Important: only include `totp` when it's a real code. next-auth's
@@ -43,6 +47,11 @@ function LoginForm() {
     if (result?.error) {
       setError(awaitingTotp ? "Incorrect code." : "Incorrect email or password.");
       return;
+    }
+    // A code was just accepted on this device; if asked, remember it so
+    // the next thirty days of logins need only the password here.
+    if (totp && rememberDevice) {
+      await rememberThisDevice().catch(() => {});
     }
     // Only ever a path on this site: an attacker-supplied ?from= must not
     // be able to turn a successful login into a redirect to their domain.
@@ -138,6 +147,20 @@ function LoginForm() {
             required
             className="input py-3 text-center font-mono text-2xl tracking-[0.5em]"
           />
+          <label className="flex items-start gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              checked={rememberDevice}
+              onChange={(e) => setRememberDevice(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+            />
+            <span>
+              <span className="font-medium">Don&apos;t ask for a code on this device for 30 days</span>
+              <span className="mt-0.5 block text-xs text-ink-3">
+                Your password is still required every time. Leave this off on a shared computer.
+              </span>
+            </span>
+          </label>
           {error && (
             <p className="text-sm text-danger" role="alert">
               {error}

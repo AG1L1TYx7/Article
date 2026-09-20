@@ -49,6 +49,13 @@ cannot reach anything else in the dashboard until they scan the QR code with
 an authenticator app. This is enforced in `src/proxy.ts`, not just in the UI.
 MFA is optional for moderators.
 
+After one successful code, "Don't ask for a code on this device for 30
+days" (ticked by default) sets a signed cookie so that browser needs only
+the password. It is bound to the account, its session version and its
+current MFA secret, so a role change, a forced sign-out or re-enrolling
+MFA revokes it; the account page shows the state and can forget the
+device. See `src/lib/auth/trustedDevice.ts`.
+
 ---
 
 ## Environment variables

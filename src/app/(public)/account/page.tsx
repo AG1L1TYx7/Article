@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { auth, signOut } from "@/lib/auth/config";
 import { db } from "@/lib/db";
+import { TRUST_COOKIE, trustTokenExpiry, verifyTrustToken } from "@/lib/auth/trustedDevice";
+import { forgetThisDevice } from "./actions";
 import { EmailVerifyBanner } from "@/app/(dashboard)/dashboard/EmailVerifyBanner";
 import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
@@ -41,11 +44,14 @@ export default async function AccountPage() {
   const user = await db.user.findUnique({
     where: { id: session.user.id },
     select: {
+      id: true,
       name: true,
       handle: true,
       email: true,
       role: true,
       mfaEnabled: true,
+      mfaSecret: true,
+      sessionVersion: true,
       emailVerifiedAt: true,
       createdAt: true,
       _count: { select: { bookmarks: true, comments: true, follows: true } },
@@ -55,6 +61,12 @@ export default async function AccountPage() {
 
   const role = ROLE_COPY[user.role] ?? ROLE_COPY.READER!;
   const isStaff = user.role === "ADMIN" || user.role === "MODERATOR";
+
+  // Is THIS browser remembered for two-factor? Read from the cookie the
+  // login page set; see lib/auth/trustedDevice.ts.
+  const trustCookie = (await cookies()).get(TRUST_COOKIE)?.value;
+  const deviceTrusted = user.mfaEnabled && verifyTrustToken(trustCookie, user);
+  const trustExpires = deviceTrusted ? trustTokenExpiry(trustCookie) : null;
 
   return (
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
@@ -160,6 +172,34 @@ export default async function AccountPage() {
             <EnrollMfaFlow />
           )}
         </div>
+
+        {user.mfaEnabled && (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5 text-sm">
+            <p className="text-ink-2">
+              {deviceTrusted ? (
+                <>
+                  <span className="font-medium text-ink">This browser is remembered</span> — no code needed here
+                  until {trustExpires ? formatDate(trustExpires) : "it expires"}. Your password is still asked every time.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-ink">This browser is not remembered.</span> Tick &ldquo;Don&apos;t
+                  ask for a code on this device&rdquo; at your next login to skip the code here for 30 days.
+                </>
+              )}
+            </p>
+            {deviceTrusted && (
+              <form
+                action={async () => {
+                  "use server";
+                  await forgetThisDevice();
+                }}
+              >
+                <button className="btn btn-secondary btn-sm">Forget this device</button>
+              </form>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1" aria-label="Session">

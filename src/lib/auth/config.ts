@@ -6,6 +6,7 @@ import { isLocked, nextLockout } from "@/lib/auth/lockout";
 import { loginSchema } from "@/lib/validation/auth";
 import { loginLimiter } from "@/lib/rateLimit";
 import { verifyTotp } from "@/lib/auth/mfa";
+import { readCookie, TRUST_COOKIE, verifyTrustToken } from "@/lib/auth/trustedDevice";
 import { recordAuthEvent } from "@/lib/audit";
 
 // Design note: Auth.js does not support database-backed sessions with the
@@ -117,7 +118,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        if (user.mfaEnabled) {
+        // A device that presented a valid code within the last thirty days
+        // and asked to be remembered skips the code. The password was still
+        // required above; see lib/auth/trustedDevice.ts for what revokes it.
+        const trusted =
+          user.mfaEnabled &&
+          verifyTrustToken(readCookie(request.headers.get("cookie"), TRUST_COOKIE), user);
+
+        if (user.mfaEnabled && !trusted) {
           // Password is correct at this point — a wrong or missing TOTP
           // code doesn't count against the password-lockout counter above
           // (that's specifically for password guessing); the per-IP
