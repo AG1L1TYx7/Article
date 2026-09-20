@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCrossOriginRequest } from "@/lib/csrf";
 import { requireVerifiedEmail, ForbiddenError, UnauthorizedError } from "@/lib/auth/rbac";
 import { deleteObject, isQuarantineKey, readObject } from "@/lib/storage";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
@@ -19,6 +20,12 @@ import { verifyUploadKey } from "@/lib/uploadToken";
  * them in the first place.
  */
 export async function POST(request: Request) {
+  if (isCrossOriginRequest(request)) {
+    // Same defense Next.js applies to Server Actions automatically —
+    // Origin must agree with Host. See lib/csrf.ts.
+    return NextResponse.json({ error: "Cross-origin request refused." }, { status: 403 });
+  }
+
   let session;
   try {
     session = await requireVerifiedEmail("MODERATOR");

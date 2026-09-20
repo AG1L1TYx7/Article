@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { checkMfaRequired } from "./actions";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 export default function LoginPage() {
   return (
@@ -43,8 +44,11 @@ function LoginForm() {
     }
     // Only ever a path on this site: an attacker-supplied ?from= must not
     // be able to turn a successful login into a redirect to their domain.
-    const from = params.get("from");
-    const destination = from && from.startsWith("/") ? from : "/dashboard";
+    //
+    // This used to check `from.startsWith("/")`, which is not enough —
+    // "//evil.com" satisfies it and browsers resolve it to
+    // https://evil.com. See lib/safeRedirect.ts.
+    const destination = safeRedirectPath(params.get("from"), "/dashboard");
 
     // A full navigation, not router.push(), for two reasons. The client
     // Router Cache still holds pages rendered for the signed-out visitor,

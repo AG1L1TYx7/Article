@@ -6,6 +6,7 @@ import { isLocked, nextLockout } from "@/lib/auth/lockout";
 import { loginSchema } from "@/lib/validation/auth";
 import { loginLimiter } from "@/lib/rateLimit";
 import { verifyTotp } from "@/lib/auth/mfa";
+import { recordAuthEvent } from "@/lib/audit";
 
 // Design note: Auth.js does not support database-backed sessions with the
 // Credentials provider (only OAuth providers can use the database session
@@ -78,16 +79,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        if (isLocked(user.lockedUntil)) return null;
-        if (user.status !== "ACTIVE") return null;
+        if (isLocked(user.lockedUntil)) {
+          // Worth its own event: a burst of these is someone working
+          // through a password list against one account, which the
+          // lockout stops but nobody would otherwise ever see.
+          await recordAuthEvent({ userId: user.id, action: "auth.login.locked", ip });
+          return null;
+        }
+        if (user.status !== "ACTIVE") {
+          await recordAuthEvent({
+            userId: user.id,
+            action: "auth.login.blocked",
+            metadata: { status: user.status },
+            ip,
+          });
+          return null;
+        }
 
         const valid = await verifyPassword(user.passwordHash, password).catch(() => false);
 
         if (!valid) {
           const failedLoginCount = user.failedLoginCount + 1;
+          const lockedUntil = nextLockout(failedLoginCount);
           await db.user.update({
             where: { id: user.id },
-            data: { failedLoginCount, lockedUntil: nextLockout(failedLoginCount) },
+            data: { failedLoginCount, lockedUntil },
+          });
+          // Without this there is no record anywhere that anyone ever
+          // tried and failed — so a credential-stuffing run against real
+          // accounts is invisible until one of them succeeds.
+          await recordAuthEvent({
+            userId: user.id,
+            action: "auth.login.failed",
+            metadata: { failedLoginCount, lockedOut: lockedUntil !== null },
+            ip,
           });
           return null;
         }
@@ -98,13 +123,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // (that's specifically for password guessing); the per-IP
           // loginLimiter still throttles repeated attempts either way.
           if (!totp || !user.mfaSecret || !verifyTotp(user.email, user.mfaSecret, totp)) {
+            // The password was right and the second factor was not. That
+            // is the signal that a password is already compromised, and
+            // it is the single most urgent line in this log.
+            await recordAuthEvent({
+              userId: user.id,
+              action: "auth.login.mfa_failed",
+              metadata: { codeProvided: !!totp },
+              ip,
+            });
             return null;
           }
         }
 
         await db.user.update({
           where: { id: user.id },
-          data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+          data: {
+            failedLoginCount: 0,
+            lockedUntil: null,
+            lastLoginAt: new Date(),
+            lastLoginIp: ip,
+          },
+        });
+        // Successes matter as much as failures: "when did this account
+        // last sign in, and from where" is the first question asked about
+        // a compromise.
+        await recordAuthEvent({
+          userId: user.id,
+          action: "auth.login",
+          metadata: { mfa: user.mfaEnabled },
+          ip,
         });
 
         return {

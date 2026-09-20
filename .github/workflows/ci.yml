@@ -43,6 +43,13 @@ jobs:
       - run: npm run lint
       - run: npm run test:unit
 
+      # Fails on any advisory that has not been reviewed and written down
+      # in scripts/audit-dependencies.mjs, and also on entries there that
+      # no longer apply. A plain "npm audit" would be permanently red on
+      # advisories in the Prisma CLI's MySQL driver, which this PostgreSQL
+      # app never loads — and a permanently red check is one nobody reads.
+      - run: npm run audit
+
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest

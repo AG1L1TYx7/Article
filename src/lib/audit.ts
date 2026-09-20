@@ -29,3 +29,41 @@ export function recordAudit(entry: AuditEntry) {
     },
   });
 }
+
+/**
+ * Records an authentication event against the account it concerns.
+ *
+ * Separate from recordAudit only to name the intent: here the actor and
+ * the target are the same person, and the caller is usually not acting on
+ * their own behalf — a failed login is written about someone who has not
+ * proved who they are.
+ *
+ * Never throws. A login must not fail because the audit write did, and an
+ * attacker must not be able to tell the two apart.
+ */
+export async function recordAuthEvent(entry: {
+  userId: string;
+  action:
+    | "auth.login"
+    | "auth.login.failed"
+    | "auth.login.locked"
+    | "auth.login.mfa_failed"
+    | "auth.login.blocked";
+  metadata?: Prisma.InputJsonValue;
+  ip?: string | null;
+}): Promise<void> {
+  try {
+    await db.auditLog.create({
+      data: {
+        actorId: entry.userId,
+        action: entry.action,
+        targetType: "User",
+        targetId: entry.userId,
+        metadata: entry.metadata,
+        ip: entry.ip ?? null,
+      },
+    });
+  } catch {
+    // Deliberately swallowed. See above.
+  }
+}

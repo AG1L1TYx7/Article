@@ -83,6 +83,7 @@ comment at the top of `src/lib/rateLimit.ts`.
 | `npm run seed` | Starter categories (idempotent) |
 | `npm run bootstrap:staff` | Create or promote a staff account |
 | `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
+| `npm run audit` | Dependency audit, failing on anything unreviewed |
 
 ### Testing
 
@@ -131,7 +132,8 @@ src/
   proxy.ts                Route protection and security headers
 prisma/                   Schema, migrations, seed
 tests/                    unit/ and e2e/
-docs/                     Architecture and security plan, search, link previews
+docs/                     Architecture and security plan, search, link previews,
+                          deployment, security testing
 ```
 
 A few conventions that aren't obvious from the tree:
@@ -206,7 +208,11 @@ failures are reported coarsely so this cannot be used to map the internal
 network. [`docs/link-previews.md`](docs/link-previews.md) walks through each
 attack and what stops it.
 
-**Audit.** Every privileged action writes an append-only `AuditLog` row. The
+**Audit.** Every privileged action writes an append-only `AuditLog` row, and
+so does every authentication event — successes, failures, lockouts, and a
+correct password with a failed second factor, which is the signal that a
+password is already compromised. Without those, a credential-stuffing run
+leaves no trace until it succeeds. The
 application exposes no way to update or delete one. Comments and articles are
 soft-removed via status flags, never hard-deleted, so the trail survives.
 
@@ -239,3 +245,11 @@ inside `.next` mid-sync and builds fail with
 `EPERM: operation not permitted, unlink`. The e2e config works around it by
 wiping `.next` before building. For day-to-day work, either exclude
 `.next` and `node_modules` from sync, or keep the project outside OneDrive.
+
+## Security testing
+
+[`docs/security-testing.md`](docs/security-testing.md) covers what is tested
+automatically, the flaws that testing found (an open redirect, missing
+authentication audit logging, a framework banner, a missing CSRF check), and —
+importantly — what it does not cover. It is a regression net against known
+classes of flaw, not a penetration test.
