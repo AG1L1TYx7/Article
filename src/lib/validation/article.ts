@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+// Two characters, not three: "ai", "eu" and "us" are real section names,
+// and search already indexes two-letter words for the same reason.
 const slug = z
   .string()
-  .min(3)
-  .max(160)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only");
+  .min(2, "The slug needs at least 2 characters.")
+  .max(160, "The slug can be at most 160 characters.")
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens only, e.g. artificial-intelligence.");
 
 export const articleInputSchema = z.object({
   title: z.string().min(1).max(200),
@@ -50,9 +52,9 @@ export const articleLinkSchema = z.object({
 });
 
 export const categoryInputSchema = z.object({
-  name: z.string().min(1).max(80),
+  name: z.string().trim().min(1, "Give the category a name.").max(80, "Keep the name under 80 characters."),
   slug,
-  description: z.string().max(300).optional(),
+  description: z.string().max(300, "Keep the description under 300 characters.").optional(),
 });
 
 /**
