@@ -2,8 +2,11 @@ import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { buildRssFeed } from "@/lib/feed";
 
-// A feed reader polls this on a schedule and expects it to be cheap.
-export const revalidate = 900;
+// Built fresh on every request, like every other route on this site, so
+// a story is in the feed the second it is published. The query behind it
+// is one indexed SELECT of fifty rows; a feed reader polling every few
+// minutes is not a load worth caching for.
+export const dynamic = "force-dynamic";
 
 const FEED_LENGTH = 50;
 

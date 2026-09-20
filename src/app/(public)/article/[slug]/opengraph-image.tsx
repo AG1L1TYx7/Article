@@ -18,9 +18,10 @@ export const alt = "Article headline";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Crawlers request this repeatedly and the answer only changes when the
-// article does.
-export const revalidate = 3600;
+// Rendered on every request, like every other route on this site: an
+// edited headline is on the card immediately, not after an hour. Crawlers
+// cache the image on their side anyway.
+export const dynamic = "force-dynamic";
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

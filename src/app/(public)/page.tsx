@@ -18,10 +18,11 @@ const CARD_SELECT = {
 } as const;
 
 export default async function Home() {
-  // This page is prerendered at build time, so it must survive being
-  // built before any database exists. See lib/buildSafe.ts — publishing
-  // an article revalidates this path, so the real list appears as soon as
-  // there is one.
+  // Rendered on every request (the root layout forces dynamic rendering
+  // for the whole site), so what a reader sees is always the database as
+  // it is now. The fallback is for a database outage — and for `next
+  // build`, which evaluates this module before any database exists. See
+  // lib/buildSafe.ts.
   const articles = await withDatabaseFallback(
     () =>
       db.article.findMany({

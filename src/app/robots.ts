@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { absoluteUrl } from "@/lib/siteUrl";
 
+// Served per request like everything else here — nothing on this site is
+// baked at build time — so a changed NEXTAUTH_URL is reflected at once.
+export const dynamic = "force-dynamic";
+
 /**
  * Not a security control — anyone can ignore it, and listing a private
  * path here advertises it. Everything disallowed below is already

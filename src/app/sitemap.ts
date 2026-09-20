@@ -7,9 +7,11 @@ import { absoluteUrl } from "@/lib/siteUrl";
 // so this query can never become the slowest thing on the site.
 const MAX_ARTICLES = 10_000;
 
-// Regenerated hourly rather than on every crawl. Search engines fetch this
-// often and it is the same answer each time.
-export const revalidate = 3600;
+// Generated on every request, like every other route on this site, so a
+// newly published article is in the sitemap the moment a crawler asks.
+// Three small indexed queries per fetch; crawlers fetch this a few times
+// a day, not a few times a second.
+export const dynamic = "force-dynamic";
 
 /**
  * Tells search engines what exists and when it last changed.

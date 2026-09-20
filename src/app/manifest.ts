@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/siteUrl";
 
+// Per request, like every other route on this site; nothing is baked at
+// build time.
+export const dynamic = "force-dynamic";
+
 /**
  * Makes the site installable: "Add to Home Screen" on a phone gives a
  * real icon and a standalone window rather than a browser bookmark.

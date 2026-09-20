@@ -1,12 +1,13 @@
 /**
  * Lets a page render when the database cannot be reached.
  *
- * Two pages are statically prerendered at build time and both query the
- * database: the homepage, and the site header that every page's layout
- * includes. Without this, `next build` requires a live database — which
- * means a container image cannot be built before the database it will
- * eventually talk to exists, and a build machine needs credentials for a
- * production database it has no business holding.
+ * Nothing on this site is prerendered — the root layout forces dynamic
+ * rendering, so every page is built per request from the database as it
+ * is now. `next build` still evaluates the modules behind the homepage
+ * and the site header, and without this it would need a live database:
+ * a container image could not be built before the database it will
+ * eventually talk to exists, and a build machine would need credentials
+ * for a production database it has no business holding.
  *
  * The runtime benefit is the more important one, though: a momentary
  * database blip should degrade the section list, not return 500 for the

@@ -19,10 +19,10 @@ import { SearchIcon } from "./icons";
  * that would cost static rendering on every page.
  */
 export async function SiteHeader() {
-  // Wrapped because this header is in every page's layout, including the
-  // statically prerendered ones: an unreachable database would otherwise
-  // fail the whole build, and at runtime would 500 every page rather than
-  // just dropping the section list. See lib/buildSafe.ts.
+  // Wrapped because this header is in every public page's layout: an
+  // unreachable database would otherwise 500 every page rather than just
+  // dropping the section list, and would fail `next build`, which
+  // evaluates this module. See lib/buildSafe.ts.
   const categories = await withDatabaseFallback(
     () =>
       db.category.findMany({
