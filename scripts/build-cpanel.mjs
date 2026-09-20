@@ -67,6 +67,28 @@ require("./server.js");
 `
 );
 
+/**
+ * Remove any .env the build dragged in.
+ *
+ * Next's standalone output copies .env into the bundle. That file holds
+ * AUTH_SECRET and the database password for THIS machine, and this
+ * bundle exists to be uploaded to a server — so leaving it here ships
+ * development secrets to production and, worse, silently overrides the
+ * .env written on the server.
+ *
+ * Checked rather than assumed on every build: a future Next version
+ * could add another name.
+ */
+const leaked = fs
+  .readdirSync(OUT)
+  .filter((name) => name === ".env" || name.startsWith(".env."))
+  .filter((name) => name !== ".env.example");
+
+for (const name of leaked) {
+  fs.rmSync(path.join(OUT, name), { force: true });
+  console.log("removed from bundle: " + name + " (local secrets, never uploaded)");
+}
+
 // A node_modules/.bin that Passenger might try to use is not needed, and
 // shipping it only makes the upload larger.
 fs.rmSync(path.join(OUT, "node_modules", ".bin"), { recursive: true, force: true });
