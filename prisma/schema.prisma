@@ -171,6 +171,8 @@ model Article {
   reports  Report[]
   notifications Notification[]
   viewDays ArticleViewDaily[]
+  viewDimensions ViewDimensionDaily[]
+  readDays ArticleReadDaily[]
 
   // MATCH ... AGAINST requires a real FULLTEXT index — unlike Postgres,
   // MySQL cannot compute one per row at query time. MATCH must also name
@@ -389,6 +391,41 @@ model ArticleViewDaily {
   articleId String
   day       DateTime @db.Date
   views     Int      @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, day])
+  @@index([day])
+}
+
+// Where a day's views came from, one dimension at a time: country code,
+// referrer class, device class. Counts only — no identifier, no IP, no
+// user — so a row says "on this day, 14 views of this article came from
+// FR", and nothing about who. Bumped from lib/analyticsCapture.ts.
+model ViewDimensionDaily {
+  articleId String
+  day       DateTime @db.Date
+  dimension String   // "country" | "referrer" | "device"
+  value     String   // "FR", "search", "mobile", ...
+  views     Int      @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, day, dimension, value])
+  @@index([day, dimension])
+}
+
+// How articles are read, per day: how many readers sent a reading
+// beacon, the active seconds they spent in total, how many reached the
+// end, and the sum of their furthest scroll (0-100) for an average.
+// Aggregates only; the beacon carries no identifier.
+model ArticleReadDaily {
+  articleId     String
+  day           DateTime @db.Date
+  reads         Int      @default(0)
+  activeSeconds Int      @default(0)
+  completions   Int      @default(0)
+  scrollSum     Int      @default(0)
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 

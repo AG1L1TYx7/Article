@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { classifyReferrer, countryFrom, deviceFrom } from "@/lib/analyticsCapture";
+import { ReadingBeacon } from "@/components/articles/ReadingBeacon";
 import { db } from "@/lib/db";
 import { sanitizedArticleHtml } from "@/lib/sanitizeCache";
 import { countArticleView } from "@/lib/viewCount";
@@ -110,8 +113,16 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   // blueprint — but memoised per article revision so every visitor to the
   // same article isn't re-parsing the same 20KB. See lib/sanitizeCache.ts.
   // Scheduled for after the response is sent, so the reader never waits
-  // on the write. See lib/viewCount.ts.
-  countArticleView(article.id);
+  // on the write. See lib/viewCount.ts. The context is derived from the
+  // request headers and reduced to coarse classes before it is counted —
+  // country code, referrer class, device class — never the IP or the UA
+  // itself. See lib/analyticsCapture.ts.
+  const h = await headers();
+  countArticleView(article.id, {
+    country: countryFrom((name) => h.get(name)),
+    referrer: classifyReferrer(h.get("referer"), h.get("x-forwarded-host") ?? h.get("host") ?? ""),
+    device: deviceFrom(h.get("user-agent")),
+  });
 
   const safeHtml = sanitizedArticleHtml(article.id, article.updatedAt, article.bodyHtml);
 
@@ -159,6 +170,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
 
   return (
     <main id="main-content" className="pb-16">
+      <ReadingBeacon articleId={article.id} />
       <article>
         <ArticleHeader
           title={article.title}

@@ -52,6 +52,23 @@ export interface Analytics {
   mostRead: Ranked[];
   mostDiscussed: Ranked[];
   hasDailyViews: boolean;
+  /** Views in the period by country code ("unknown" when nothing in front of the app reports one). */
+  countries: Point[];
+  /** Views in the period by how readers arrived: direct, search, social, internal, or a referring host. */
+  referrers: Point[];
+  /** Views in the period by device class; bots are shown so they can be discounted. */
+  devices: Point[];
+  /** Reading behaviour in the period, from the reading beacon. */
+  reading: {
+    reads: number;
+    avgSeconds: number;
+    completionRate: number; // 0–100
+    avgScroll: number; // 0–100
+    prevAvgSeconds: number;
+    prevCompletionRate: number;
+  };
+  /** Per-article reading in the period, most-read first. */
+  articleReading: { id: string; slug: string; title: string; reads: number; avgSeconds: number; completionRate: number }[];
   allTime: {
     published: number;
     drafts: number;
@@ -107,6 +124,31 @@ async function viewsByDay(since: Date, until: Date): Promise<{ day: string; n: n
 
 const sum = (pts: { n: number }[]) => pts.reduce((s, p) => s + p.n, 0);
 
+/** Views in a period by one dimension's values, largest first. */
+async function dimension(name: "country" | "referrer" | "device", since: Date, until: Date): Promise<Point[]> {
+  const rows = await db.$queryRaw<{ value: string; n: bigint }[]>`
+    SELECT \`value\`, SUM(\`views\`) AS n FROM \`ViewDimensionDaily\`
+    WHERE \`dimension\` = ${name} AND \`day\` >= ${since} AND \`day\` < ${until}
+    GROUP BY \`value\` ORDER BY n DESC LIMIT 12`;
+  return rows.map((r) => ({ label: r.value, value: num(r.n) }));
+}
+
+async function readingTotals(since: Date, until: Date) {
+  // `readCount`, not `reads`: READS is a reserved word in MySQL/MariaDB
+  // (READS SQL DATA), fine as a backticked column, a syntax error as a
+  // bare alias.
+  const [row] = await db.$queryRaw<{ readCount: bigint | null; seconds: bigint | null; completions: bigint | null; scroll: bigint | null }[]>`
+    SELECT SUM(\`reads\`) AS readCount, SUM(\`activeSeconds\`) AS seconds, SUM(\`completions\`) AS completions, SUM(\`scrollSum\`) AS scroll
+    FROM \`ArticleReadDaily\` WHERE \`day\` >= ${since} AND \`day\` < ${until}`;
+  const reads = num(row?.readCount);
+  return {
+    reads,
+    avgSeconds: reads ? Math.round(num(row?.seconds) / reads) : 0,
+    completionRate: reads ? Math.round((num(row?.completions) / reads) * 100) : 0,
+    avgScroll: reads ? Math.round(num(row?.scroll) / reads) : 0,
+  };
+}
+
 export async function loadAnalytics(days: RangeDays, now: Date = new Date()): Promise<Analytics> {
   const until = utcDayStart(new Date(now.getTime() + DAY_MS)); // start of tomorrow, UTC
   const since = new Date(until.getTime() - days * DAY_MS);
@@ -136,6 +178,12 @@ export async function loadAnalytics(days: RangeDays, now: Date = new Date()): Pr
     allReaders,
     pendingComments,
     openReports,
+    countryRows,
+    referrerRows,
+    deviceRows,
+    readingNow,
+    readingPrev,
+    articleReadingRows,
   ] = await Promise.all([
     viewsByDay(since, until),
     viewsByDay(prevSince, since),
@@ -180,6 +228,16 @@ export async function loadAnalytics(days: RangeDays, now: Date = new Date()): Pr
     db.user.count({ where: { role: "READER", status: "ACTIVE" } }),
     db.comment.count({ where: { status: "PENDING" } }),
     db.report.count({ where: { status: "OPEN" } }),
+    dimension("country", since, until),
+    dimension("referrer", since, until),
+    dimension("device", since, until),
+    readingTotals(since, until),
+    readingTotals(prevSince, since),
+    db.$queryRaw<{ id: string; slug: string; title: string; readCount: bigint; seconds: bigint; completions: bigint }[]>`
+      SELECT a.\`id\`, a.\`slug\`, a.\`title\`, SUM(r.\`reads\`) AS readCount, SUM(r.\`activeSeconds\`) AS seconds, SUM(r.\`completions\`) AS completions
+      FROM \`ArticleReadDaily\` r JOIN \`Article\` a ON a.\`id\` = r.\`articleId\`
+      WHERE r.\`day\` >= ${since} AND r.\`day\` < ${until} AND a.\`status\` = 'PUBLISHED'
+      GROUP BY a.\`id\`, a.\`slug\`, a.\`title\` ORDER BY readCount DESC LIMIT 10`,
   ]);
 
   const totalComments = sum(comments);
@@ -234,6 +292,25 @@ export async function loadAnalytics(days: RangeDays, now: Date = new Date()): Pr
       detail: `${a._count.comments} comment${a._count.comments === 1 ? "" : "s"} · ${a._count.reactions} like${a._count.reactions === 1 ? "" : "s"}`,
     })),
     hasDailyViews: views.length > 0 || prevViews.length > 0,
+    countries: countryRows,
+    referrers: referrerRows,
+    devices: deviceRows,
+    reading: {
+      ...readingNow,
+      prevAvgSeconds: readingPrev.avgSeconds,
+      prevCompletionRate: readingPrev.completionRate,
+    },
+    articleReading: articleReadingRows.map((r) => {
+      const reads = num(r.readCount);
+      return {
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        reads,
+        avgSeconds: reads ? Math.round(num(r.seconds) / reads) : 0,
+        completionRate: reads ? Math.round((num(r.completions) / reads) * 100) : 0,
+      };
+    }),
     allTime: {
       published: allPublished,
       drafts: allDrafts,

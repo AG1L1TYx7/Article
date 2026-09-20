@@ -495,6 +495,39 @@ async function seed() {
         allocated += views;
         if (views > 0) {
           await db.articleViewDaily.create({ data: { articleId: article.id, day: dayStart, views } });
+
+          // Split the day's views across plausible countries, referrers
+          // and devices, and give it reading behaviour, so the audience
+          // panels have a shape too. Proportions vary by story index so
+          // the charts differ between articles.
+          const split = (shares: [string, number][]) => {
+            const total = shares.reduce((s, [, w]) => s + w, 0);
+            return shares.map(([value, w]) => [value, Math.round((views * w) / total)] as [string, number]).filter(([, n]) => n > 0);
+          };
+          const tilt = (index % 3) + 1;
+          const dims: [string, [string, number][]][] = [
+            ["country", split([["GB", 40], ["US", 22 + tilt * 3], ["NP", 8 + tilt * 4], ["IN", 9], ["DE", 5], ["FR", 4], ["AU", 4], ["CA", 3], ["unknown", 5]])],
+            ["referrer", split([["direct", 30 + tilt * 5], ["search", 35 - tilt * 3], ["social", 18 + tilt * 2], ["internal", 10], ["news.ycombinator.com", tilt === 3 ? 6 : 0], ["theweekly.example", 3]])],
+            ["device", split([["mobile", 55 + tilt * 2], ["desktop", 35 - tilt * 2], ["tablet", 7], ["bot", 3]])],
+          ];
+          for (const [dimension, values] of dims) {
+            await db.viewDimensionDaily.createMany({
+              data: values.map(([value, n]) => ({ articleId: article.id, day: dayStart, dimension, value, views: n })),
+            });
+          }
+          const reads = Math.round(views * 0.62);
+          const avgSeconds = 95 + ((index * 37) % 120);
+          const completion = 0.35 + ((index * 13) % 40) / 100;
+          await db.articleReadDaily.create({
+            data: {
+              articleId: article.id,
+              day: dayStart,
+              reads,
+              activeSeconds: reads * avgSeconds,
+              completions: Math.round(reads * completion),
+              scrollSum: Math.round(reads * (55 + completion * 40)),
+            },
+          });
         }
       }
     }

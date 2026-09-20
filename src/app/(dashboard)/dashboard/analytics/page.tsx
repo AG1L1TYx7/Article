@@ -28,6 +28,49 @@ function Kpi({ label, value, previous, hint }: { label: string; value: number; p
   );
 }
 
+function Delta({ current, previous }: { current: number; previous: number }) {
+  const d = delta(current, previous);
+  const tone = d.tone === "up" ? "text-ok" : d.tone === "down" ? "text-danger" : "text-ink-3";
+  return (
+    <span className={`text-xs font-medium tabular-nums ${tone}`} title={`Previous period: ${previous.toLocaleString("en-GB")}`}>
+      {d.text}
+    </span>
+  );
+}
+
+const regionNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
+
+/** "FR" -> "🇫🇷 France"; "unknown" stays honest about itself. */
+function countryLabel(code: string): string {
+  if (code === "unknown") return "Unknown";
+  const flag = code.replace(/./g, (c) => String.fromCodePoint(0x1f1e6 - 65 + c.charCodeAt(0)));
+  let name = code;
+  try {
+    name = regionNames?.of(code) ?? code;
+  } catch {
+    /* an unexpected code; show it raw */
+  }
+  return `${flag} ${name}`;
+}
+
+function referrerLabel(value: string): string {
+  return (
+    { direct: "Direct / typed / app", search: "Search engines", social: "Social media", internal: "Elsewhere on this site", app: "Mobile apps" }[value] ??
+    value
+  );
+}
+
+function deviceLabel(value: string): string {
+  return { mobile: "Phones", tablet: "Tablets", desktop: "Desktops", bot: "Bots" }[value] ?? value;
+}
+
+function formatSeconds(total: number): string {
+  if (total < 60) return `${total}s`;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
+}
+
 function Ranking({ items, empty }: { items: Ranked[]; empty: string }) {
   if (items.length === 0) return <p className="card mt-4 px-4 py-8 text-center text-sm text-ink-3">{empty}</p>;
   const max = Math.max(1, ...items.map((i) => i.value));
@@ -144,6 +187,116 @@ export default async function AnalyticsPage(props: PageProps<"/dashboard/analyti
           </Panel>
           <Panel title="New readers" sub="registrations, per day">
             <BarChart title="New readers per day" series={a.readersByDay} height={150} width={360} color="var(--ok)" labelEvery={Math.ceil(days / 4)} />
+          </Panel>
+        </div>
+
+        {/* Audience: where they are, how they arrived, what they read on. */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <Panel title="Where readers are" sub={periodLabel}>
+            {a.countries.length > 0 ? (
+              <HorizontalBars
+                title="Views by country"
+                series={a.countries.map((c) => ({ label: countryLabel(c.label), value: c.value }))}
+              />
+            ) : (
+              <p className="text-sm text-ink-3">
+                No country data yet. The country comes from the header your CDN or host adds (Cloudflare&apos;s
+                <code className="mx-1 font-mono text-xs">CF-IPCountry</code>, for instance); with nothing in front of the
+                app it stays unknown. The IP itself is never stored.
+              </p>
+            )}
+          </Panel>
+          <Panel title="How readers arrive" sub={periodLabel}>
+            <HorizontalBars
+              title="Views by referrer"
+              series={a.referrers.map((r) => ({ label: referrerLabel(r.label), value: r.value }))}
+              color="var(--ink)"
+            />
+          </Panel>
+          <Panel title="Devices" sub={periodLabel}>
+            <Donut
+              title="Views by device"
+              series={a.devices.map((d) => ({ label: deviceLabel(d.label), value: d.value }))}
+              colors={["var(--accent)", "var(--ink)", "var(--ok)", "var(--ink-3)"]}
+              centre={{ value: a.devices.reduce((s, d) => s + d.value, 0).toLocaleString("en-GB"), label: "views" }}
+            />
+            {a.devices.some((d) => d.label === "bot") && (
+              <p className="mt-3 text-xs text-ink-3">&ldquo;Bots&rdquo; are crawlers and link previews — shown so you can discount them.</p>
+            )}
+          </Panel>
+        </div>
+
+        {/* Reading behaviour, from the on-page beacon. */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <Panel title="Reading" sub={periodLabel}>
+            {a.reading.reads === 0 ? (
+              <p className="text-sm text-ink-3">
+                No reading data yet. Each article page reports, as the reader leaves, how long it was on screen and
+                how far they scrolled — numbers only, nothing about the person.
+              </p>
+            ) : (
+              <dl className="grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-xs text-ink-3">Average time on article</dt>
+                  <dd className="mt-1 flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">{formatSeconds(a.reading.avgSeconds)}</span>
+                    <Delta current={a.reading.avgSeconds} previous={a.reading.prevAvgSeconds} />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-3">Read to the end</dt>
+                  <dd className="mt-1 flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">{a.reading.completionRate}%</span>
+                    <Delta current={a.reading.completionRate} previous={a.reading.prevCompletionRate} />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-3">Average scroll depth</dt>
+                  <dd className="mt-1 text-2xl font-semibold tabular-nums">{a.reading.avgScroll}%</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-3">Reading sessions</dt>
+                  <dd className="mt-1 text-2xl font-semibold tabular-nums">{a.reading.reads.toLocaleString("en-GB")}</dd>
+                </div>
+              </dl>
+            )}
+          </Panel>
+          <Panel title="Time spent, by article" sub={`${periodLabel} · most-read first`} className="lg:col-span-2">
+            {a.articleReading.length === 0 ? (
+              <p className="text-sm text-ink-3">Nothing yet.</p>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Article</th>
+                    <th className="text-right">Sessions</th>
+                    <th className="text-right">Avg time</th>
+                    <th className="text-right">Read to end</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {a.articleReading.map((r) => (
+                    <tr key={r.id}>
+                      <td className="max-w-[26rem]">
+                        <Link href={`/article/${r.slug}`} className="block truncate font-medium hover:underline">
+                          {r.title}
+                        </Link>
+                      </td>
+                      <td className="text-right tabular-nums">{r.reads.toLocaleString("en-GB")}</td>
+                      <td className="text-right tabular-nums whitespace-nowrap">{formatSeconds(r.avgSeconds)}</td>
+                      <td className="text-right tabular-nums">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-2">
+                            <span className="block h-full rounded-full bg-ok" style={{ width: `${r.completionRate}%` }} />
+                          </span>
+                          {r.completionRate}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </Panel>
         </div>
 

@@ -106,10 +106,15 @@ export default function PrivacyPage() {
               <td>Legitimate interest in the security of the service</td>
             </tr>
             <tr>
-              <td>Article view counts</td>
+              <td>
+                Article readership statistics: a view count per article per day, split by country (a two-letter
+                code your network provider or our CDN reports — the IP address itself is never stored), by how you
+                arrived (search, social, direct, or the referring site&apos;s domain — never the page), and by device
+                class (phone, tablet, desktop); and how long the article was on screen and how far it was scrolled
+              </td>
               <td>You read an article</td>
-              <td>A running count per article and per day — a number, not tied to you</td>
-              <td>Not personal data</td>
+              <td>Editorial analytics — which stories are read, where, and whether people finish them</td>
+              <td>Not personal data: every figure is a total for the article and day, with no identifier, cookie or IP attached</td>
             </tr>
           </tbody>
         </table>

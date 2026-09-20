@@ -47,6 +47,8 @@ activity, not on this software.
 | Rate-limit counters | memory or Upstash | Abuse prevention | Legitimate interest | Minutes |
 | Verification / reset tokens | `VerificationToken` | One-time links | Contract | 1 hour; rows purged daily |
 | Article view counts | `Article.viewCount`, `ArticleViewDaily` | Editorial analytics | Not personal data (no identifier) | Indefinite |
+| Views by country code / referrer class / device class, per article per day | `ViewDimensionDaily` | Editorial analytics (where readers are, how they arrive) | Not personal data: coarse buckets and counts; the IP and user agent are classified in memory and discarded. Country comes from a CDN/host header (`CF-IPCountry` etc.), never from a lookup we store | Indefinite |
+| Reading time and scroll depth, summed per article per day | `ArticleReadDaily` | Editorial analytics (do people finish?) | Not personal data: the beacon carries the article id and two numbers, no identifier or cookie | Indefinite |
 | Uploaded images/video | storage; `Media` | Publishing | Contract (staff) | Until removed by staff |
 
 Retention is enforced by `lib/retention.ts`, which runs after public
