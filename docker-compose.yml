@@ -1,0 +1,62 @@
+# Production stack for a single server. See docs/deployment.md.
+#
+# Start with:  docker compose up -d --build
+# Upgrade with: git pull && docker compose up -d --build
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-news_platform}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Deliberately not published to the host. The database is reachable
+    # only from the other containers on this network; exposing 5432 to the
+    # internet is how most self-hosted databases get found.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Runs once per deploy and exits. The app waits for it to finish, so two
+  # app containers can never race each other through the same migration.
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # 127.0.0.1 is load-bearing, not caution. The app trusts
+    # X-Forwarded-For for rate limiting and audit logs, so a directly
+    # reachable port would let anyone spoof their own IP and walk past
+    # every rate limit. The only route in must be the reverse proxy.
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # Only used when S3 is not configured. Without this, every upload is
+      # lost on the next redeploy.
+      - uploads:/app/.local-uploads
+
+volumes:
+  db-data:
+  uploads:

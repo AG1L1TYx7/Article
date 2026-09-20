@@ -208,6 +208,16 @@ Stated plainly so nobody assumes otherwise:
   when it isn't.
 - No internationalization.
 
+## Deploying
+
+See [docs/deployment.md](docs/deployment.md) — a step-by-step guide for a
+fresh Ubuntu VPS or dedicated server, covering server hardening, Docker,
+nginx, HTTPS, backups and the three services that must replace their local
+fallbacks before the site really works.
+
+This needs a server you can run a long-lived Node process on. Shared and
+cPanel hosting generally cannot: this is not a set of files you upload.
+
 ## Known local hazard
 
 If this working copy lives in a OneDrive-synced folder, OneDrive locks files

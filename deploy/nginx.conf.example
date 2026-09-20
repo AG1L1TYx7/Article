@@ -1,0 +1,109 @@
+# nginx in front of the news platform.
+#
+# Copy to /etc/nginx/sites-available/news-platform, replace every
+# example.com with your domain, symlink it into sites-enabled, then run
+# certbot to fill in the certificate paths. Full walkthrough in
+# docs/deployment.md.
+
+# Redirect plain HTTP, and leave the ACME challenge path alone so
+# certificate renewal keeps working.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name example.com www.example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name example.com www.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Uploads are capped in the application at 10MB for images and 200MB
+    # for video. nginx defaults to 1MB and rejects anything larger with a
+    # bare 413 before the request ever reaches the app, which looks like a
+    # broken uploader rather than a limit.
+    client_max_body_size 210m;
+
+    # A 200MB upload over a slow connection takes longer than the default
+    # 60s, and timing out mid-upload loses the whole thing.
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    client_body_timeout 300s;
+
+    # Hashed filenames, so they can be cached hard and forever. This is
+    # the single biggest win available here: without it every visitor
+    # re-downloads the JavaScript bundle on every page.
+    location /_next/static/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_cache_valid 200 365d;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+
+        # ------------------------------------------------------------------
+        # READ THIS BEFORE CHANGING THE NEXT LINE.
+        #
+        # It must be $remote_addr, which OVERWRITES the header. Almost
+        # every nginx guide tells you to write:
+        #
+        #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        #
+        # which APPENDS the real client to whatever the client already
+        # sent. The application reads the FIRST entry of this header as
+        # the client's IP (src/lib/request.ts), so with the append form a
+        # visitor sending "X-Forwarded-For: 1.2.3.4" produces
+        # "1.2.3.4, <their real ip>" and the app believes 1.2.3.4.
+        #
+        # That is not cosmetic. It is the key for every rate limit in the
+        # application — login attempts, registration, password reset,
+        # comments, uploads. A spoofable key means no rate limiting at
+        # all, and it poisons the audit log with attacker-chosen
+        # addresses.
+        #
+        # Overwriting is safe because nginx is the only thing the app
+        # listens to: docker-compose.yml publishes the app on 127.0.0.1
+        # only, so nothing else can reach it to forge a header.
+        # ------------------------------------------------------------------
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP       $remote_addr;
+
+        # If you put Cloudflare in front of this server, $remote_addr
+        # becomes Cloudflare's IP and every visitor looks like the same
+        # client. Restore the real one with Cloudflare's published ranges
+        # plus the real_ip module, and only then:
+        #
+        #   set_real_ip_from <each cloudflare range>;
+        #   real_ip_header CF-Connecting-IP;
+        #
+        # Do not simply trust CF-Connecting-IP without set_real_ip_from:
+        # anyone who finds the origin IP could then send that header
+        # directly.
+    }
+}
+
+# Security headers are set by the application itself, in src/proxy.ts —
+# X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+# Permissions-Policy and HSTS. They are deliberately not repeated here:
+# two sources for the same header is how they drift apart, and a
+# duplicated HSTS header is worse than one.

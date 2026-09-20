@@ -1,0 +1,31 @@
+# Anything not needed to build the image. Keeping this tight matters for
+# build speed and for not baking local state into a published image.
+node_modules
+.next
+.git
+.github
+.claude
+.agents
+.windsurf
+
+# Local state that must never reach a server image.
+.env
+.env.*
+!.env.example
+.email-dev-outbox.log
+.local-uploads
+
+# Test and report output.
+test-results
+playwright-report
+blob-report
+coverage
+
+# Editor and OS noise.
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Generated at build time inside the image.
+src/generated

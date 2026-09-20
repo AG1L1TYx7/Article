@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { withDatabaseFallback } from "@/lib/buildSafe";
 import { HeaderAccountLinks } from "./HeaderAccountLinks";
 
 /**
@@ -12,12 +13,21 @@ import { HeaderAccountLinks } from "./HeaderAccountLinks";
  * that would cost static rendering on every page.
  */
 export async function SiteHeader() {
-  const categories = await db.category.findMany({
-    where: { articles: { some: { status: "PUBLISHED" } } },
-    orderBy: { name: "asc" },
-    select: { slug: true, name: true },
-    take: 8,
-  });
+  // Wrapped because this header is in every page's layout, including the
+  // statically prerendered ones: an unreachable database would otherwise
+  // fail the whole build, and at runtime would 500 every page rather than
+  // just dropping the section list. See lib/buildSafe.ts.
+  const categories = await withDatabaseFallback(
+    () =>
+      db.category.findMany({
+        where: { articles: { some: { status: "PUBLISHED" } } },
+        orderBy: { name: "asc" },
+        select: { slug: true, name: true },
+        take: 8,
+      }),
+    [],
+    "site header sections"
+  );
 
   return (
     <header className="border-b border-neutral-200">
