@@ -21,9 +21,17 @@ export async function generateMetadata(props: PageProps<"/author/[handle]">): Pr
   const { handle } = await props.params;
   const author = await getAuthor(handle);
   if (!author) return {};
+  const description = `Articles written by ${author.name}.`;
   return {
     title: `${author.name} — articles`,
-    description: `Articles written by ${author.name}.`,
+    description,
+    alternates: { canonical: `/author/${handle}` },
+    openGraph: {
+      title: author.name,
+      description,
+      url: `/author/${handle}`,
+      type: "profile",
+    },
   };
 }
 

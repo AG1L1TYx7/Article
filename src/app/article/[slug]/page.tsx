@@ -61,11 +61,18 @@ export async function generateMetadata(props: PageProps<"/article/[slug]">): Pro
   return {
     title,
     description,
+    // Tells a search engine which URL is the real one. Without it, the
+    // same article reached with a tracking parameter appended looks like
+    // a separate, duplicate page.
+    alternates: { canonical: `/article/${article.slug}` },
     openGraph: {
       title,
       description,
       type: "article",
+      url: `/article/${article.slug}`,
       publishedTime: article.publishedAt?.toISOString(),
+      modifiedTime: article.updatedAt.toISOString(),
+      section: article.category?.name,
       authors: [article.author.name],
     },
     twitter: { card: "summary_large_image", title, description },

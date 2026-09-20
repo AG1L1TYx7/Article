@@ -15,9 +15,12 @@ export async function generateMetadata(props: PageProps<"/category/[slug]">): Pr
   const { slug } = await props.params;
   const category = await getCategory(slug);
   if (!category) return {};
+  const description = category.description ?? `Latest ${category.name} coverage.`;
   return {
     title: category.name,
-    description: category.description ?? `Latest ${category.name} coverage.`,
+    description,
+    alternates: { canonical: `/category/${slug}` },
+    openGraph: { title: category.name, description, url: `/category/${slug}`, type: "website" },
   };
 }
 

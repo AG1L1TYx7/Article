@@ -31,6 +31,10 @@ Two of those steps are easy to skip and then wonder why things look broken:
   race on any publicly reachable install. It prints a generated password once
   if you don't pass one.
 
+Set `NEXTAUTH_URL` to the real public origin before deploying: it is also what
+the sitemap, the RSS feed and every share card use to build absolute URLs.
+(`SITE_URL` overrides it if the two ever need to differ.)
+
 `AUTH_SECRET` can be generated with `openssl rand -base64 32`. It also keys
 the encryption of stored MFA secrets, so changing it invalidates every
 enrolled authenticator.

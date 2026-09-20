@@ -190,6 +190,7 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
     // in the site header is built from which categories have published
     // work, so moving an article between sections changes the nav.
     revalidatePath("/");
+    revalidatePublicFeeds();
     return { ok: true, id: articleId, slug };
   });
 }
@@ -222,6 +223,7 @@ export async function publishArticle(articleId: string): Promise<ArticleActionRe
 
     revalidatePath("/dashboard/articles");
     revalidatePath("/");
+    revalidatePublicFeeds();
     revalidatePath(`/article/${article.slug}`);
     return { ok: true, id: articleId, slug: article.slug };
   });
@@ -247,6 +249,7 @@ export async function unpublishArticle(articleId: string): Promise<ArticleAction
 
     revalidatePath("/dashboard/articles");
     revalidatePath("/");
+    revalidatePublicFeeds();
     revalidatePath(`/article/${article.slug}`);
     return { ok: true, id: articleId, slug: article.slug };
   });
@@ -275,9 +278,24 @@ export async function archiveArticle(articleId: string): Promise<ArticleActionRe
 
     revalidatePath("/dashboard/articles");
     revalidatePath("/");
+    revalidatePublicFeeds();
     revalidatePath(`/article/${article.slug}`);
     return { ok: true, id: articleId, slug: article.slug };
   });
+}
+
+/**
+ * Refreshes the machine-readable views of what is published.
+ *
+ * Both are cached — the feed for 15 minutes, the sitemap for an hour — so
+ * without this a newly published article is missing from the feed that
+ * subscribers poll, and from the sitemap a crawler reads, for as long as
+ * the cache holds. For a news site that delay is the whole point of
+ * publishing.
+ */
+function revalidatePublicFeeds() {
+  revalidatePath("/feed.xml");
+  revalidatePath("/sitemap.xml");
 }
 
 const MAX_LINKS_PER_ARTICLE = 10;
