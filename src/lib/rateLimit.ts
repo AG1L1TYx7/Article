@@ -88,4 +88,7 @@ export const engagementLimiter = makeLimiter(60, 60, "ratelimit:engagement");
 // limit is about our own outbound traffic as much as about abuse: without
 // it, one account could point the server at a list of hosts as fast as it
 // can submit a form.
+// Subscribing to push alerts happens once per device, so anything
+// resembling a burst from one address is a script.
+export const pushSubscribeLimiter = makeLimiter(10, 60 * 10, "ratelimit:push-subscribe");
 export const linkPreviewLimiter = makeLimiter(10, 60, "ratelimit:link-preview");

@@ -55,6 +55,11 @@ async function main() {
   await db.comment.deleteMany({ where: { userId: { in: ids } } });
   await db.article.deleteMany({ where: { authorId: { in: ids } } });
   await db.media.deleteMany({ where: { uploadedById: { in: ids } } });
+  // Push subscriptions: the accounts' own, and the anonymous ones the
+  // e2e suite registers against a reserved test hostname.
+  await db.pushSubscription.deleteMany({
+    where: { OR: [{ userId: { in: ids } }, { endpoint: { startsWith: "https://push.example.com/" } }] },
+  });
   await db.session.deleteMany({ where: { userId: { in: ids } } });
   await db.account.deleteMany({ where: { userId: { in: ids } } });
   const deleted = await db.user.deleteMany({ where: { id: { in: ids } } });

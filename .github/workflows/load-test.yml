@@ -1,0 +1,51 @@
+# Read-only load test against a deployed site, run by hand.
+#
+#   Actions → Load test → Run workflow → enter the URL.
+#
+# Only point it at a site you operate. It fetches public pages and never
+# signs in or writes anything (scripts/load-test.mjs), but fifty
+# concurrent connections for thirty seconds is a lot of traffic to send
+# at someone else's server.
+
+name: Load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Site to test, e.g. https://yourdomain.com"
+        required: true
+        type: string
+      connections:
+        description: "Concurrent connections"
+        default: "50"
+        type: string
+      duration:
+        description: "Seconds"
+        default: "30"
+        type: string
+      p99:
+        description: "Fail if p99 latency (ms) is above"
+        default: "2000"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: >
+          node scripts/load-test.mjs
+          --url "${{ inputs.url }}"
+          --connections "${{ inputs.connections }}"
+          --duration "${{ inputs.duration }}"
+          --p99 "${{ inputs.p99 }}"

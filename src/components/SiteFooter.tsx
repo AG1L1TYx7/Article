@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/siteUrl";
 import { RssIcon } from "./icons";
+import { PushToggle } from "./push/PushToggle";
 
 /**
  * Site footer. Lists are plain <ul>s rather than a <nav>: the section bar
@@ -34,6 +35,11 @@ export async function SiteFooter() {
           >
             <RssIcon size={16} /> RSS feed
           </a>
+          {/* Renders nothing unless push is configured and the browser
+              supports it — see components/push/PushToggle.tsx. */}
+          <div className="mt-4">
+            <PushToggle variant="button" />
+          </div>
         </div>
 
         <div>
@@ -60,6 +66,11 @@ export async function SiteFooter() {
             <li>
               <Link href="/search" className="text-ink-2 hover:text-ink">
                 Search the archive
+              </Link>
+            </li>
+            <li>
+              <Link href="/following" className="text-ink-2 hover:text-ink">
+                Writers and sections you follow
               </Link>
             </li>
             <li>

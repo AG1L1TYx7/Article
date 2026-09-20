@@ -11,7 +11,9 @@ import { getClientIp } from "@/lib/request";
 import { linkPreviewLimiter } from "@/lib/rateLimit";
 import { fetchLinkPreview } from "@/lib/linkPreview";
 import { notifyBreakingNews } from "@/lib/notifications";
+import { pushBreakingNews } from "@/lib/push";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { Article } from "@/generated/prisma/client";
 
 export interface ArticleActionResult {
@@ -279,6 +281,9 @@ export async function publishArticle(articleId: string): Promise<ArticleActionRe
     // reaches readers who follow this author or section. See
     // lib/notifications.ts.
     await notifyBreakingNews(articleId);
+    // The push to every opted-in device goes out after the response —
+    // the editor should not wait on a push service. See lib/push.ts.
+    after(() => pushBreakingNews(articleId).catch(() => {}));
 
     await recordAudit({
       actorId: session.user.id,

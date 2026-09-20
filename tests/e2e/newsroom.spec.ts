@@ -344,7 +344,9 @@ test.describe("Breaking news alerts", () => {
     await page.context().clearCookies();
     await login(page, follower);
     await page.goto("/notifications");
-    await expect(page.getByText("Breaking news")).toBeVisible();
+    // Anchored: the footer's "Get breaking news alerts" toggle would otherwise
+    // match too. The optional prefix is the screen-reader-only "Unread:".
+    await expect(page.getByText(/^(Unread: )?Breaking news$/)).toBeVisible();
     await expect(page.getByText(title)).toBeVisible();
   });
 

@@ -77,3 +77,7 @@ next-env.d.ts
 
 # Log of the dev server when started in the background.
 .dev-server.log
+
+# Database dumps from npm run db:backup. Keep them off the repository and off this disk.
+/backups/
+*.sql.gz

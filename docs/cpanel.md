@@ -181,7 +181,12 @@ credentials being wrong. `node setup.js check` catches the last two.
 
 ## Keeping it updated
 
-Rebuild locally, re-run `npm run build:cpanel`, upload the contents
+**Automatically:** once the repository has your server's SSH details,
+every push to `main` that passes its tests is built, uploaded, migrated
+and restarted by GitHub Actions. Setting that up is a ten-minute job
+described in [ci-cd.md](ci-cd.md).
+
+**By hand:** rebuild locally, re-run `npm run build:cpanel`, upload the contents
 again, then in the Terminal run `node setup.js migrate` (it does nothing
 if there is nothing new) and Restart. `git log --stat` shows whether
 `prisma/migrations-mysql/` changed, if you want to know in advance.

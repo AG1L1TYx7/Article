@@ -73,6 +73,11 @@ export function buildCsp({ nonce, isDev, mediaOrigin, turnstile }: CspOptions): 
     ["img-src", imgSrc as string[]],
     ["media-src", imgSrc as string[]],
     ["connect-src", connectSrc as string[]],
+    // The push service worker (public/sw.js). Needed explicitly: without
+    // a worker-src the browser falls back to script-src, and
+    // 'strict-dynamic' makes script-src ignore 'self', so registration
+    // would be blocked.
+    ["worker-src", ["'self'"]],
     ["frame-src", frameSrc],
     // No plugins, ever.
     ["object-src", ["'none'"]],

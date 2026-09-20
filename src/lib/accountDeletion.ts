@@ -15,7 +15,7 @@ import { recordAudit } from "@/lib/audit";
  *
  * What goes, immediately:
  *   name, email, handle, password, MFA secret, last-login IP, avatar,
- *   sessions, bookmarks, follows, likes, reports made, notifications,
+ *   sessions, push subscriptions, bookmarks, follows, likes, reports made, notifications,
  *   and every comment (tombstoned where a reply from someone else needs
  *   it to stay in the tree; fully deleted otherwise — the same rule the
  *   reader's own "delete comment" uses).
@@ -70,6 +70,7 @@ export async function anonymiseAccount(
     await tx.follow.deleteMany({ where: { followerId: userId } });
     await tx.report.deleteMany({ where: { reporterId: userId } });
     await tx.notification.deleteMany({ where: { OR: [{ userId }, { actorId: userId }] } });
+    await tx.pushSubscription.deleteMany({ where: { userId } });
     await tx.session.deleteMany({ where: { userId } });
     await tx.account.deleteMany({ where: { userId } });
 

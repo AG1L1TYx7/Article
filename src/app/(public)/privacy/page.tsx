@@ -82,10 +82,19 @@ export default function PrivacyPage() {
               <td>Legal obligation (Art. 7 GDPR); legitimate interest</td>
             </tr>
             <tr>
-              <td>Comments, likes, saved articles, writers you follow</td>
+              <td>Comments, likes, saved articles, writers and sections you follow</td>
               <td>You use those features</td>
               <td>To provide them — they are the feature</td>
               <td>Performance of a contract</td>
+            </tr>
+            <tr>
+              <td>
+                A push subscription: the address your browser&apos;s push service issued for this device, and
+                two encryption keys. Linked to your account only if you were signed in when you turned alerts on.
+              </td>
+              <td>You turn on &ldquo;breaking news alerts&rdquo;</td>
+              <td>To deliver those alerts</td>
+              <td>Consent — withdrawn by turning them off, which deletes the record</td>
             </tr>
             <tr>
               <td>Sign-in events: time, IP address, success or failure, and account changes (a security audit log)</td>
@@ -201,6 +210,10 @@ export default function PrivacyPage() {
           <li>Your account and content: until you delete your account (see below).</li>
           <li>Security audit log: {RETENTION.auditLogDays} days, then deleted automatically.</li>
           <li>Notifications: {RETENTION.notificationDays} days.</li>
+          <li>
+            Push alert subscriptions: until you turn alerts off or delete your account; a device the push
+            service keeps rejecting is dropped after {RETENTION.pushFailedDays} days.
+          </li>
           <li>Last sign-in IP address: cleared after {RETENTION.lastLoginIpDays} days without a sign-in.</li>
           <li>Rate-limit counters: minutes.</li>
           <li>Email verification and password-reset links: one hour, single use.</li>

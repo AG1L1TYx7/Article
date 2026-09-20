@@ -46,9 +46,16 @@ export async function exportPersonalData(userId: string) {
         },
       },
       bookmarks: { select: { createdAt: true, article: { select: { title: true, slug: true } } } },
-      follows: { select: { createdAt: true, author: { select: { name: true, handle: true } } } },
+      follows: {
+        select: {
+          createdAt: true,
+          author: { select: { name: true, handle: true } },
+          category: { select: { name: true, slug: true } },
+        },
+      },
       reports: { select: { reason: true, status: true, createdAt: true, commentId: true, articleId: true } },
       notifications: { select: { type: true, createdAt: true, readAt: true } },
+      pushSubscriptions: { select: { endpoint: true, createdAt: true, lastUsedAt: true } },
       articles: { select: { title: true, slug: true, status: true, publishedAt: true } },
       auditLogs: {
         orderBy: { createdAt: "desc" },
@@ -84,7 +91,18 @@ export async function exportPersonalData(userId: string) {
       commentId: r.comment?.id,
     })),
     savedArticles: user.bookmarks,
-    following: user.follows.map((f) => ({ ...f.author, since: f.createdAt })),
+    following: user.follows.map((f) => ({
+      ...(f.author ?? {}),
+      ...(f.category ? { section: f.category.name, sectionSlug: f.category.slug } : {}),
+      since: f.createdAt,
+    })),
+    // The push service that issued each endpoint is visible in its host;
+    // the rest of the URL is the opaque address of one browser.
+    pushAlertDevices: user.pushSubscriptions.map((p) => ({
+      pushService: new URL(p.endpoint).host,
+      since: p.createdAt,
+      lastAlertedAt: p.lastUsedAt,
+    })),
     reportsMade: user.reports,
     notifications: user.notifications,
     articlesWritten: user.articles,

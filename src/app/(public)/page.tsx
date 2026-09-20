@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth/config";
+import { followedSources, followingFeed } from "@/lib/followingFeed";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { daysAgo } from "@/lib/timeWindow";
@@ -53,6 +55,21 @@ export default async function Home() {
 
   const [lead, ...rest] = ordered;
   const secondary = rest.slice(0, 3);
+
+  // The personalised strip. Only for someone signed in who follows
+  // something; anonymous readers get exactly the page they always did.
+  // Stories already in the top block are left out so a follower of the
+  // lead's author is not shown the lead twice.
+  const session = await auth();
+  const forYou = session?.user
+    ? await (async () => {
+        const sources = await followedSources(session.user.id);
+        if (sources.authors.length === 0 && sources.categories.length === 0) return null;
+        const topIds = [lead, ...secondary].filter(Boolean).map((a) => a!.id);
+        const items = await followingFeed(sources, { take: 6, excludeIds: topIds });
+        return { sources, items };
+      })()
+    : null;
   // The image-led row takes the next three stories that have a cover, so
   // the grid is three pictures rather than two pictures and a gap.
   const remaining = rest.slice(3);
@@ -86,6 +103,28 @@ export default async function Home() {
           </ul>
         )}
       </section>
+
+      {forYou && (
+        <section aria-labelledby="for-you-heading" className="mt-14 border-t border-line pt-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id="for-you-heading" className="section-title">
+              From writers and sections you follow
+            </h2>
+            <Link href="/following" className="text-link inline-flex items-center gap-1 text-sm">
+              Everything you follow <ArrowRightIcon size={14} />
+            </Link>
+          </div>
+          {forYou.items.length > 0 ? (
+            <ul className="mt-2 grid gap-x-12 md:grid-cols-2 lg:grid-cols-3 [&>li]:border-b [&>li]:border-line [&>li]:py-5">
+              {forYou.items.map((article) => (
+                <ArticleCard key={article.id} article={article} variant="compact" />
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-ink-2">Nothing new from them beyond the stories above.</p>
+          )}
+        </section>
+      )}
 
       {featured.length > 0 && (
         <section aria-label="Featured" className="mt-14 border-t border-line pt-10">

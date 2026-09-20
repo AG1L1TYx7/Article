@@ -12,6 +12,10 @@ const parse = (csp: string) =>
 const base = { nonce: "abc123", isDev: false, turnstile: false };
 
 describe("buildCsp", () => {
+  test("allows the push service worker explicitly, since strict-dynamic drops 'self' from script-src", () => {
+    expect(parse(buildCsp(base))["worker-src"]).toEqual(["'self'"]);
+  });
+
   test("carries the request's nonce, which Next.js reads back out of it", () => {
     // This is the mechanism: Next parses the header while rendering and
     // puts the nonce on its own script tags. A missing nonce here means

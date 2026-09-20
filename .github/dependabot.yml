@@ -1,0 +1,30 @@
+# Weekly dependency updates as pull requests, which the CI workflow then
+# type-checks, lints and tests before anyone looks at them. Security
+# advisories arrive as soon as they are published regardless of the
+# schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the framework and its companions, so they move together.
+      next:
+        patterns: ["next", "eslint-config-next", "react", "react-dom", "@types/react", "@types/react-dom"]
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
+      tiptap:
+        patterns: ["@tiptap/*"]
+      aws:
+        patterns: ["@aws-sdk/*"]
+      dev-tooling:
+        dependency-type: development
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

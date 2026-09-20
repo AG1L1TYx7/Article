@@ -74,6 +74,7 @@ model User {
   media         Media[]
   notifications Notification[] @relation("NotificationRecipient")
   causedNotifications Notification[] @relation("NotificationActor")
+  pushSubscriptions PushSubscription[]
 
   @@index([role])
   @@index([status])
@@ -462,6 +463,33 @@ model Notification {
   @@unique([userId, type, articleId])
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+// One browser that asked for push alerts. The endpoint is an opaque URL
+// the browser's push service issued for this device; the two keys encrypt
+// the payload so that service cannot read it. Nothing here identifies a
+// person unless they were signed in when they subscribed, in which case
+// the row is theirs and goes with their account. See lib/push.ts.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  // 2KB is generous; real endpoints are a few hundred characters. Unique
+  // on the hash rather than the column: a utf8mb4 index cannot cover a
+  // key this wide.
+  endpoint     String    @db.VarChar(2048)
+  endpointHash String    @unique @db.VarChar(64)
+  p256dh     String    @db.VarChar(255)
+  auth       String    @db.VarChar(255)
+  userId     String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  // Set when the push service rejected a delivery for a reason other than
+  // "gone"; the retention purge removes rows that have stayed failed.
+  failedAt   DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([failedAt])
 }
 
 // ---------------------------------------------------------------------------

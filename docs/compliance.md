@@ -41,9 +41,10 @@ activity, not on this software.
 | Email verified at; terms accepted at | `User` | Proof the address is theirs; proof of consent (Art. 7) | Legal obligation / legitimate interest | Until deletion |
 | MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent | Until disabled or deletion |
 | Last sign-in time and IP | `User.lastLoginAt/Ip` | "When did I last sign in, and from where" | Legitimate interest (security) | IP cleared after 90 days |
-| Comments, likes, saves, follows, reports | own tables | The features themselves | Contract | Until deletion |
+| Comments, likes, saves, follows (writers and sections), reports | own tables | The features themselves; the "Following" feed is a time-ordered list of the reader's own choices, not profiling | Contract | Until deletion |
 | Security audit log (action, actor, IP, time) | `AuditLog` | Detecting and investigating abuse | Legitimate interest (security) | 365 days (`AUDIT_RETENTION_DAYS`) |
 | Notifications | `Notification` | In-app alerts | Contract | 180 days |
+| Push subscription (endpoint URL issued by the browser's push service, two encryption keys, optional userId) | `PushSubscription` | Breaking-news and reply alerts the reader turned on | Consent (the toggle); withdrawn by turning it off, which deletes the row | Until turned off or account deleted; rows the push service keeps rejecting purged after 30 days |
 | Rate-limit counters | memory or Upstash | Abuse prevention | Legitimate interest | Minutes |
 | Verification / reset tokens | `VerificationToken` | One-time links | Contract | 1 hour; rows purged daily |
 | Article view counts | `Article.viewCount`, `ArticleViewDaily` | Editorial analytics | Not personal data (no identifier) | Indefinite |

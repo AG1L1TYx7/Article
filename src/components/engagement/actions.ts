@@ -106,6 +106,29 @@ export async function toggleBookmark(articleId: string): Promise<ToggleResult> {
   });
 }
 
+export async function toggleFollowCategory(categoryId: string): Promise<ToggleResult> {
+  return guardAction(async () => {
+    const session = await requireUser();
+    if (!(await checkLimit(session.user.id))) {
+      return { ok: false, error: "Slow down a moment." };
+    }
+
+    const category = await db.category.findUnique({ where: { id: categoryId }, select: { id: true } });
+    if (!category) return { ok: false, error: "That section isn't available." };
+
+    const existing = await db.follow.findFirst({
+      where: { followerId: session.user.id, categoryId },
+      select: { id: true },
+    });
+
+    if (existing) await db.follow.delete({ where: { id: existing.id } });
+    else await db.follow.create({ data: { followerId: session.user.id, categoryId } });
+
+    revalidatePath("/following");
+    return { ok: true, active: !existing };
+  });
+}
+
 export async function toggleFollowAuthor(authorId: string): Promise<ToggleResult> {
   return guardAction(async () => {
     const session = await requireUser();
@@ -130,6 +153,7 @@ export async function toggleFollowAuthor(authorId: string): Promise<ToggleResult
     if (existing) await db.follow.delete({ where: { id: existing.id } });
     else await db.follow.create({ data: { followerId: session.user.id, authorId } });
 
+    revalidatePath("/following");
     return { ok: true, active: !existing };
   });
 }

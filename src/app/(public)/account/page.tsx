@@ -12,6 +12,7 @@ import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
 import { BellIcon, BookmarkIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/components/icons";
 import { formatDate, initials, plural } from "@/lib/format";
+import { PushToggle } from "@/components/push/PushToggle";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -118,14 +119,14 @@ export default async function AccountPage() {
             <span className="block text-xs text-ink-3">{plural(user._count.bookmarks, "article")}</span>
           </span>
         </Link>
-        <Link href="/notifications" className="card card-hover flex items-center gap-3 px-4 py-3">
+        <Link href="/following" className="card card-hover flex items-center gap-3 px-4 py-3">
           <span className="avatar h-9 w-9">
             <BellIcon size={16} />
           </span>
           <span>
-            <span className="block text-sm font-medium">Notifications</span>
+            <span className="block text-sm font-medium">Following</span>
             <span className="block text-xs text-ink-3">
-              {plural(user._count.comments, "comment")} · following {user._count.follows}
+              {plural(user._count.follows, "source")} · {plural(user._count.comments, "comment")}
             </span>
           </span>
         </Link>
@@ -201,6 +202,24 @@ export default async function AccountPage() {
             )}
           </div>
         )}
+      </section>
+
+      {/* Alerts on this device. The toggle renders nothing when push is
+          not configured on the server or not supported by the browser. */}
+      <section className="card mt-4 p-6" aria-labelledby="alerts-heading">
+        <h2 id="alerts-heading" className="flex items-center gap-2 text-lg font-medium">
+          <BellIcon size={18} /> Alerts on this device
+        </h2>
+        <p className="mt-1 text-sm text-ink-2">
+          Breaking stories, and replies to your comments, as notifications on this phone or computer even
+          when the site is closed. Per device: turning it on here does not turn it on anywhere else.
+        </p>
+        <div className="mt-5 border-t border-line pt-5">
+          <PushToggle variant="row" />
+          <noscript>
+            <p className="text-sm text-ink-3">Alerts need JavaScript turned on.</p>
+          </noscript>
+        </div>
       </section>
 
       <AccountPrivacy name={user.name} canDelete={user._count.articles === 0} />

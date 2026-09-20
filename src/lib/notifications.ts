@@ -1,4 +1,7 @@
+import { after } from "next/server";
 import { db } from "@/lib/db";
+import { pushToUser } from "@/lib/push";
+import { commentApprovedPayload, commentReplyPayload, type PushPayload } from "@/lib/pushPayload";
 
 /**
  * Creating notifications.
@@ -17,18 +20,30 @@ import { db } from "@/lib/db";
  * more than once, and each path tries to notify.
  */
 
-/** Swallows the duplicate-key error the unique index raises on a repeat. */
-async function createOnce(data: {
-  userId: string;
-  type: "COMMENT_REPLY" | "COMMENT_APPROVED";
-  actorId?: string | null;
-  articleId?: string | null;
-  commentId: string;
-}): Promise<void> {
+/**
+ * Swallows the duplicate-key error the unique index raises on a repeat,
+ * and — only when a row was actually written — sends the same alert to
+ * the person's devices as a push notification. Idempotency covers both:
+ * a second attempt writes nothing and so pushes nothing.
+ *
+ * The push goes out after the response, so a reader's reply is not held
+ * up waiting on a push service.
+ */
+async function createOnce(
+  data: {
+    userId: string;
+    type: "COMMENT_REPLY" | "COMMENT_APPROVED";
+    actorId?: string | null;
+    articleId?: string | null;
+    commentId: string;
+  },
+  push: () => PushPayload
+): Promise<void> {
   // createMany + skipDuplicates rather than catching P2002: it does the
   // same job in one round trip and without pattern-matching on an error
   // code that is a detail of the driver.
-  await db.notification.createMany({ data: [data], skipDuplicates: true });
+  const { count } = await db.notification.createMany({ data: [data], skipDuplicates: true });
+  if (count > 0) after(() => pushToUser(data.userId, push()).catch(() => {}));
 }
 
 /**
@@ -46,6 +61,9 @@ export async function notifyReply(replyId: string): Promise<void> {
       status: true,
       userId: true,
       articleId: true,
+      body: true,
+      author: { select: { name: true } },
+      article: { select: { slug: true, title: true } },
       parent: { select: { userId: true, status: true } },
     },
   });
@@ -59,13 +77,23 @@ export async function notifyReply(replyId: string): Promise<void> {
   if (reply.parent.status !== "APPROVED") return;
   if (reply.parent.userId === reply.userId) return;
 
-  await createOnce({
-    userId: reply.parent.userId,
-    type: "COMMENT_REPLY",
-    actorId: reply.userId,
-    articleId: reply.articleId,
-    commentId: reply.id,
-  });
+  await createOnce(
+    {
+      userId: reply.parent.userId,
+      type: "COMMENT_REPLY",
+      actorId: reply.userId,
+      articleId: reply.articleId,
+      commentId: reply.id,
+    },
+    () =>
+      commentReplyPayload({
+        actorName: reply.author.name,
+        articleSlug: reply.article.slug,
+        articleTitle: reply.article.title,
+        commentId: reply.id,
+        body: reply.body,
+      })
+  );
 }
 
 /**
@@ -77,20 +105,34 @@ export async function notifyReply(replyId: string): Promise<void> {
 export async function notifyCommentApproved(commentId: string, moderatorId: string): Promise<void> {
   const comment = await db.comment.findUnique({
     where: { id: commentId },
-    select: { id: true, status: true, userId: true, articleId: true },
+    select: {
+      id: true,
+      status: true,
+      userId: true,
+      articleId: true,
+      article: { select: { slug: true, title: true } },
+    },
   });
 
   if (!comment || comment.status !== "APPROVED") return;
   // A moderator approving their own comment doesn't need telling.
   if (comment.userId === moderatorId) return;
 
-  await createOnce({
-    userId: comment.userId,
-    type: "COMMENT_APPROVED",
-    actorId: null,
-    articleId: comment.articleId,
-    commentId: comment.id,
-  });
+  await createOnce(
+    {
+      userId: comment.userId,
+      type: "COMMENT_APPROVED",
+      actorId: null,
+      articleId: comment.articleId,
+      commentId: comment.id,
+    },
+    () =>
+      commentApprovedPayload({
+        articleSlug: comment.article.slug,
+        articleTitle: comment.article.title,
+        commentId: comment.id,
+      })
+  );
 }
 
 export async function unreadNotificationCount(userId: string): Promise<number> {

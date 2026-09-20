@@ -101,6 +101,10 @@ comment at the top of `src/lib/rateLimit.ts`.
 | `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
 | `npm run audit` | Dependency audit, failing on anything unreviewed |
 | `npm run build:cpanel` | Assemble an upload-ready bundle for cPanel Node.js hosting |
+| `npm run push:keys` | Generate the VAPID key pair that turns on push notifications (paste into `.env`) |
+| `npm run db:backup` | Gzipped SQL dump of the database `DATABASE_URL` points at (`-- --keep 14` prunes old ones) |
+| `npm run db:restore -- --file <dump>` | Restore a dump (dry run unless `--confirm`); see [docs/operations.md](docs/operations.md) |
+| `npm run load-test -- --url <site>` | Read-only load test with pass/fail thresholds |
 
 ### Testing
 
@@ -256,10 +260,12 @@ Stated plainly so nobody assumes otherwise:
   local fallbacks until their keys are in `.env` (see `.env.example`).
 - **Video uploads need ClamAV and ffmpeg on the server** — the Docker setup
   provides both; shared cPanel hosting cannot.
-- **Load testing, a backup-and-restore drill and an outside penetration
-  review** need the deployed server and a person; the code-side hardening
-  (CSP, headers, MFA, audit log, dependency gate) is in.
-- No push notifications, internationalization or personalization.
+- **An outside penetration review** needs a person. The code-side hardening
+  (CSP, headers, MFA, audit log, dependency gate) is in, and the load test
+  and backup/restore drill are single commands ([docs/operations.md](docs/operations.md))
+  that still have to be *run* against the real server once it exists.
+- **Internationalization.** Everything is English; dates and copy are not
+  localised. Push notifications and the personalised "Following" feed are done.
 
 ## Deploying
 
@@ -269,6 +275,10 @@ nginx, HTTPS, backups and the three services that must replace their local
 fallbacks before the site really works.
 
 This needs a server that can keep a Node process alive.
+
+**Every push to `main` is tested, and can be deployed, by GitHub Actions** —
+see [docs/ci-cd.md](docs/ci-cd.md) for what runs and the six secrets that
+turn on automatic deployment to cPanel.
 
 **cPanel works too**, if it offers "Setup Node.js App" with Node 20.9+ — see
 [docs/cpanel.md](docs/cpanel.md) and `npm run build:cpanel`. Video uploads are

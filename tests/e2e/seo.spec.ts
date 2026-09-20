@@ -70,7 +70,7 @@ test.describe("Public reading experience", () => {
     expect(body).toContain("Sitemap:");
     expect(body).toContain("/sitemap.xml");
     // Signed-in-only areas, and the infinite thin space of search results.
-    for (const path of ["/dashboard", "/saved", "/notifications", "/search"]) {
+    for (const path of ["/dashboard", "/saved", "/following", "/notifications", "/search"]) {
       expect(body, `robots.txt should disallow ${path}`).toContain(`Disallow: ${path}`);
     }
   });

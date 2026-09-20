@@ -16,11 +16,13 @@ let lastRun = 0;
 
 const daysAgo = (days: number, now: Date) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-export async function runRetention(now: Date = new Date()): Promise<{ auditLogs: number; notifications: number; ips: number; tokens: number } | null> {
+export async function runRetention(
+  now: Date = new Date()
+): Promise<{ auditLogs: number; notifications: number; ips: number; tokens: number; pushSubscriptions: number } | null> {
   if (now.getTime() - lastRun < MIN_INTERVAL_MS) return null;
   lastRun = now.getTime();
 
-  const [auditLogs, notifications, ips, tokens] = await Promise.all([
+  const [auditLogs, notifications, ips, tokens, pushSubscriptions] = await Promise.all([
     db.auditLog.deleteMany({ where: { createdAt: { lt: daysAgo(RETENTION.auditLogDays, now) } } }),
     db.notification.deleteMany({ where: { createdAt: { lt: daysAgo(RETENTION.notificationDays, now) } } }),
     // The IP of a sign-in months ago tells nobody anything useful.
@@ -31,7 +33,15 @@ export async function runRetention(now: Date = new Date()): Promise<{ auditLogs:
     // Verification and reset links are single use and expire in an hour;
     // the rows they leave behind have no reason to outlive the day.
     db.verificationToken.deleteMany({ where: { expires: { lt: daysAgo(1, now) } } }),
+    // A device the push service has rejected for a month is not coming back.
+    db.pushSubscription.deleteMany({ where: { failedAt: { lt: daysAgo(RETENTION.pushFailedDays, now) } } }),
   ]);
 
-  return { auditLogs: auditLogs.count, notifications: notifications.count, ips: ips.count, tokens: tokens.count };
+  return {
+    auditLogs: auditLogs.count,
+    notifications: notifications.count,
+    ips: ips.count,
+    tokens: tokens.count,
+    pushSubscriptions: pushSubscriptions.count,
+  };
 }

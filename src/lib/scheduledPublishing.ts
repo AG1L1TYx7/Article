@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { notifyBreakingNews } from "@/lib/notifications";
+import { pushBreakingNews } from "@/lib/push";
 
 /**
  * Publishes articles whose scheduled time has arrived.
@@ -40,7 +41,12 @@ export async function publishDueArticles(now: Date = new Date()): Promise<number
           scheduledFor: null,
         },
       });
-      if (article.isBreaking) await notifyBreakingNews(article.id);
+      if (article.isBreaking) {
+        await notifyBreakingNews(article.id);
+        // Already running after a response (see the public layout), so
+        // the push fan-out can simply be awaited here.
+        await pushBreakingNews(article.id).catch(() => {});
+      }
       revalidatePath(`/article/${article.slug}`);
     }
     if (due.length > 0) {

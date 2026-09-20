@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth/config";
 import { ArticleCard } from "@/components/articles/ArticleCard";
+import { FollowCategoryButton } from "./FollowCategoryButton";
 import { plural } from "@/lib/format";
 
 const getCategory = cache(async (slug: string) =>
@@ -30,7 +32,11 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
   const category = await getCategory(slug);
   if (!category) notFound();
 
-  const articles = await db.article.findMany({
+  const session = await auth();
+  const viewerId = session?.user?.id;
+
+  const [articles, followerCount, following] = await Promise.all([
+    db.article.findMany({
     where: { categoryId: category.id, status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
     take: 50,
@@ -44,17 +50,32 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
       author: { select: { name: true, handle: true } },
       coverImage: { select: { url: true, altText: true } },
     },
-  });
+    }),
+    db.follow.count({ where: { categoryId: category.id } }),
+    viewerId
+      ? db.follow.findFirst({ where: { followerId: viewerId, categoryId: category.id }, select: { id: true } })
+      : null,
+  ]);
 
   const [lead, ...rest] = articles;
 
   return (
     <main id="main-content" className="mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6">
-      <header className="border-b border-line pb-6">
-        <p className="kicker">Section</p>
-        <h1 className="headline mt-2 text-4xl sm:text-5xl">{category.name}</h1>
-        {category.description && <p className="mt-3 max-w-2xl text-ink-2">{category.description}</p>}
-        <p className="mt-3 text-xs text-ink-3">{plural(articles.length, "article")}</p>
+      <header className="flex flex-wrap items-end justify-between gap-6 border-b border-line pb-6">
+        <div className="min-w-0">
+          <p className="kicker">Section</p>
+          <h1 className="headline mt-2 text-4xl sm:text-5xl">{category.name}</h1>
+          {category.description && <p className="mt-3 max-w-2xl text-ink-2">{category.description}</p>}
+          <p className="mt-3 text-xs text-ink-3">
+            {plural(articles.length, "article")} · {plural(followerCount, "follower")}
+          </p>
+        </div>
+        <FollowCategoryButton
+          categoryId={category.id}
+          categoryName={category.name}
+          signedIn={!!viewerId}
+          following={!!following}
+        />
       </header>
 
       {!lead && <p className="mt-8 text-ink-2">Nothing published in this section yet.</p>}

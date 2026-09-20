@@ -1,117 +1,249 @@
+# Continuous integration and delivery. See docs/ci-cd.md.
+#
+# Every push and pull request: install, type-check, lint, unit tests,
+# dependency audit, then the full Playwright suite against a production
+# build talking to a real MariaDB.
+#
+# Pushes to main additionally build the cPanel bundle and the Docker image,
+# keep the bundle as a downloadable artifact, and — only if the repository
+# has been given the deploy secrets — upload it to the server, run the
+# migrations there and restart the app.
+
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
-# A second push to the same branch makes the first run pointless.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push to the same branch cancels the run it supersedes, except on
+  # main, where a deploy that has started must be allowed to finish.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 env:
-  # A throwaway database that only exists for the length of the job.
-  DATABASE_URL: mysql://root:root@127.0.0.1:3306/news_platform_test
-  # Not a secret: this database and this server are destroyed when the job
-  # ends. A real deployment generates its own with `openssl rand -base64 32`.
-  AUTH_SECRET: ci-only-throwaway-secret-not-used-anywhere-else
+  NODE_VERSION: 22
+  NEXT_TELEMETRY_DISABLED: 1
+  # Placeholders so the Prisma client and Auth.js initialise. The build
+  # never connects (see src/lib/buildSafe.ts); the e2e job overrides both.
+  DATABASE_URL: mysql://build:build@127.0.0.1:59999/build
+  AUTH_SECRET: ci-placeholder-secret-not-used-in-production-0000000000
   NEXTAUTH_URL: http://localhost:3000
-  MYSQL_DATABASE: news_platform_test
-  MYSQL_PASSWORD: root
 
 jobs:
-  # Fast feedback: everything that needs neither a database nor a browser.
   checks:
-    name: Typecheck, lint and unit tests
+    name: Type-check, lint, unit tests, audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - run: npm ci
-
-      # The Prisma client is generated, not committed, so nothing
-      # type-checks until it exists.
       - run: npx prisma generate
-
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit
-
-      # Fails on any advisory that has not been reviewed and written down
-      # in scripts/audit-dependencies.mjs, and also on entries there that
-      # no longer apply. A plain "npm audit" would be permanently red on
-      # advisories in the Prisma CLI's MySQL driver, which this PostgreSQL
-      # app never loads — and a permanently red check is one nobody reads.
+      # Fails on any advisory not explicitly reviewed in
+      # scripts/audit-dependencies.mjs.
       - run: npm run audit
 
   e2e:
-    name: End-to-end tests
+    name: End-to-end (production build + MariaDB)
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.4
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: news_platform_test
-        ports:
-          - 3306:3306
-        # Two words are load-bearing here. Without the health check the
-        # first migration can race the server still starting up, and
-        # without the lowered token size a search for "AI" or "EU"
-        # silently matches nothing — see docs/database.md.
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-          --innodb-ft-min-token-size=2
-
+    needs: checks
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: mysql://root@127.0.0.1:3306/news_platform
+      MYSQL_PORT: "3306"
+      # Real-looking values so the suite exercises the real code paths.
+      AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET || 'e2e-only-secret-9f1c2b3a4d5e6f708192a3b4c5d6e7f8' }}
+      LEGAL_ENTITY: CI Test Publisher
+      LEGAL_ADDRESS: 1 Test Street, Testville
+      LEGAL_CONTACT_EMAIL: privacy@example.com
+      LEGAL_JURISDICTION: England and Wales
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # Started by hand rather than as a `services:` container because the
+      # server needs a startup flag: innodb_ft_min_token_size=2, or searches
+      # for "AI" and "EU" match nothing and the search suite fails for a
+      # reason that has nothing to do with the code. See docs/database.md.
+      - name: Start MariaDB
+        run: |
+          docker run -d --name mariadb -p 3306:3306 \
+            -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=yes \
+            -e MARIADB_DATABASE=news_platform \
+            mariadb:11 \
+            --innodb-ft-min-token-size=2 \
+            --character-set-server=utf8mb4 \
+            --collation-server=utf8mb4_unicode_ci
+          for i in $(seq 1 60); do
+            if docker exec mariadb mariadb-admin ping -uroot --silent 2>/dev/null; then
+              echo "MariaDB is up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "MariaDB did not start"; docker logs mariadb; exit 1
+
+      # tests/e2e/support/db.ts drives the database through the `mysql`
+      # client for the setup the app deliberately has no UI for.
+      - name: Install MariaDB client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mariadb-client
+
       - run: npm ci
-
-      - name: Apply migrations
-        # deploy, not dev: CI runs the committed migrations exactly as a
-        # production deployment would, and fails rather than inventing a
-        # new one if the schema has drifted.
-        run: npx prisma migrate deploy
-
       - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run seed
 
-      - name: Seed starter categories
-        # The article editor's category dropdown and the site header's
-        # section list both come from these.
-        run: npm run seed
+      # Fresh VAPID keys for this run only, so the push suite covers the
+      # enabled path. They never leave the runner.
+      - name: Generate throwaway VAPID keys
+        # The script prints shell-style KEY="value" lines; GITHUB_ENV wants
+        # them unquoted.
+        run: node scripts/generate-vapid-keys.mjs | tr -d '"' >> "$GITHUB_ENV"
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Run end-to-end tests
-        # playwright.config.ts builds the app and serves it with
-        # `next start` — deliberately not `next dev`, which compiles on
-        # demand and produced failures that looked like application bugs.
-        run: npm run test:e2e
-
-      - name: Upload the report when something fails
+      - run: npx playwright install --with-deps chromium
+      # Playwright's webServer builds and starts the production server.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
         if: failure()
-        uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
+          name: playwright-traces
+          path: test-results/
           retention-days: 7
+
+  bundle:
+    name: Build cPanel bundle
+    runs-on: ubuntu-latest
+    needs: [checks, e2e]
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build
+      - run: npm run build:cpanel
+      - name: Record what was built
+        run: |
+          echo "commit=${GITHUB_SHA}" > cpanel-dist/BUILD_INFO
+          echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> cpanel-dist/BUILD_INFO
+          du -sh cpanel-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpanel-dist
+          path: cpanel-dist/
+          retention-days: 14
+          # The bundle is ~160MB of already-compressed node_modules; the
+          # default level spends minutes for almost nothing.
+          compression-level: 1
+
+  docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: checks
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Build only: proves the Dockerfile still works. Pushing to a
+      # registry is a one-line addition once there is one to push to.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: news-platform:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to cPanel
+    runs-on: ubuntu-latest
+    needs: bundle
+    # Only from main, and only once the five deploy secrets exist. The
+    # repository variable is the switch: set CPANEL_DEPLOY=true under
+    # Settings → Secrets and variables → Actions → Variables.
+    if: github.ref == 'refs/heads/main' && vars.CPANEL_DEPLOY == 'true'
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cpanel-dist
+          path: cpanel-dist
+
+      - name: Prepare SSH
+        env:
+          SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+          SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+          SSH_PORT: ${{ secrets.CPANEL_SSH_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload the bundle
+        env:
+          SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+          SSH_PORT: ${{ secrets.CPANEL_SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
+          APP_ROOT: ${{ secrets.CPANEL_APP_ROOT }}
+        # rsync over SSH: only changed files travel, and --delete keeps the
+        # server from accumulating old chunks. .env and the upload folder
+        # are the server's own and are never touched.
+        run: |
+          rsync -az --delete \
+            --exclude '.env' --exclude '.env.*' \
+            --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
+            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
+            cpanel-dist/ "$SSH_USER@$SSH_HOST:$APP_ROOT/"
+
+      - name: Migrate and restart
+        env:
+          SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+          SSH_PORT: ${{ secrets.CPANEL_SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
+          APP_ROOT: ${{ secrets.CPANEL_APP_ROOT }}
+          NODE_ACTIVATE: ${{ secrets.CPANEL_NODE_ACTIVATE }}
+        # setup.js check/migrate use the server's own .env. Touching
+        # tmp/restart.txt is how Passenger is told to restart the app.
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" bash -s <<EOF
+            set -e
+            cd "$APP_ROOT"
+            ${NODE_ACTIVATE:+eval "$NODE_ACTIVATE"}
+            node setup.js check
+            node setup.js migrate
+            mkdir -p tmp && touch tmp/restart.txt
+            echo "Deployed \$(tr '\n' ' ' < BUILD_INFO)"
+          EOF
+
+      - name: Smoke test
+        if: vars.SITE_URL != ''
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${{ vars.SITE_URL }}/")
+            if [ "$code" = "200" ]; then echo "Site answers 200"; exit 0; fi
+            echo "Attempt $i: $code — waiting for Passenger to restart"; sleep 10
+          done
+          echo "Site did not answer 200 after deploy"; exit 1

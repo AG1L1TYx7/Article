@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { MarkAllReadButton } from "./MarkAllReadButton";
 import { BellIcon, MessageIcon, CheckIcon } from "@/components/icons";
 import { formatDateTime, initials } from "@/lib/format";
+import { PushToggle } from "@/components/push/PushToggle";
 
 export const metadata: Metadata = {
   title: "Notifications",
@@ -46,7 +47,10 @@ export default async function NotificationsPage() {
           <h1 className="headline mt-2 text-4xl">Notifications</h1>
           {unread > 0 && <p className="mt-2 text-sm text-ink-3">{unread} unread</p>}
         </div>
-        {unread > 0 && <MarkAllReadButton count={unread} />}
+        <div className="flex flex-wrap items-center gap-2">
+          <PushToggle variant="button" />
+          {unread > 0 && <MarkAllReadButton count={unread} />}
+        </div>
       </div>
 
       {notifications.length === 0 && (
