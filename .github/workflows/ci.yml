@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # A throwaway database that only exists for the length of the job.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/news_platform_test?schema=public
+  # Not a secret: this database and this server are destroyed when the job
+  # ends. A real deployment generates its own with `openssl rand -base64 32`.
+  AUTH_SECRET: ci-only-throwaway-secret-not-used-anywhere-else
+  NEXTAUTH_URL: http://localhost:3000
+  PGDATABASE: news_platform_test
+
+jobs:
+  # Fast feedback: everything that needs neither a database nor a browser.
+  checks:
+    name: Typecheck, lint and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The Prisma client is generated, not committed, so nothing
+      # type-checks until it exists.
+      - run: npx prisma generate
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:unit
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: news_platform_test
+        ports:
+          - 5432:5432
+        # Without this the first migration can race the server still
+        # starting up.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        # deploy, not dev: CI runs the committed migrations exactly as a
+        # production deployment would, and fails rather than inventing a
+        # new one if the schema has drifted.
+        run: npx prisma migrate deploy
+
+      - run: npx prisma generate
+
+      - name: Seed starter categories
+        # The article editor's category dropdown and the site header's
+        # section list both come from these.
+        run: npm run seed
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        # playwright.config.ts builds the app and serves it with
+        # `next start` — deliberately not `next dev`, which compiles on
+        # demand and produced failures that looked like application bugs.
+        run: npm run test:e2e
+
+      - name: Upload the report when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

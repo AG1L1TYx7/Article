@@ -97,6 +97,16 @@ these tests register real accounts and publish real articles. Cleanup is scoped
 to `@example.com`, a domain RFC 2606 reserves for testing, so it can never
 match a real account.
 
+The suite talks to Postgres directly for a few things the application
+deliberately offers no UI for — promoting an account to staff, backdating a row
+— through `tests/e2e/support/db.ts`. Connection details come from the usual
+`PG*` environment variables, and `psql` is found on PATH or at a standard
+install location, so you don't need the same setup as whoever wrote the test.
+
+Everything runs on push and on pull requests via GitHub Actions
+(`.github/workflows/ci.yml`): typecheck, lint and unit tests in one job, the
+end-to-end suite against a real PostgreSQL service container in another.
+
 ---
 
 ## How it fits together

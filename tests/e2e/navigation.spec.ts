@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
-import { sql } from "./support/db";
+import { scalar, sql } from "./support/db";
 
 const PASSWORD = "correct-horse-battery-staple";
 
@@ -8,6 +8,26 @@ const promoteTo = (role: string, email: string) =>
   sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+const articleSlug = (title: string) =>
+  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+
+/**
+ * Waits for a freshly published article to appear on the homepage.
+ *
+ * The homepage is statically rendered and publishing revalidates it, but
+ * the request right after a publish can still be served the previous
+ * version. A plain goto-then-click raced that window and timed out — the
+ * single longest-standing flake in this suite. Reloading until the
+ * headline is there tests the same behaviour without depending on
+ * revalidation landing within one request.
+ */
+async function waitForOnHomepage(page: Page, title: string) {
+  await expect(async () => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: title })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+}
+
 const setCategory = (title: string, categorySlug: string) =>
   sql(
     `UPDATE "Article" SET "categoryId" = (SELECT id FROM "Category" WHERE slug = '${categorySlug}') WHERE title = '${title}';`
@@ -74,13 +94,27 @@ test.describe("Public navigation", () => {
     const title = `Nav Link Article ${Date.now()}`;
     const { handle } = await publishAs(page, "Nav Link Author", title);
 
-    await page.goto("/");
-    await page.getByRole("link", { name: title }).click();
-    await expect(page).toHaveURL(/\/article\//);
+    // Straight to the article: the link under test is the byline on the
+    // article page, and routing through the statically cached homepage to
+    // reach it only added a race. The homepage's own listing is covered
+    // by its own test below.
+    await page.goto(`/article/${articleSlug(title)}`);
 
     await page.getByRole("link", { name: "Nav Link Author" }).first().click();
     await expect(page).toHaveURL(new RegExp(`/author/${handle}`));
     await expect(page.getByText(title)).toBeVisible();
+  });
+
+  test("a published article reaches the homepage", async ({ page }) => {
+    // The homepage listing, tested deliberately rather than as an
+    // incidental step on the way somewhere else.
+    const title = `Nav Homepage Article ${Date.now()}`;
+    await publishAs(page, "Nav Homepage Author", title);
+
+    await waitForOnHomepage(page, title);
+    await page.getByRole("link", { name: title }).click();
+    await expect(page).toHaveURL(/\/article\//);
+    await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
   });
 
   test("a category page lists only that section, and the header links to it", async ({ page }) => {
