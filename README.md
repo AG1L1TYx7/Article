@@ -214,11 +214,14 @@ needed. Everything is validated with Zod before it reaches the database.
 `Content-Type` header. Images are re-encoded with `sharp`, which strips EXIF
 and any embedded payload, and are only marked servable once that succeeds.
 
-**Abuse.** Per-endpoint rate limits. New accounts' comments are held for
-moderation until they have three approved; spam heuristics hold anything
-link-stuffed or shouty regardless of who wrote it, and editing a comment
-re-runs those checks so an edit can't be used to slip past approval.
-Registration can require a CAPTCHA.
+**Abuse.** Per-endpoint rate limits. How much comment moderation the
+newsroom does is an admin setting (Dashboard → Settings): post
+immediately, hold new accounts until they have a few approved (the
+default, three), or hold everything. Staff never wait for review of their
+own comments. Spam heuristics hold anything link-stuffed or shouty
+regardless of the setting, and editing a comment re-runs the same
+decision so an edit can't be used to slip past approval. Registration can
+require a CAPTCHA.
 
 **Outbound fetches.** Link previews make the server request a URL an author
 typed — the classic SSRF setup. Every address a hostname resolves to must be

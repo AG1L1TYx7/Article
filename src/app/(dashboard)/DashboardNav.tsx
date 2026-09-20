@@ -10,6 +10,7 @@ import {
   MessageIcon,
   PenIcon,
   ShieldIcon,
+  SlidersIcon,
   TagIcon,
   UsersIcon,
 } from "@/components/icons";
@@ -31,6 +32,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/categories", label: "Categories", icon: TagIcon, adminOnly: true },
   { href: "/dashboard/users", label: "People", icon: UsersIcon, adminOnly: true },
   { href: "/dashboard/audit-log", label: "Audit log", icon: ListIcon, adminOnly: true },
+  { href: "/dashboard/settings", label: "Settings", icon: SlidersIcon, adminOnly: true },
 ];
 
 const MFA_HREF = "/dashboard/mfa";

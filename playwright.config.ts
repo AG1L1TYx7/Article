@@ -5,8 +5,15 @@ const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 export default defineConfig({
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/support/globalSetup.ts",
-  fullyParallel: false, // tests share one Postgres dev DB; keep them sequential within a file
+  fullyParallel: false, // tests share one dev DB; keep them sequential within a file
   reporter: "list",
+  // Site settings are global: a spec that flips comment moderation would
+  // change what every other spec expects of a new reader's comment. So it
+  // runs on its own, after everything else, and restores the default.
+  projects: [
+    { name: "main", testIgnore: /settings\.spec\.ts/ },
+    { name: "settings", testMatch: /settings\.spec\.ts/, dependencies: ["main"] },
+  ],
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",

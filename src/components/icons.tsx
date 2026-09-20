@@ -205,6 +205,15 @@ export const HomeIcon = (p: IconProps) => (
   </svg>
 );
 
+export const SlidersIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="8" cy="12" r="2" />
+    <circle cx="17" cy="17" r="2" />
+  </svg>
+);
+
 export const LockIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <rect x="5" y="11" width="14" height="10" rx="2" />

@@ -3,8 +3,8 @@
 import { db } from "@/lib/db";
 import { requireVerifiedEmail, guardAction } from "@/lib/auth/rbac";
 import { commentEditSchema, commentSchema, reportSchema } from "@/lib/validation/comment";
-import { assessComment, TRUSTED_AFTER_APPROVED_COMMENTS } from "@/lib/spam";
 import { isCommentEditable } from "@/lib/commentPolicy";
+import { decideCommentStatus } from "@/lib/settings";
 import { commentLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
 import { recordAudit } from "@/lib/audit";
@@ -73,16 +73,9 @@ export async function postComment(input: {
       }
     }
 
-    // Trust is earned: a new account's comments wait for a moderator, an
-    // established account's post immediately — unless the content itself
-    // trips a heuristic, which sends it for review regardless of who
-    // wrote it.
-    const approvedSoFar = await db.comment.count({
-      where: { userId: session.user.id, status: "APPROVED" },
-    });
-    const spam = assessComment(body);
-    const trusted = approvedSoFar >= TRUSTED_AFTER_APPROVED_COMMENTS;
-    const status = trusted && !spam.needsReview ? "APPROVED" : "PENDING";
+    // Live or held is a site setting (Dashboard → Settings) plus the spam
+    // heuristics; staff always post live. See lib/settings.ts.
+    const { status } = await decideCommentStatus(session.user, body);
 
     const comment = await db.comment.create({
       data: { articleId, userId: session.user.id, parentId, body, status },
@@ -184,17 +177,11 @@ export async function editComment(input: {
       return { ok: false, error: "Comments can only be edited for 15 minutes after posting." };
     }
 
-    // The edited text goes through exactly the same trust and spam checks
-    // as a new comment. Without this, editing would be a one-line
-    // moderation bypass: post "hello", wait for approval, rewrite it as
-    // spam. An edit can therefore send an already-public comment back to
-    // the queue.
-    const approvedSoFar = await db.comment.count({
-      where: { userId: session.user.id, status: "APPROVED" },
-    });
-    const spam = assessComment(parsed.data.body);
-    const trusted = approvedSoFar >= TRUSTED_AFTER_APPROVED_COMMENTS;
-    const status = trusted && !spam.needsReview ? "APPROVED" : "PENDING";
+    // The edited text goes through exactly the same decision as a new
+    // comment. Without this, editing would be a one-line moderation
+    // bypass: post "hello", wait for approval, rewrite it as spam. An
+    // edit can therefore send an already-public comment back to the queue.
+    const { status } = await decideCommentStatus(session.user, parsed.data.body);
 
     await db.comment.update({
       where: { id: comment.id },

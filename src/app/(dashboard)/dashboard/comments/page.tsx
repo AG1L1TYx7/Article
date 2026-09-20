@@ -8,6 +8,14 @@ import { PageBody, PageHeader } from "../../PageHeader";
 import { ActionButton } from "@/components/ActionButton";
 import { CheckIcon, FlagIcon } from "@/components/icons";
 import { formatDateTime, initials } from "@/lib/format";
+import { getSettings } from "@/lib/settings";
+
+const MODE_LABEL = {
+  trusted: "Comments post immediately; only text the spam checks flag waits here.",
+  new_accounts: (n: number) =>
+    `A reader's first ${n} comment${n === 1 ? "" : "s"} wait here; after that they post immediately.`,
+  all: "Every reader's comment waits here before it appears.",
+} as const;
 
 export const metadata: Metadata = { title: "Comment moderation", robots: { index: false, follow: false } };
 
@@ -39,6 +47,11 @@ export default async function CommentModerationPage() {
   ]);
 
   const queueEmpty = pending.length === 0 && reported.length === 0;
+  const settings = await getSettings();
+  const modeText =
+    settings.commentModeration === "new_accounts"
+      ? MODE_LABEL.new_accounts(settings.trustedAfterApprovedComments)
+      : MODE_LABEL[settings.commentModeration];
 
   return (
     <main id="main-content">
@@ -46,9 +59,19 @@ export default async function CommentModerationPage() {
         kicker="Community"
         title="Comment moderation"
         description={
-          queueEmpty
-            ? "Nothing waiting. New accounts and anything the spam heuristics flag will land here before it appears publicly."
-            : `${pending.length} awaiting review · ${reported.length} reported by readers`
+          <>
+            {queueEmpty ? "Nothing waiting. " : `${pending.length} awaiting review · ${reported.length} reported by readers. `}
+            {modeText}
+            {session.user.role === "ADMIN" && (
+              <>
+                {" "}
+                <Link href="/dashboard/settings" className="text-link">
+                  Change in Settings
+                </Link>
+                .
+              </>
+            )}
+          </>
         }
       />
 
