@@ -221,6 +221,31 @@ S3_SECRET_ACCESS_KEY=...
 MEDIA_PUBLIC_BASE_URL=https://media.yourdomain.com
 ```
 
+### Malware scanning — otherwise video is never served
+
+Video cannot be re-encoded the way sharp re-encodes an image, so scanning
+is the whole of its defence. Without it the app accepts a video, holds it
+as PENDING, and never serves it to anyone.
+
+`docker-compose.yml` already ships a ClamAV service. Point the app at it:
+
+```bash
+CLAMAV_HOST=clamav
+CLAMAV_PORT=3310
+```
+
+It downloads a ~250MB signature database on first start and refreshes it
+daily, so allow a few minutes before the first upload. Check it is ready:
+
+```bash
+docker compose logs clamav | tail -20
+```
+
+The scanner fails closed everywhere: an unreachable or confused daemon
+leaves the upload quarantined rather than letting it through. If uploads
+start returning 503, clamav is down — that is the intended behaviour, not
+a bug.
+
 ### Rate limiting — only if you run more than one instance
 
 On a single server the in-process limiter is correct. The moment there are

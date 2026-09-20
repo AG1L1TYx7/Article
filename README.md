@@ -60,6 +60,7 @@ before you have signed up for a single third-party service:
 | `S3_*` | Uploads are stored in `./.local-uploads` |
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
+| `CLAMAV_HOST` | Uploads are not malware-scanned, so **video is held and never served** |
 
 **Before deploying**, the Upstash one matters most: the in-process rate
 limiter gives each server process its own counters, so on more than one
@@ -202,10 +203,16 @@ soft-removed via status flags, never hard-deleted, so the trail survives.
 
 Stated plainly so nobody assumes otherwise:
 
-- **Video is not fully hardened.** Uploads are accepted and stored, but there
-  is no transcoding or malware scanning, so video stays `scanStatus: PENDING`
-  and is never publicly served. Wiring up a real pipeline (e.g. MediaConvert
-  plus a scanning service) is a prerequisite for enabling video in production.
+- **Video is not transcoded.** It is type-checked from magic bytes and
+  malware-scanned (ClamAV, see `CLAMAV_HOST`), and is served only once a
+  scanner confirms it is clean. What is missing is re-encoding: there is no
+  ffmpeg step, so an uploaded file is served in whatever container it
+  arrived in. Acceptable, but a transcode would normalise codecs and strip
+  metadata the way sharp does for images.
+- **Uploads proxy through the app server** rather than going direct to object
+  storage with a pre-signed URL. Simpler, and fine at modest volume; a 200MB
+  video occupies app memory while it is processed. See the comment block in
+  `src/lib/storage.ts`.
 - **Google OAuth** is not scaffolded — it needs a Google Cloud OAuth client.
 - **Search has no GIN index yet.** Fine into the low tens of thousands of
   articles; [`docs/search.md`](docs/search.md) has the exact migration for

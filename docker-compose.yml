@@ -35,6 +35,29 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Malware scanning for uploads. Video has no equivalent of the sharp
+  # re-encode that neutralises an image, so without this the app holds
+  # every video as PENDING and never serves it.
+  #
+  # The image downloads a ~250MB signature database on first start and
+  # refreshes it daily, so give it a few minutes before the first upload.
+  # Comment this service out (and CLAMAV_HOST) to run without video.
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes:
+      # Persist the signature database so a restart is not another
+      # 250MB download.
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      # Loading the database takes a while; do not mark it unhealthy
+      # while it is still starting.
+      start_period: 300s
+
   app:
     build:
       context: .
@@ -46,6 +69,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      clamav:
+        condition: service_started
     # 127.0.0.1 is load-bearing, not caution. The app trusts
     # X-Forwarded-For for rate limiting and audit logs, so a directly
     # reachable port would let anyone spoof their own IP and walk past
@@ -60,3 +85,4 @@ services:
 volumes:
   db-data:
   uploads:
+  clamav-db:

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { storeObject } from "@/lib/storage";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
+import { isScanningConfigured, isSafeToServe, scanBuffer } from "@/lib/scan";
 
 // This route intentionally lives under /api/, which src/proxy.ts's matcher
 // already excludes — both to keep the RBAC check here (not duplicated at
@@ -104,6 +105,27 @@ async function handleImage(rawBuffer: Buffer, uploadedById: string) {
     return NextResponse.json({ error: "Could not process image — the file may be corrupt." }, { status: 400 });
   }
 
+  // Scanned after re-encoding, not instead of it. Re-encoding is what
+  // actually neutralises an image — the scanner is a second opinion on
+  // the bytes that will really be served. An image is still CLEAN without
+  // a scanner configured, because the re-encode alone is the control the
+  // security plan relies on.
+  const scan = await scanBuffer(webp);
+  if (scan.status === "infected") {
+    return NextResponse.json(
+      { error: "That file was rejected by the malware scanner." },
+      { status: 422 }
+    );
+  }
+  if (scan.status === "error") {
+    // Configured but broken. Refuse rather than store something nothing
+    // has looked at.
+    return NextResponse.json(
+      { error: "Uploads are temporarily unavailable. Please try again shortly." },
+      { status: 503 }
+    );
+  }
+
   const checksum = createHash("sha256").update(webp).digest("hex");
   const stored = await storeObject(webp, "image/webp", "webp");
 
@@ -132,16 +154,28 @@ async function handleVideo(rawBuffer: Buffer, mime: string, ext: string, uploade
     return NextResponse.json({ error: "Video exceeds the 200MB limit." }, { status: 413 });
   }
 
-  // Honest limitation: unlike images, video is stored as-is — there's no
-  // ffmpeg (or equivalent transcoding service) available in this
-  // environment to re-encode it the way sharp re-encodes images, and no
-  // malware-scanning service is wired up either. scanStatus stays PENDING,
-  // which means readLocalObject/the public media route refuse to serve it
-  // (see security blueprint: uploads aren't public until scanStatus =
-  // CLEAN). Before shipping video to production, wire a real transcode +
-  // scan step — e.g. an S3 event triggering AWS MediaConvert plus a
-  // malware-scanning Lambda or third-party API — and only then flip this
-  // to CLEAN.
+  // Video cannot be re-encoded the way sharp re-encodes an image, so
+  // scanning is the whole of its defence. Its container type has already
+  // been confirmed from magic bytes rather than the filename.
+  //
+  // Without a scanner configured the upload stays PENDING and the public
+  // media route refuses to serve it — the deliberately conservative
+  // default, because nothing has inspected these bytes. Set CLAMAV_HOST
+  // to make video publishable. See docs/deployment.md.
+  const scan = await scanBuffer(rawBuffer);
+  if (scan.status === "infected") {
+    return NextResponse.json(
+      { error: "That file was rejected by the malware scanner." },
+      { status: 422 }
+    );
+  }
+  if (scan.status === "error") {
+    return NextResponse.json(
+      { error: "Uploads are temporarily unavailable. Please try again shortly." },
+      { status: 503 }
+    );
+  }
+
   const checksum = createHash("sha256").update(rawBuffer).digest("hex");
   const stored = await storeObject(rawBuffer, mime, ext);
 
@@ -152,18 +186,26 @@ async function handleVideo(rawBuffer: Buffer, mime: string, ext: string, uploade
       url: stored.url,
       contentType: mime,
       checksum,
-      scanStatus: "PENDING",
+      // CLEAN only on a scanner's say-so. isSafeToServe fails closed, so
+      // "unavailable" and "error" both leave this PENDING.
+      scanStatus: isSafeToServe(scan) ? "CLEAN" : "PENDING",
       uploadedById,
     },
   });
+
+  const published = media.scanStatus === "CLEAN";
 
   return NextResponse.json(
     {
       id: media.id,
       url: media.url,
-      pending: true,
-      message: "Video uploaded but not yet published — video scanning isn't wired up in this environment.",
+      pending: !published,
+      message: published
+        ? undefined
+        : isScanningConfigured()
+          ? "Video uploaded but held — the scanner did not confirm it as clean."
+          : "Video uploaded but not published: no malware scanner is configured, so it is held for review. Set CLAMAV_HOST to enable video.",
     },
-    { status: 202 }
+    { status: published ? 201 : 202 }
   );
 }
