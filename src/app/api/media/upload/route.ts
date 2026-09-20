@@ -8,6 +8,7 @@ import { storeObject } from "@/lib/storage";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
 import { isScanningConfigured, isSafeToServe, scanBuffer } from "@/lib/scan";
+import { transcodeVideo } from "@/lib/transcode";
 
 // This route intentionally lives under /api/, which src/proxy.ts's matcher
 // already excludes — both to keep the RBAC check here (not duplicated at
@@ -154,15 +155,38 @@ async function handleVideo(rawBuffer: Buffer, mime: string, ext: string, uploade
     return NextResponse.json({ error: "Video exceeds the 200MB limit." }, { status: 413 });
   }
 
-  // Video cannot be re-encoded the way sharp re-encodes an image, so
-  // scanning is the whole of its defence. Its container type has already
-  // been confirmed from magic bytes rather than the filename.
+  // Re-encoded first, where ffmpeg is available: the counterpart to what
+  // sharp does for images. It normalises whatever container and codec the
+  // author's phone produced into H.264/AAC in MP4, and drops the source
+  // metadata — including the GPS coordinates a phone writes into the
+  // file, which a newsroom should not republish by accident.
   //
-  // Without a scanner configured the upload stays PENDING and the public
-  // media route refuses to serve it — the deliberately conservative
-  // default, because nothing has inspected these bytes. Set CLAMAV_HOST
-  // to make video publishable. See docs/deployment.md.
-  const scan = await scanBuffer(rawBuffer);
+  // Without FFMPEG_PATH the original bytes are kept, which is what this
+  // did before. See lib/transcode.ts.
+  const transcoded = await transcodeVideo(rawBuffer, ext);
+  if (transcoded.status === "error") {
+    // Same shape as the sharp failure above: from here it is
+    // indistinguishable whether the file is corrupt or the encoder is
+    // unhappy with it, and either way it cannot be published.
+    return NextResponse.json(
+      { error: "Could not process that video — the file may be corrupt or in an unsupported format." },
+      { status: 400 }
+    );
+  }
+
+  const servedBuffer = transcoded.status === "ok" ? transcoded.data : rawBuffer;
+  const servedMime = transcoded.status === "ok" ? transcoded.contentType : mime;
+  const servedExt = transcoded.status === "ok" ? transcoded.ext : ext;
+
+  // Scanned last, on the bytes that will actually be served. Scanning the
+  // upload and then serving something else would be checking the wrong
+  // file.
+  //
+  // Without a scanner the upload stays PENDING and the public media route
+  // refuses to serve it — the deliberately conservative default, because
+  // nothing has inspected these bytes. Set CLAMAV_HOST to make video
+  // publishable. See docs/deployment.md.
+  const scan = await scanBuffer(servedBuffer);
   if (scan.status === "infected") {
     return NextResponse.json(
       { error: "That file was rejected by the malware scanner." },
@@ -176,15 +200,15 @@ async function handleVideo(rawBuffer: Buffer, mime: string, ext: string, uploade
     );
   }
 
-  const checksum = createHash("sha256").update(rawBuffer).digest("hex");
-  const stored = await storeObject(rawBuffer, mime, ext);
+  const checksum = createHash("sha256").update(servedBuffer).digest("hex");
+  const stored = await storeObject(servedBuffer, servedMime, servedExt);
 
   const media = await db.media.create({
     data: {
       type: "VIDEO",
       storageKey: stored.storageKey,
       url: stored.url,
-      contentType: mime,
+      contentType: servedMime,
       checksum,
       // CLEAN only on a scanner's say-so. isSafeToServe fails closed, so
       // "unavailable" and "error" both leave this PENDING.

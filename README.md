@@ -61,6 +61,7 @@ before you have signed up for a single third-party service:
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
 | `CLAMAV_HOST` | Uploads are not malware-scanned, so **video is held and never served** |
+| `FFMPEG_PATH` | Video is stored as uploaded rather than re-encoded to H.264/AAC |
 
 **Before deploying**, the Upstash one matters most: the in-process rate
 limiter gives each server process its own counters, so on more than one
@@ -203,12 +204,6 @@ soft-removed via status flags, never hard-deleted, so the trail survives.
 
 Stated plainly so nobody assumes otherwise:
 
-- **Video is not transcoded.** It is type-checked from magic bytes and
-  malware-scanned (ClamAV, see `CLAMAV_HOST`), and is served only once a
-  scanner confirms it is clean. What is missing is re-encoding: there is no
-  ffmpeg step, so an uploaded file is served in whatever container it
-  arrived in. Acceptable, but a transcode would normalise codecs and strip
-  metadata the way sharp does for images.
 - **Uploads proxy through the app server** rather than going direct to object
   storage with a pre-signed URL. Simpler, and fine at modest volume; a 200MB
   video occupies app memory while it is processed. See the comment block in

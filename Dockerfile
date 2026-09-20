@@ -58,6 +58,17 @@ ENV NODE_ENV=production
 # Next prints a version-check notice otherwise; a server has no use for it.
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# ffmpeg re-encodes uploaded video the way sharp re-encodes images:
+# normalising codecs so a phone's .mov plays outside Safari, and stripping
+# the source metadata, which on a phone recording includes where it was
+# filmed. Without it the app stores the original instead — see
+# src/lib/transcode.ts — so removing this line degrades video handling
+# rather than breaking the build.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
+
 # Never root. A remote code execution bug in any dependency then lands as
 # an unprivileged user with no package manager to hand.
 RUN groupadd --system --gid 1001 nodejs \
