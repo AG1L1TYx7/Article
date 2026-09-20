@@ -1,25 +1,43 @@
-import { writeFile, mkdir, readFile } from "node:fs/promises";
+import { writeFile, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Two backends, same interface. Local disk is what actually runs and is
 // tested today; S3 is wired up and will activate the moment S3_* env vars
 // are set, with no code changes — same dev/prod-fallback pattern as
 // lib/email.ts and lib/rateLimit.ts.
 //
-// Both paths proxy the upload through our own server rather than doing a
-// true direct-to-S3 presigned upload (client -> S3, bypassing the app
-// server for the bytes). That's a deliberate simplification: a true
-// direct upload defers validation to a post-upload hook (an S3 event
-// trigger + Lambda, in the plan's original design) that needs
-// infrastructure this project doesn't have provisioned. Proxying through
-// the server means the exact same validate → re-encode → checksum
-// pipeline (see the upload route handler) runs inline for both local disk
-// and S3, so the safety guarantees are identical either way. Revisit if
-// large video uploads make the proxy path a bottleneck.
+// An upload can arrive two ways. Small files are proxied through this
+// server as multipart. With S3 configured, large ones are uploaded
+// straight from the browser to a pre-signed URL, so a 200MB video never
+// occupies this server's memory.
+//
+// Both end up in the same place: lib/mediaPipeline.ts validates,
+// re-encodes and scans the bytes before anything reaches a servable key.
+// A direct upload lands under QUARANTINE_PREFIX, which the bucket policy
+// must NOT make public — see docs/deployment.md — and is deleted once it
+// has been processed.
 const LOCAL_DIR = join(process.cwd(), ".local-uploads");
+
+/**
+ * Where a browser's direct upload lands, before anything has looked at it.
+ *
+ * Separate from the servable keys so a bucket policy can make one public
+ * and not the other. Objects here are unvalidated and unscanned: treat the
+ * prefix as hostile.
+ */
+export const QUARANTINE_PREFIX = "quarantine/";
+
+/** How long a browser has to use an upload URL before it stops working. */
+const UPLOAD_URL_TTL_SECONDS = 15 * 60;
 
 const s3Configured = !!(
   process.env.S3_ENDPOINT &&
@@ -100,4 +118,78 @@ function assertSafeStorageKey(storageKey: string): void {
   if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(storageKey)) {
     throw new Error("Invalid storage key");
   }
+}
+
+export interface PresignedUpload {
+  uploadUrl: string;
+  storageKey: string;
+  expiresInSeconds: number;
+}
+
+/**
+ * A URL the browser can PUT bytes to directly.
+ *
+ * Only possible with S3 configured; there is nothing to pre-sign on local
+ * disk, so callers fall back to proxying the upload through this server.
+ *
+ * The signature commits to the key and the method, but not to the content:
+ * whatever arrives is unvalidated, which is exactly why it lands in
+ * quarantine and is processed before anything can serve it.
+ */
+export async function presignUpload(extension: string): Promise<PresignedUpload | null> {
+  if (!s3Configured) return null;
+
+  const storageKey = `${QUARANTINE_PREFIX}${randomUUID()}.${extension}`;
+  const uploadUrl = await getSignedUrl(
+    getS3(),
+    new PutObjectCommand({ Bucket: process.env.S3_BUCKET!, Key: storageKey }),
+    { expiresIn: UPLOAD_URL_TTL_SECONDS }
+  );
+
+  return { uploadUrl, storageKey, expiresInSeconds: UPLOAD_URL_TTL_SECONDS };
+}
+
+/** Reads an object back, to validate and re-encode what a browser uploaded. */
+export async function readObject(storageKey: string): Promise<Buffer> {
+  if (!s3Configured) {
+    assertSafeStorageKey(storageKey);
+    return readFile(join(LOCAL_DIR, storageKey));
+  }
+
+  const response = await getS3().send(
+    new GetObjectCommand({ Bucket: process.env.S3_BUCKET!, Key: storageKey })
+  );
+  const bytes = await response.Body?.transformToByteArray();
+  if (!bytes) throw new Error("empty object");
+  return Buffer.from(bytes);
+}
+
+/**
+ * Removes an object. Used to clear quarantine once a file has been
+ * processed — or rejected, which is when it matters most: unscanned bytes
+ * must not accumulate in a bucket.
+ */
+export async function deleteObject(storageKey: string): Promise<void> {
+  if (!s3Configured) {
+    assertSafeStorageKey(storageKey);
+    await rm(join(LOCAL_DIR, storageKey), { force: true });
+    return;
+  }
+
+  await getS3().send(
+    new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET!, Key: storageKey })
+  );
+}
+
+/**
+ * True for a key this module issued for a direct upload.
+ *
+ * Finalising takes a key from the client, so it must be one we handed out:
+ * the quarantine prefix plus the UUID-and-extension shape, and nothing
+ * that could climb out of it.
+ */
+export function isQuarantineKey(storageKey: string): boolean {
+  if (!storageKey.startsWith(QUARANTINE_PREFIX)) return false;
+  const name = storageKey.slice(QUARANTINE_PREFIX.length);
+  return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.[a-z0-9]{1,8}$/i.test(name);
 }

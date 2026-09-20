@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
-import { createHash } from "node:crypto";
-import sharp from "sharp";
-import { fileTypeFromBuffer } from "file-type";
 import { requireVerifiedEmail, ForbiddenError, UnauthorizedError } from "@/lib/auth/rbac";
-import { db } from "@/lib/db";
-import { storeObject } from "@/lib/storage";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
-import { isScanningConfigured, isSafeToServe, scanBuffer } from "@/lib/scan";
-import { transcodeVideo } from "@/lib/transcode";
+import { processUpload, VIDEO_MAX_BYTES } from "@/lib/mediaPipeline";
 
 // This route intentionally lives under /api/, which src/proxy.ts's matcher
 // already excludes — both to keep the RBAC check here (not duplicated at
@@ -20,12 +14,11 @@ import { transcodeVideo } from "@/lib/transcode";
 // every image over 10MB and effectively every video. A Server Action
 // wasn't an option either: those cap request bodies at 1MB by default.
 // Route Handlers under /api have neither limit.
-
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
-const IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10MB
-const VIDEO_MAX_BYTES = 200 * 1024 * 1024; // 200MB — the plan's target ceiling is higher (500MB) once this runs against real object storage with true direct-to-S3 uploads instead of proxying through this server; see lib/storage.ts.
-const IMAGE_MAX_DIMENSION = 4000; // px, longest edge, after re-encode
+//
+// This is the proxied path: the bytes come through this server. With S3
+// configured the client prefers /api/media/upload-url and uploads
+// directly, so this server never holds a large video in memory. Both
+// paths run the identical pipeline in lib/mediaPipeline.ts.
 
 export async function POST(request: Request) {
   let session;
@@ -48,188 +41,21 @@ export async function POST(request: Request) {
   }
 
   // Check the declared size *before* reading the bytes. The per-type
-  // limits below are the real enforcement (they run against the buffer we
-  // actually hold), but reading a multi-gigabyte upload into memory just
-  // to then reject it is its own denial-of-service — so refuse anything
-  // over the largest limit we'd ever accept before materializing it.
+  // limits in the pipeline are the real enforcement (they run against the
+  // buffer we actually hold), but reading a multi-gigabyte upload into
+  // memory just to then reject it is its own denial-of-service — so refuse
+  // anything over the largest limit we'd ever accept before materializing
+  // it.
   if (file.size > VIDEO_MAX_BYTES) {
     return NextResponse.json({ error: "File is too large." }, { status: 413 });
   }
 
   const rawBuffer = Buffer.from(await file.arrayBuffer());
 
-  // Type is verified by magic bytes, never by filename/extension or the
-  // client-supplied Content-Type — see security blueprint, File upload
-  // attack surface.
-  const detected = await fileTypeFromBuffer(rawBuffer);
-  const mime = detected?.mime;
-
-  if (mime && IMAGE_TYPES.has(mime)) {
-    return handleImage(rawBuffer, session.user.id);
-  }
-  if (mime && VIDEO_TYPES.has(mime)) {
-    return handleVideo(rawBuffer, mime, detected!.ext, session.user.id);
+  const result = await processUpload(rawBuffer, session.user.id);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json(
-    { error: "Unsupported file type. Allowed: JPEG, PNG, WEBP, GIF, MP4, WEBM, MOV." },
-    { status: 400 }
-  );
-}
-
-async function handleImage(rawBuffer: Buffer, uploadedById: string) {
-  if (rawBuffer.byteLength > IMAGE_MAX_BYTES) {
-    return NextResponse.json({ error: "Image exceeds the 10MB limit." }, { status: 413 });
-  }
-
-  // Re-encoding through sharp — rather than storing the uploaded bytes
-  // as-is — strips embedded scripts/EXIF and neutralizes polyglot-file
-  // attacks (a file that's simultaneously a valid image and, say, valid
-  // HTML/JS to a browser that sniffs content rather than trusting
-  // Content-Type). Always normalized to WebP so there's exactly one
-  // output format to reason about, and capped in dimensions so a
-  // pathological 40000x40000px source can't be used for a decompression-
-  // bomb-style resource exhaustion attack.
-  let webp: Buffer;
-  let width: number | undefined;
-  let height: number | undefined;
-  try {
-    const pipeline = sharp(rawBuffer)
-      .rotate() // apply EXIF orientation before it gets stripped
-      .resize({ width: IMAGE_MAX_DIMENSION, height: IMAGE_MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 85 });
-    webp = await pipeline.toBuffer();
-    const meta = await sharp(webp).metadata();
-    width = meta.width;
-    height = meta.height;
-  } catch {
-    return NextResponse.json({ error: "Could not process image — the file may be corrupt." }, { status: 400 });
-  }
-
-  // Scanned after re-encoding, not instead of it. Re-encoding is what
-  // actually neutralises an image — the scanner is a second opinion on
-  // the bytes that will really be served. An image is still CLEAN without
-  // a scanner configured, because the re-encode alone is the control the
-  // security plan relies on.
-  const scan = await scanBuffer(webp);
-  if (scan.status === "infected") {
-    return NextResponse.json(
-      { error: "That file was rejected by the malware scanner." },
-      { status: 422 }
-    );
-  }
-  if (scan.status === "error") {
-    // Configured but broken. Refuse rather than store something nothing
-    // has looked at.
-    return NextResponse.json(
-      { error: "Uploads are temporarily unavailable. Please try again shortly." },
-      { status: 503 }
-    );
-  }
-
-  const checksum = createHash("sha256").update(webp).digest("hex");
-  const stored = await storeObject(webp, "image/webp", "webp");
-
-  const media = await db.media.create({
-    data: {
-      type: "IMAGE",
-      storageKey: stored.storageKey,
-      url: stored.url,
-      contentType: "image/webp",
-      width,
-      height,
-      checksum,
-      // Re-encoding through sharp is itself the sanitization step for
-      // images (see comment above), so this is safe to mark CLEAN
-      // immediately rather than PENDING.
-      scanStatus: "CLEAN",
-      uploadedById,
-    },
-  });
-
-  return NextResponse.json({ id: media.id, url: media.url, width, height }, { status: 201 });
-}
-
-async function handleVideo(rawBuffer: Buffer, mime: string, ext: string, uploadedById: string) {
-  if (rawBuffer.byteLength > VIDEO_MAX_BYTES) {
-    return NextResponse.json({ error: "Video exceeds the 200MB limit." }, { status: 413 });
-  }
-
-  // Re-encoded first, where ffmpeg is available: the counterpart to what
-  // sharp does for images. It normalises whatever container and codec the
-  // author's phone produced into H.264/AAC in MP4, and drops the source
-  // metadata — including the GPS coordinates a phone writes into the
-  // file, which a newsroom should not republish by accident.
-  //
-  // Without FFMPEG_PATH the original bytes are kept, which is what this
-  // did before. See lib/transcode.ts.
-  const transcoded = await transcodeVideo(rawBuffer, ext);
-  if (transcoded.status === "error") {
-    // Same shape as the sharp failure above: from here it is
-    // indistinguishable whether the file is corrupt or the encoder is
-    // unhappy with it, and either way it cannot be published.
-    return NextResponse.json(
-      { error: "Could not process that video — the file may be corrupt or in an unsupported format." },
-      { status: 400 }
-    );
-  }
-
-  const servedBuffer = transcoded.status === "ok" ? transcoded.data : rawBuffer;
-  const servedMime = transcoded.status === "ok" ? transcoded.contentType : mime;
-  const servedExt = transcoded.status === "ok" ? transcoded.ext : ext;
-
-  // Scanned last, on the bytes that will actually be served. Scanning the
-  // upload and then serving something else would be checking the wrong
-  // file.
-  //
-  // Without a scanner the upload stays PENDING and the public media route
-  // refuses to serve it — the deliberately conservative default, because
-  // nothing has inspected these bytes. Set CLAMAV_HOST to make video
-  // publishable. See docs/deployment.md.
-  const scan = await scanBuffer(servedBuffer);
-  if (scan.status === "infected") {
-    return NextResponse.json(
-      { error: "That file was rejected by the malware scanner." },
-      { status: 422 }
-    );
-  }
-  if (scan.status === "error") {
-    return NextResponse.json(
-      { error: "Uploads are temporarily unavailable. Please try again shortly." },
-      { status: 503 }
-    );
-  }
-
-  const checksum = createHash("sha256").update(servedBuffer).digest("hex");
-  const stored = await storeObject(servedBuffer, servedMime, servedExt);
-
-  const media = await db.media.create({
-    data: {
-      type: "VIDEO",
-      storageKey: stored.storageKey,
-      url: stored.url,
-      contentType: servedMime,
-      checksum,
-      // CLEAN only on a scanner's say-so. isSafeToServe fails closed, so
-      // "unavailable" and "error" both leave this PENDING.
-      scanStatus: isSafeToServe(scan) ? "CLEAN" : "PENDING",
-      uploadedById,
-    },
-  });
-
-  const published = media.scanStatus === "CLEAN";
-
-  return NextResponse.json(
-    {
-      id: media.id,
-      url: media.url,
-      pending: !published,
-      message: published
-        ? undefined
-        : isScanningConfigured()
-          ? "Video uploaded but held — the scanner did not confirm it as clean."
-          : "Video uploaded but not published: no malware scanner is configured, so it is held for review. Set CLAMAV_HOST to enable video.",
-    },
-    { status: published ? 201 : 202 }
-  );
+  return NextResponse.json(result.media, { status: 201 });
 }

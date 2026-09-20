@@ -60,7 +60,7 @@ before you have signed up for a single third-party service:
 | `S3_*` | Uploads are stored in `./.local-uploads` |
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
-| `CLAMAV_HOST` | Uploads are not malware-scanned, so **video is held and never served** |
+| `CLAMAV_HOST` | Uploads are not malware-scanned, so **video uploads are refused** (images are unaffected) |
 | `FFMPEG_PATH` | Video is stored as uploaded rather than re-encoded to H.264/AAC |
 
 **Before deploying**, the Upstash one matters most: the in-process rate
@@ -204,10 +204,6 @@ soft-removed via status flags, never hard-deleted, so the trail survives.
 
 Stated plainly so nobody assumes otherwise:
 
-- **Uploads proxy through the app server** rather than going direct to object
-  storage with a pre-signed URL. Simpler, and fine at modest volume; a 200MB
-  video occupies app memory while it is processed. See the comment block in
-  `src/lib/storage.ts`.
 - **Google OAuth** is not scaffolded — it needs a Google Cloud OAuth client.
 - **Search has no GIN index yet.** Fine into the low tens of thousands of
   articles; [`docs/search.md`](docs/search.md) has the exact migration for

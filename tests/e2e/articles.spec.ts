@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import * as OTPAuth from "otpauth";
 import { uniqueTestIp } from "./support/testIp";
+import { waitForOnHomepage } from "./support/homepage";
 import { sql } from "./support/db";
 
 const PASSWORD = "correct-horse-battery-staple";
@@ -86,9 +87,11 @@ test.describe("Article authoring", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.locator("tr", { hasText: title }).getByText("PUBLISHED")).toBeVisible();
 
-    await page.goto("/");
-    await expect(page.getByText(title)).toBeVisible();
-    await page.getByText(title).click();
+    // Reloads until revalidation lands: the homepage is statically
+    // rendered, so the request right after publishing can still serve the
+    // previous version.
+    await waitForOnHomepage(page, title);
+    await page.getByRole("link", { name: title }).click();
     await expect(page).toHaveURL(/\/article\//);
     await expect(page.getByText("This is the body of the article")).toBeVisible();
     await expect(page.getByText("Share:")).toBeVisible();

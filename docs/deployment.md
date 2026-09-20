@@ -221,11 +221,23 @@ S3_SECRET_ACCESS_KEY=...
 MEDIA_PUBLIC_BASE_URL=https://media.yourdomain.com
 ```
 
-### Malware scanning — otherwise video is never served
+> **The `quarantine/` prefix must not be publicly readable.** Once object
+> storage is configured, the browser uploads large files straight to a
+> pre-signed URL under that prefix, and the server fetches them back to
+> identify, re-encode and scan them before anything servable exists.
+> Objects there are unvalidated and unscanned by definition. If your bucket
+> policy makes everything public, that quarantine is decorative.
+>
+> Make the public read rule apply to the bucket root only, not to
+> `quarantine/*`. A lifecycle rule deleting objects under that prefix after
+> a day is worth adding too — the app deletes them after processing, but
+> an abandoned upload leaves one behind.
+
+### Malware scanning — otherwise video is refused
 
 Video cannot be re-encoded the way sharp re-encodes an image, so scanning
-is the whole of its defence. Without it the app accepts a video, holds it
-as PENDING, and never serves it to anyone.
+is the whole of its defence. Without it, video uploads are **rejected**
+with a 503 explaining why. Images are unaffected.
 
 `docker-compose.yml` already ships a ClamAV service. Point the app at it:
 
@@ -242,9 +254,8 @@ docker compose logs clamav | tail -20
 ```
 
 The scanner fails closed everywhere: an unreachable or confused daemon
-leaves the upload quarantined rather than letting it through. If uploads
-start returning 503, clamav is down — that is the intended behaviour, not
-a bug.
+refuses the upload rather than letting it through. If uploads start
+returning 503, clamav is down — that is the intended behaviour, not a bug.
 
 ### Rate limiting — only if you run more than one instance
 

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { scalar, sql } from "./support/db";
+import { waitForOnHomepage } from "./support/homepage";
 
 const PASSWORD = "correct-horse-battery-staple";
 
@@ -10,23 +11,6 @@ const markEmailVerified = (email: string) =>
   sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
 const articleSlug = (title: string) =>
   scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
-
-/**
- * Waits for a freshly published article to appear on the homepage.
- *
- * The homepage is statically rendered and publishing revalidates it, but
- * the request right after a publish can still be served the previous
- * version. A plain goto-then-click raced that window and timed out — the
- * single longest-standing flake in this suite. Reloading until the
- * headline is there tests the same behaviour without depending on
- * revalidation landing within one request.
- */
-async function waitForOnHomepage(page: Page, title: string) {
-  await expect(async () => {
-    await page.goto("/");
-    await expect(page.getByRole("link", { name: title })).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
-}
 
 const setCategory = (title: string, categorySlug: string) =>
   sql(

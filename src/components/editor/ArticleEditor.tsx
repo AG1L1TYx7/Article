@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import { useCallback, useRef, useState } from "react";
+import { uploadFile } from "@/lib/uploadClient";
 
 interface ArticleEditorProps {
   initialContent?: object | string;
@@ -52,17 +53,14 @@ export function ArticleEditor({ initialContent, onChange }: ArticleEditorProps) 
       setUploadError(null);
       setUploading(true);
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/media/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        if (!res.ok) {
-          setUploadError(data.error ?? "Upload failed.");
+        // Uploads straight to object storage when it is configured, and
+        // through this server otherwise. See lib/uploadClient.ts.
+        const result = await uploadFile(file);
+        if (!result.ok) {
+          setUploadError(result.error);
           return;
         }
-        editor.chain().focus().setImage({ src: data.url, alt: file.name }).run();
-      } catch {
-        setUploadError("Upload failed. Check your connection and try again.");
+        editor.chain().focus().setImage({ src: result.media.url, alt: file.name }).run();
       } finally {
         setUploading(false);
       }

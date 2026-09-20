@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
-import { sql } from "./support/db";
+import { count, sql } from "./support/db";
 
 const PASSWORD = "correct-horse-battery-staple";
 
@@ -16,6 +16,16 @@ const markEmailVerified = (email: string) =>
  */
 const TINY_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64"
+);
+
+/**
+ * A minimal but genuinely detectable MP4: an ftyp box is what file-type
+ * matches on. It is not playable, which is the point — the upload is
+ * refused before anything would try to play it.
+ */
+const TINY_MP4 = Buffer.from(
+  "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
   "base64"
 );
 
@@ -122,5 +132,92 @@ test.describe("Serving uploaded media", () => {
   test("an unknown key is a 404", async ({ page }) => {
     const response = await page.request.get("/media/definitely-not-a-real-key.webp");
     expect(response.status()).toBe(404);
+  });
+});
+
+test.describe("Uploading", () => {
+  test("video is refused outright when no scanner is configured", async ({ page }) => {
+    // It used to be stored and marked PENDING. That was safe only on
+    // local disk: with S3 configured, Media.url points straight at the
+    // bucket and this app's media route is not in the path at all, so an
+    // unscanned video was publicly readable. Refusing is the only
+    // behaviour that is true on both backends.
+    await signInAsModerator(page);
+
+    const response = await page.request.post("/api/media/upload", {
+      multipart: { file: { name: "clip.mp4", mimeType: "video/mp4", buffer: TINY_MP4 } },
+    });
+
+    expect(response.status()).toBe(503);
+    expect((await response.json()).error).toContain("no malware scanner is configured");
+
+    // And nothing was written: no row, so nothing to serve or clean up.
+    expect(count(`SELECT count(*) FROM "Media" WHERE type = 'VIDEO';`)).toBe(0);
+  });
+
+  test("a file that is not an image or video is refused", async ({ page }) => {
+    // Identified by magic bytes, so naming it .png changes nothing.
+    await signInAsModerator(page);
+
+    const response = await page.request.post("/api/media/upload", {
+      multipart: {
+        file: { name: "payload.png", mimeType: "image/png", buffer: Buffer.from("<html>hi</html>") },
+      },
+    });
+
+    expect(response.status()).toBe(400);
+    expect((await response.json()).error).toContain("Unsupported file type");
+  });
+
+  test("direct upload reports that it is unavailable on local disk", async ({ page }) => {
+    // There is nothing to pre-sign without object storage, and the client
+    // falls back to posting through the server.
+    await signInAsModerator(page);
+
+    const response = await page.request.post("/api/media/upload-url", {
+      data: { extension: "mp4", size: 1024 },
+    });
+
+    expect(response.status()).toBe(501);
+    expect((await response.json()).fallback).toBe("/api/media/upload");
+  });
+
+  test("finalize refuses a key this server never issued", async ({ page }) => {
+    // Without this check, finalize would fetch and process any object
+    // named by any moderator.
+    await signInAsModerator(page);
+
+    for (const storageKey of [
+      "quarantine/../../etc/passwd",
+      "some-live-media-key.webp",
+      "quarantine/not-a-uuid.mp4",
+    ]) {
+      const response = await page.request.post("/api/media/finalize", {
+        data: { storageKey, token: "anything" },
+      });
+      expect(response.status(), storageKey).toBe(400);
+    }
+  });
+
+  test("finalize refuses a well-formed key without a valid token", async ({ page }) => {
+    await signInAsModerator(page);
+
+    const response = await page.request.post("/api/media/finalize", {
+      data: {
+        storageKey: "quarantine/3f2504e0-4f89-11d3-9a0c-0305e82c3301.mp4",
+        token: "forged.signature",
+      },
+    });
+    expect(response.status()).toBe(400);
+  });
+
+  test("a signed-out visitor cannot request an upload URL or finalize", async ({ page }) => {
+    const ticket = await page.request.post("/api/media/upload-url", { data: { extension: "mp4" } });
+    expect(ticket.status()).toBe(401);
+
+    const finalize = await page.request.post("/api/media/finalize", {
+      data: { storageKey: "quarantine/3f2504e0-4f89-11d3-9a0c-0305e82c3301.mp4", token: "x" },
+    });
+    expect(finalize.status()).toBe(401);
   });
 });
