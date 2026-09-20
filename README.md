@@ -170,6 +170,18 @@ action or route handler itself. `src/proxy.ts` gates routes as well, but it is
 a second line, not the only one. Moderators can edit and publish their own
 articles; admins can act on anyone's.
 
+**Browser-side.** A nonce-based Content-Security-Policy on every response,
+with `strict-dynamic` rather than a list of allowed hosts, plus
+`object-src none`, `base-uri none`, `frame-ancestors none` and
+`form-action self`. It is the backstop for an XSS the sanitizer misses: a
+script that slips through still cannot run.
+
+This is why every page renders per request (`export const dynamic` in the
+root layout). Next.js injects the nonce while rendering, so a statically
+generated page has scripts with no nonce — and under `strict-dynamic` a
+browser then blocks every one of them. Measured: the homepage and auth
+pages produced 12-13 blocked scripts each and never hydrated.
+
 **Untrusted input.** Article HTML is sanitized on save *and* again on render
 (`src/lib/sanitize.ts`) — there is exactly one `dangerouslySetInnerHTML` in
 the codebase and it is fed by that sanitizer. Comments are plain text,

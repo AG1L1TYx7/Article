@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/config";
+import { buildCsp, generateNonce } from "@/lib/csp";
 
 // Uses the same full, database-backed auth() as every page and server
 // action — see the design note at the top of lib/auth/config.ts for why
@@ -52,13 +53,49 @@ export default auth((req) => {
     }
   }
 
-  const res = NextResponse.next();
+  // A fresh nonce per request. Next.js reads it back out of the CSP
+  // header while rendering and puts it on its own script tags, so nothing
+  // here has to thread it through the component tree.
+  const nonce = generateNonce();
+  const csp = buildCsp({
+    nonce,
+    isDev: process.env.NODE_ENV === "development",
+    mediaOrigin: mediaOrigin(),
+    turnstile: !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  });
+
+  // The request copy is what the renderer reads; the response copy is what
+  // the browser enforces. Both are required.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  res.headers.set("Content-Security-Policy", csp);
   applySecurityHeaders(res);
   return res;
 });
 
+/**
+ * The origin uploaded media is served from, when it is not this one.
+ *
+ * With S3 configured, Media.url points at the bucket or CDN, so img-src
+ * has to allow it or every article image is blocked.
+ */
+function mediaOrigin(): string | undefined {
+  const base = process.env.MEDIA_PUBLIC_BASE_URL || process.env.S3_ENDPOINT;
+  if (!base) return undefined;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 function applySecurityHeaders(res: NextResponse) {
   res.headers.set("X-Content-Type-Options", "nosniff");
+  // Superseded by frame-ancestors in the CSP above, kept for browsers
+  // that predate it. The two agree: nothing may frame this site.
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set(
@@ -68,9 +105,6 @@ function applySecurityHeaders(res: NextResponse) {
   if (process.env.NODE_ENV === "production") {
     res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
-  // A strict script-src (nonce-based, no unsafe-inline) is added once the
-  // article renderer and any third-party embeds are finalized — see the
-  // security blueprint's Network & browser-side defenses section.
 }
 
 // This matcher makes proxy run on nearly every route so security headers

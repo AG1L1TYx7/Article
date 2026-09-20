@@ -15,6 +15,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * Every page renders per request.
+ *
+ * Not a performance choice — a prerequisite for the Content-Security-
+ * Policy. Next.js injects the per-request nonce while rendering, so a
+ * page generated at build time has scripts with no nonce on them. With
+ * 'strict-dynamic' in the policy, a browser ignores the host allowlist
+ * entirely and blocks every one of those scripts: the page loads, no
+ * JavaScript runs, and nothing works.
+ *
+ * Measured, not assumed: with the CSP in place and this line absent, the
+ * homepage and the four auth pages produced 12-13 blocked scripts each
+ * and never hydrated, while the already-dynamic pages had none.
+ *
+ * The cost is one small query per homepage view. If that ever matters,
+ * cache anonymous responses at nginx rather than removing this.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   // Without metadataBase every Open Graph and Twitter URL is emitted
   // relative, and relative URLs in a share card are simply ignored — the
