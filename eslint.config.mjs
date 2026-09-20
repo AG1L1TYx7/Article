@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Built by npm run build:cpanel: a copy of the compiled output plus
+    // traced node_modules, so linting it means linting every dependency.
+    "cpanel-dist/**",
+    // The Prisma client is generated, not written.
+    "src/generated/**",
   ]),
 ]);
 

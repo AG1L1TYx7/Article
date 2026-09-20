@@ -87,6 +87,7 @@ comment at the top of `src/lib/rateLimit.ts`.
 | `npm run bootstrap:staff` | Create or promote a staff account |
 | `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
 | `npm run audit` | Dependency audit, failing on anything unreviewed |
+| `npm run build:cpanel` | Assemble an upload-ready bundle for cPanel Node.js hosting |
 
 ### Testing
 
@@ -246,8 +247,12 @@ fresh Ubuntu VPS or dedicated server, covering server hardening, Docker,
 nginx, HTTPS, backups and the three services that must replace their local
 fallbacks before the site really works.
 
-This needs a server you can run a long-lived Node process on. Shared and
-cPanel hosting generally cannot: this is not a set of files you upload.
+This needs a server that can keep a Node process alive.
+
+**cPanel works too**, if it offers "Setup Node.js App" with Node 20.9+ — see
+[docs/cpanel.md](docs/cpanel.md) and `npm run build:cpanel`. Video uploads are
+refused on that path, because malware scanning needs a ClamAV daemon shared
+hosting will not give you; everything else works.
 
 ## Known local hazard
 

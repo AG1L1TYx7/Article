@@ -14,7 +14,8 @@
     "seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
     "cleanup:test-data": "tsx --env-file-if-exists=.env scripts/cleanup-test-data.ts",
     "e2e:fixture": "tsx --env-file-if-exists=.env scripts/e2e-fixture.ts",
-    "audit": "node scripts/audit-dependencies.mjs"
+    "audit": "node scripts/audit-dependencies.mjs",
+    "build:cpanel": "node scripts/build-cpanel.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",

@@ -68,3 +68,6 @@ next-env.d.ts
 /.claude/skills/
 /.agents/
 /.windsurf/
+
+# Built by npm run build:cpanel — an upload artifact, not source.
+/cpanel-dist/
