@@ -6,9 +6,9 @@ import { commentInThread } from "./support/comments";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 /**
  * Fakes an established account, so its comments skip the new-account queue.
  *
@@ -25,22 +25,22 @@ const markEmailVerified = (email: string) =>
  */
 const grantCommentTrust = (email: string) =>
   sql(
-    `INSERT INTO "Comment" (id, "articleId", "userId", body, status, "createdAt", "updatedAt")
-     SELECT 'trust-' || md5(random()::text || g::text),
+    `INSERT INTO \`Comment\` (id, \`articleId\`, \`userId\`, body, status, \`createdAt\`, \`updatedAt\`)
+     SELECT CONCAT('trust-', UUID()),
             'e2e-trust-ballast',
-            (SELECT id FROM "User" WHERE email = '${email}'),
-            'Established account warm-up ' || g,
-            'APPROVED', NOW(), NOW()
-     FROM generate_series(1, 3) g;`
+            (SELECT id FROM \`User\` WHERE email = '${email}'),
+            CONCAT('Established account warm-up ', n),
+            'APPROVED', NOW(3), NOW(3)
+     FROM (SELECT 1 AS n UNION SELECT 2 UNION SELECT 3) AS warmups;`
   );
 /** Backdates a comment past the edit window without waiting fifteen minutes. */
 const ageComment = (body: string) =>
-  sql(`UPDATE "Comment" SET "createdAt" = NOW() - INTERVAL '30 minutes' WHERE body = '${body}';`);
+  sql(`UPDATE \`Comment\` SET \`createdAt\` = NOW(3) - INTERVAL 30 MINUTE WHERE body = '${body}';`);
 const commentStatus = (body: string) =>
-  scalar(`SELECT status FROM "Comment" WHERE body = '${body}' LIMIT 1;`);
+  scalar(`SELECT status FROM \`Comment\` WHERE body = '${body}' LIMIT 1;`);
 
 const articleSlug = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": uniqueTestIp() });

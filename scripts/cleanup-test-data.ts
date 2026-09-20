@@ -11,14 +11,14 @@
  * why the e2e helpers generate addresses there.
  */
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 const TEST_DOMAIN = "@example.com";
 
 async function main() {
   const confirm = process.argv.includes("--confirm");
   const db = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+    adapter: new PrismaMariaDb(process.env.DATABASE_URL!),
   });
 
   const where = { email: { endsWith: TEST_DOMAIN } };

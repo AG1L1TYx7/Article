@@ -29,7 +29,7 @@ RUN npx prisma generate
 # build machine never needs production credentials. These two are only
 # here because the Prisma client and Auth.js refuse to initialise without
 # something well-formed; neither is ever connected to or used.
-ENV DATABASE_URL="postgresql://build:build@127.0.0.1:59999/build"
+ENV DATABASE_URL="mysql://build:build@127.0.0.1:59999/build"
 ENV AUTH_SECRET="build-time-placeholder-never-used-at-runtime"
 RUN npm run build
 

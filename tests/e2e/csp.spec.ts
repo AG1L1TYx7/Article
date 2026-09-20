@@ -5,11 +5,11 @@ import { scalar, sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const articleSlug = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": uniqueTestIp() });

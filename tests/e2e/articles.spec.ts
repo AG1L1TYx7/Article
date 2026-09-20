@@ -7,11 +7,11 @@ import { sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteTo(role: "ADMIN" | "MODERATOR", email: string) {
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 }
 
 function markEmailVerified(email: string) {
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 }
 
 function codeFor(base32Secret: string): string {

@@ -13,11 +13,11 @@ import { sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteToModerator(email: string) {
-  sql(`UPDATE "User" SET role = 'MODERATOR' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = 'MODERATOR' WHERE email = '${email}';`);
 }
 
 function bumpSessionVersion(email: string) {
-  sql(`UPDATE "User" SET "sessionVersion" = "sessionVersion" + 1 WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`sessionVersion\` = \`sessionVersion\` + 1 WHERE email = '${email}';`);
 }
 
 async function register(page: Page, email: string, handle: string) {

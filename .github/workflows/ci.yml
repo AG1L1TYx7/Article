@@ -13,12 +13,13 @@ concurrency:
 
 env:
   # A throwaway database that only exists for the length of the job.
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/news_platform_test?schema=public
+  DATABASE_URL: mysql://root:root@127.0.0.1:3306/news_platform_test
   # Not a secret: this database and this server are destroyed when the job
   # ends. A real deployment generates its own with `openssl rand -base64 32`.
   AUTH_SECRET: ci-only-throwaway-secret-not-used-anywhere-else
   NEXTAUTH_URL: http://localhost:3000
-  PGDATABASE: news_platform_test
+  MYSQL_DATABASE: news_platform_test
+  MYSQL_PASSWORD: root
 
 jobs:
   # Fast feedback: everything that needs neither a database nor a browser.
@@ -55,21 +56,23 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: postgres:17
+      mysql:
+        image: mysql:8.4
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: news_platform_test
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: news_platform_test
         ports:
-          - 5432:5432
-        # Without this the first migration can race the server still
-        # starting up.
+          - 3306:3306
+        # Two words are load-bearing here. Without the health check the
+        # first migration can race the server still starting up, and
+        # without the lowered token size a search for "AI" or "EU"
+        # silently matches nothing — see docs/database.md.
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --innodb-ft-min-token-size=2
 
     steps:
       - uses: actions/checkout@v4

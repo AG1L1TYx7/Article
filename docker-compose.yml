@@ -5,19 +5,22 @@
 
 services:
   db:
-    image: postgres:17
+    image: mysql:8.4
     restart: unless-stopped
+    # innodb_ft_min_token_size defaults to 3, which would make "AI", "EU"
+    # and "US" unsearchable. It can only be set at startup, so it lives
+    # here rather than in a migration — see docs/database.md.
+    command: --innodb-ft-min-token-size=2
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-news_platform}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-news_platform}
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/mysql
     # Deliberately not published to the host. The database is reachable
-    # only from the other containers on this network; exposing 5432 to the
+    # only from the other containers on this network; exposing 3306 to the
     # internet is how most self-hosted databases get found.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { toBooleanQuery } from "@/lib/searchQuery";
 
 export const SEARCH_PAGE_SIZE = 20;
 /**
- * Longer than any real query. Postgres will happily parse a megabyte of
- * text into a tsquery; nobody searching a news site needs to.
+ * Longer than any real query. Nobody searching a news site types more
+ * than this, and an unbounded one is free work for the database.
  */
 const MAX_QUERY_LENGTH = 200;
 
@@ -59,23 +60,30 @@ export function normalizeQuery(raw: string | undefined | null): string {
 /**
  * Full-text search over published articles.
  *
- * Uses `websearch_to_tsquery`, not `to_tsquery`: it accepts what people
- * actually type — quoted phrases, OR, a leading minus to exclude — and,
- * critically, never raises a syntax error on input like `a & | b`. With
- * `to_tsquery` a stray punctuation mark would turn into a 500.
+ * Reader input is sanitised into boolean-mode syntax by
+ * lib/searchQuery.ts before it reaches MySQL. Quoted phrases and a
+ * leading minus to exclude are honoured; every other operator character
+ * is stripped, because MySQL boolean mode assigns meaning to
+ * `+ - > < ( ) ~ * " @` and a stray one is a syntax error rather than a
+ * search for that character.
  *
- * Title, dek and body are weighted A/B/C, so an article whose *headline*
+ * Title, dek and body are weighted 3/2/1, so an article whose *headline*
  * matches outranks one that merely mentions the words halfway down.
  *
- * Written as raw SQL because Prisma's query API has no tsvector support.
+ * Written as raw SQL because Prisma's query API cannot express MATCH ...
+ * AGAINST.
  * Every user value is a bound parameter — none of this is string-built.
  *
- * Scaling note: there is deliberately no GIN index yet. Postgres computes
- * the tsvector per row on each search, which is fine into the low tens of
- * thousands of articles. The fix when that stops being true is a stored
- * tsvector column plus a GIN index, added in a hand-written migration —
- * `@@index(type: Gin)` in schema.prisma cannot express a weighted
- * expression index, so it has to live in SQL. See docs/.
+ * Four FULLTEXT indexes back this, declared in schema.prisma: one over
+ * all three columns to decide what matches, and one per column so
+ * relevance can be weighted. MySQL cannot compute a full-text index at
+ * query time the way Postgres computes a tsvector, so they have to exist
+ * up front — and MATCH must name exactly the columns some index covers.
+ *
+ * Words shorter than innodb_ft_min_token_size are not indexed at all.
+ * This deployment sets it to 2 rather than the default 3, or "AI", "EU"
+ * and "US" would silently match nothing. That setting lives in the
+ * server's my.ini, not in this repository — see docs/database.md.
  */
 export async function searchArticles(filters: SearchFilters): Promise<SearchResults> {
   const q = normalizeQuery(filters.q);
@@ -90,55 +98,56 @@ export async function searchArticles(filters: SearchFilters): Promise<SearchResu
   const authorHandle = filters.authorHandle || null;
   const since = filters.since ?? null;
 
+  // Sanitised into boolean-mode syntax. MySQL has no equivalent of
+  // websearch_to_tsquery, which accepted anything and never errored — so
+  // a stray operator character has to be stripped here instead of
+  // becoming a syntax error. See lib/searchQuery.ts.
+  const booleanQuery = toBooleanQuery(q);
+  if (!booleanQuery) return EMPTY;
+
   const rows = await db.$queryRaw<SearchRow[]>(Prisma.sql`
-    WITH matches AS (
-      SELECT
-        a.id,
-        a.slug,
-        a.title,
-        a.dek,
-        a."isBreaking",
-        a."publishedAt",
-        u.name   AS "authorName",
-        u.handle AS "authorHandle",
-        c.name   AS "categoryName",
-        c.slug   AS "categorySlug",
-        ts_rank_cd(
-          setweight(to_tsvector('english', coalesce(a.title, '')), 'A')
-            || setweight(to_tsvector('english', coalesce(a.dek, '')), 'B')
-            || setweight(to_tsvector('english', coalesce(a."searchText", '')), 'C'),
-          websearch_to_tsquery('english', ${q})
-        ) AS rank
-      FROM "Article" a
-      JOIN "User" u ON u.id = a."authorId"
-      LEFT JOIN "Category" c ON c.id = a."categoryId"
-      WHERE a.status = 'PUBLISHED'
-        AND a."publishedAt" IS NOT NULL
-        -- "AT TIME ZONE 'UTC'" on both date comparisons is load-bearing.
-        -- Prisma stores DateTime as "timestamp without time zone" holding a
-        -- UTC instant, but now() and a bound Date parameter are
-        -- timestamptz. Comparing the two makes Postgres reinterpret the
-        -- stored value in the *session's* time zone, so on a server set to
-        -- anything but UTC every article silently shifts by the offset —
-        -- which hid everything published in the last few hours.
-        AND a."publishedAt" <= (now() AT TIME ZONE 'UTC')
-        AND (${categorySlug}::text IS NULL OR c.slug = ${categorySlug})
-        AND (${authorHandle}::text IS NULL OR u.handle = ${authorHandle})
-        AND (
-          ${since}::timestamptz IS NULL
-          OR a."publishedAt" >= (${since}::timestamptz AT TIME ZONE 'UTC')
-        )
-        AND (
-          setweight(to_tsvector('english', coalesce(a.title, '')), 'A')
-            || setweight(to_tsvector('english', coalesce(a.dek, '')), 'B')
-            || setweight(to_tsvector('english', coalesce(a."searchText", '')), 'C')
-        ) @@ websearch_to_tsquery('english', ${q})
-    )
-    SELECT *, count(*) OVER () AS total
-    FROM matches
+    SELECT
+      a.id,
+      a.slug,
+      a.title,
+      a.dek,
+      a.isBreaking,
+      a.publishedAt,
+      u.name   AS authorName,
+      u.handle AS authorHandle,
+      c.name   AS categoryName,
+      c.slug   AS categorySlug,
+      -- Weighted by column, which MySQL will not do on its own. Postgres
+      -- expressed this as setweight() on one tsvector; here it is three
+      -- separate MATCH scores against three single-column indexes, so a
+      -- headline match still outranks a passing mention in the body.
+      (
+        MATCH(a.title) AGAINST(${booleanQuery} IN BOOLEAN MODE) * 3
+        + MATCH(a.dek) AGAINST(${booleanQuery} IN BOOLEAN MODE) * 2
+        + MATCH(a.searchText) AGAINST(${booleanQuery} IN BOOLEAN MODE)
+      ) AS rank,
+      COUNT(*) OVER () AS total
+    FROM Article a
+    JOIN User u ON u.id = a.authorId
+    LEFT JOIN Category c ON c.id = a.categoryId
+    WHERE a.status = 'PUBLISHED'
+      AND a.publishedAt IS NOT NULL
+      -- UTC_TIMESTAMP(), not NOW(): Prisma stores DateTime as a UTC
+      -- instant in a DATETIME column, while NOW() returns the server's
+      -- local time. Comparing the two shifts every article by the
+      -- server's offset — the same bug this had on Postgres, where it
+      -- hid everything published in the last few hours.
+      AND a.publishedAt <= UTC_TIMESTAMP()
+      AND (${categorySlug} IS NULL OR c.slug = ${categorySlug})
+      AND (${authorHandle} IS NULL OR u.handle = ${authorHandle})
+      AND (${since} IS NULL OR a.publishedAt >= ${since})
+      -- Whether a row matches at all is decided by the combined index;
+      -- the per-column scores above only order what this admits.
+      AND MATCH(a.title, a.dek, a.searchText)
+          AGAINST(${booleanQuery} IN BOOLEAN MODE)
     -- Rank first, then recency: two equally relevant stories should show
     -- the newer one first, which is what a news reader expects.
-    ORDER BY rank DESC, "publishedAt" DESC
+    ORDER BY rank DESC, a.publishedAt DESC
     LIMIT ${SEARCH_PAGE_SIZE} OFFSET ${offset}
   `);
 

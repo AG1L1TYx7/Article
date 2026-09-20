@@ -6,9 +6,9 @@ import { commentInThread } from "./support/comments";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 
 /**
  * Fakes an established account, so its comments skip the new-account queue.
@@ -26,25 +26,25 @@ const markEmailVerified = (email: string) =>
  */
 const grantCommentTrust = (email: string) =>
   sql(
-    `INSERT INTO "Comment" (id, "articleId", "userId", body, status, "createdAt", "updatedAt")
-     SELECT 'trust-' || md5(random()::text || g::text),
+    `INSERT INTO \`Comment\` (id, \`articleId\`, \`userId\`, body, status, \`createdAt\`, \`updatedAt\`)
+     SELECT CONCAT('trust-', UUID()),
             'e2e-trust-ballast',
-            (SELECT id FROM "User" WHERE email = '${email}'),
-            'Established account warm-up ' || g,
-            'APPROVED', NOW(), NOW()
-     FROM generate_series(1, 3) g;`
+            (SELECT id FROM \`User\` WHERE email = '${email}'),
+            CONCAT('Established account warm-up ', n),
+            'APPROVED', NOW(3), NOW(3)
+     FROM (SELECT 1 AS n UNION SELECT 2 UNION SELECT 3) AS warmups;`
   );
 
 const notificationCount = (email: string) =>
   Number(
     scalar(
-      `SELECT count(*) FROM "Notification"
-       WHERE "userId" = (SELECT id FROM "User" WHERE email = '${email}');`
+      `SELECT count(*) FROM \`Notification\`
+       WHERE \`userId\` = (SELECT id FROM \`User\` WHERE email = '${email}');`
     )
   );
 
 const articleSlug = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": uniqueTestIp() });
@@ -110,7 +110,7 @@ async function postComment(page: Page, articleUrl: string, email: string, body: 
   // failing because this comment is missing should blame this helper, not
   // the step that went looking for it.
   expect(
-    scalar(`SELECT status FROM "Comment" WHERE body = '${body}' LIMIT 1;`),
+    scalar(`SELECT status FROM \`Comment\` WHERE body = '${body}' LIMIT 1;`),
     `comment "${body}" rendered but is not APPROVED in the database`
   ).toBe("APPROVED");
 }

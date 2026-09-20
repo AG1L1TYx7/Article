@@ -5,18 +5,18 @@ import { sql, scalar } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const articleIdFor = (title: string) =>
-  scalar(`SELECT id FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT id FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 const articleSlugFor = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 const linkCount = (title: string) =>
   Number(
     scalar(
-      `SELECT count(*) FROM "ArticleLink"
-       WHERE "articleId" = (SELECT id FROM "Article" WHERE title = '${title}' LIMIT 1);`
+      `SELECT count(*) FROM \`ArticleLink\`
+       WHERE \`articleId\` = (SELECT id FROM \`Article\` WHERE title = '${title}' LIMIT 1);`
     )
   );
 
@@ -110,8 +110,8 @@ test.describe("Related links", () => {
     await expect(page.getByText("Nothing could be read from that page")).toBeVisible();
     expect(
       scalar(
-        `SELECT coalesce("fetchedAt"::text, 'never') FROM "ArticleLink"
-         WHERE "articleId" = (SELECT id FROM "Article" WHERE title = '${title}' LIMIT 1);`
+        `SELECT coalesce(CAST(\`fetchedAt\` AS CHAR), 'never') FROM \`ArticleLink\`
+         WHERE \`articleId\` = (SELECT id FROM \`Article\` WHERE title = '${title}' LIMIT 1);`
       )
     ).toBe("never");
   });

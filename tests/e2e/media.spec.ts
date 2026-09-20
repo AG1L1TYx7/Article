@@ -5,9 +5,9 @@ import { count, sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 
 /**
  * A real 1x1 PNG. It has to be genuine: the upload route identifies files
@@ -152,7 +152,7 @@ test.describe("Uploading", () => {
     expect((await response.json()).error).toContain("no malware scanner is configured");
 
     // And nothing was written: no row, so nothing to serve or clean up.
-    expect(count(`SELECT count(*) FROM "Media" WHERE type = 'VIDEO';`)).toBe(0);
+    expect(count(`SELECT count(*) FROM \`Media\` WHERE type = 'VIDEO';`)).toBe(0);
   });
 
   test("a file that is not an image or video is refused", async ({ page }) => {

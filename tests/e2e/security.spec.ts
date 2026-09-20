@@ -19,13 +19,13 @@ import { count, scalar, sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const articleSlug = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 const articleId = (title: string) =>
-  scalar(`SELECT id FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT id FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": uniqueTestIp() });
@@ -122,7 +122,7 @@ test.describe("A01 Broken access control", () => {
   test("a suspended account cannot sign in", async ({ page }) => {
     const email = await register(page, "secsuspended");
     markEmailVerified(email);
-    sql(`UPDATE "User" SET status = 'SUSPENDED' WHERE email = '${email}';`);
+    sql(`UPDATE \`User\` SET status = 'SUSPENDED' WHERE email = '${email}';`);
 
     await page.goto("/login");
     await page.fill('input[name="email"]', email);
@@ -157,19 +157,19 @@ test.describe("A03 Injection", () => {
       '\'; DROP TABLE "Article"; --',
       "' OR '1'='1",
       "x' UNION SELECT NULL,NULL,NULL--",
-      `'; UPDATE "User" SET role='ADMIN' WHERE email='${canary}'; --`,
-      `'; DELETE FROM "User" WHERE email='${canary}'; --`,
+      `'; UPDATE \`User\` SET role='ADMIN' WHERE email='${canary}'; --`,
+      `'; DELETE FROM \`User\` WHERE email='${canary}'; --`,
     ]) {
       const response = await page.goto(`/search?q=${encodeURIComponent(payload)}`);
       expect(response?.status(), payload).toBe(200);
     }
 
     // The canary was not promoted and was not deleted.
-    expect(scalar(`SELECT role FROM "User" WHERE email = '${canary}';`)).toBe("READER");
+    expect(scalar(`SELECT role FROM \`User\` WHERE email = '${canary}';`)).toBe("READER");
 
     // And the table is still there at all — a successful DROP would make
     // this query error rather than return a number.
-    expect(count(`SELECT count(*) FROM "Article";`)).toBeGreaterThanOrEqual(0);
+    expect(count(`SELECT count(*) FROM \`Article\`;`)).toBeGreaterThanOrEqual(0);
   });
 
   test("SQL injection through a URL parameter does not execute", async ({ page }) => {
@@ -182,7 +182,7 @@ test.describe("A03 Injection", () => {
       expect([404, 400], path).toContain(response?.status() ?? 0);
     }
     // The table is still there.
-    expect(count(`SELECT count(*) FROM "Category";`)).toBeGreaterThan(0);
+    expect(count(`SELECT count(*) FROM \`Category\`;`)).toBeGreaterThan(0);
   });
 
   test("a script tag in an article body never reaches the page", async ({ page }) => {
@@ -239,7 +239,7 @@ test.describe("A03 Injection", () => {
     await expect(page.getByText("a moderator will review it")).toBeVisible();
 
     // Approve it so it actually renders to the public.
-    sql(`UPDATE "Comment" SET status = 'APPROVED' WHERE body = '${payload.replace(/'/g, "''")}';`);
+    sql(`UPDATE \`Comment\` SET status = 'APPROVED' WHERE body = '${payload.replace(/'/g, "''")}';`);
     await page.reload();
 
     expect(await page.evaluate((m) => (window as never as Record<string, unknown>)[m], marker)).toBeUndefined();
@@ -297,7 +297,9 @@ test.describe("A07 Authentication failures", () => {
     }
 
     expect(
-      scalar(`SELECT coalesce("lockedUntil"::text, 'none') FROM "User" WHERE email = '${email}';`)
+      scalar(
+        `SELECT coalesce(CAST(\`lockedUntil\` AS CHAR), 'none') FROM \`User\` WHERE email = '${email}';`
+      )
     ).not.toBe("none");
 
     // And the correct password does not work while locked.
@@ -321,8 +323,8 @@ test.describe("A07 Authentication failures", () => {
 
     expect(
       count(
-        `SELECT count(*) FROM "AuditLog" WHERE action = 'auth.login.failed'
-         AND "actorId" = (SELECT id FROM "User" WHERE email = '${email}');`
+        `SELECT count(*) FROM \`AuditLog\` WHERE action = 'auth.login.failed'
+         AND \`actorId\` = (SELECT id FROM \`User\` WHERE email = '${email}');`
       )
     ).toBeGreaterThan(0);
   });

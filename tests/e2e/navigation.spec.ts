@@ -6,15 +6,15 @@ import { waitForOnHomepage } from "./support/homepage";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const articleSlug = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 
 const setCategory = (title: string, categorySlug: string) =>
   sql(
-    `UPDATE "Article" SET "categoryId" = (SELECT id FROM "Category" WHERE slug = '${categorySlug}') WHERE title = '${title}';`
+    `UPDATE \`Article\` SET \`categoryId\` = (SELECT id FROM \`Category\` WHERE slug = '${categorySlug}') WHERE title = '${title}';`
   );
 
 test.beforeEach(async ({ page }) => {

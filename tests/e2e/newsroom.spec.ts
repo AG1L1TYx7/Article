@@ -17,13 +17,13 @@ import { waitForHydration } from "./support/hydration";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE "User" SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
-  sql(`UPDATE "User" SET "emailVerifiedAt" = NOW() WHERE email = '${email}';`);
-const roleOf = (email: string) => scalar(`SELECT role FROM "User" WHERE email = '${email}';`);
-const statusOf = (email: string) => scalar(`SELECT status FROM "User" WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
+const roleOf = (email: string) => scalar(`SELECT role FROM \`User\` WHERE email = '${email}';`);
+const statusOf = (email: string) => scalar(`SELECT status FROM \`User\` WHERE email = '${email}';`);
 const articleSlug = (title: string) =>
-  scalar(`SELECT slug FROM "Article" WHERE title = '${title}' LIMIT 1;`);
+  scalar(`SELECT slug FROM \`Article\` WHERE title = '${title}' LIMIT 1;`);
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": uniqueTestIp() });
@@ -112,8 +112,8 @@ async function publish(page: Page, title: string, body: string, breaking: boolea
 
 const breakingNotificationsFor = (email: string) =>
   count(
-    `SELECT count(*) FROM "Notification" WHERE type = 'BREAKING_NEWS'
-     AND "userId" = (SELECT id FROM "User" WHERE email = '${email}');`
+    `SELECT count(*) FROM \`Notification\` WHERE type = 'BREAKING_NEWS'
+     AND \`userId\` = (SELECT id FROM \`User\` WHERE email = '${email}');`
   );
 
 test.describe("Audit log viewer", () => {
@@ -204,7 +204,7 @@ test.describe("People", () => {
 
     // A suspension that waits for a token to expire is not a suspension:
     // sessionVersion is bumped so the next request fails.
-    expect(count(`SELECT "sessionVersion" FROM "User" WHERE email = '${target}';`)).toBeGreaterThan(
+    expect(count(`SELECT \`sessionVersion\` FROM \`User\` WHERE email = '${target}';`)).toBeGreaterThan(
       0
     );
   });
@@ -238,7 +238,7 @@ test.describe("Analytics", () => {
     // The write is scheduled with after(), so it lands once the response
     // has gone out rather than before it.
     await expect
-      .poll(() => count(`SELECT "viewCount" FROM "Article" WHERE slug = '${slug}';`), {
+      .poll(() => count(`SELECT \`viewCount\` FROM \`Article\` WHERE slug = '${slug}';`), {
         timeout: 10000,
       })
       .toBeGreaterThan(0);
@@ -257,7 +257,7 @@ test.describe("Breaking news alerts", () => {
   test("publishing a breaking story alerts the followers of its author", async ({ page }) => {
     const title = `NR Breaking ${Date.now()}`;
     const author = await signInAsModerator(page, "nrbreaking");
-    const authorHandle = scalar(`SELECT handle FROM "User" WHERE email = '${author}';`);
+    const authorHandle = scalar(`SELECT handle FROM \`User\` WHERE email = '${author}';`);
 
     // A reader follows the author.
     await page.context().clearCookies();
@@ -272,7 +272,7 @@ test.describe("Breaking news alerts", () => {
     await expect
       .poll(() =>
         count(
-          `SELECT count(*) FROM "Follow" WHERE "followerId" = (SELECT id FROM "User" WHERE email = '${follower}');`
+          `SELECT count(*) FROM \`Follow\` WHERE \`followerId\` = (SELECT id FROM \`User\` WHERE email = '${follower}');`
         )
       )
       .toBe(1);
@@ -297,7 +297,7 @@ test.describe("Breaking news alerts", () => {
     // meaningless within a week.
     const title = `NR Ordinary ${Date.now()}`;
     const author = await signInAsModerator(page, "nrordinary");
-    const authorHandle = scalar(`SELECT handle FROM "User" WHERE email = '${author}';`);
+    const authorHandle = scalar(`SELECT handle FROM \`User\` WHERE email = '${author}';`);
 
     await page.context().clearCookies();
     const follower = await register(page, "nrordinaryfollower");
@@ -311,7 +311,7 @@ test.describe("Breaking news alerts", () => {
     await expect
       .poll(() =>
         count(
-          `SELECT count(*) FROM "Follow" WHERE "followerId" = (SELECT id FROM "User" WHERE email = '${follower}');`
+          `SELECT count(*) FROM \`Follow\` WHERE \`followerId\` = (SELECT id FROM \`User\` WHERE email = '${follower}');`
         )
       )
       .toBe(1);
