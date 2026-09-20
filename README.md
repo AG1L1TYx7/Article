@@ -260,3 +260,10 @@ automatically, the flaws that testing found (an open redirect, missing
 authentication audit logging, a framework banner, a missing CSRF check), and —
 importantly — what it does not cover. It is a regression net against known
 classes of flaw, not a penetration test.
+
+## Browsing the database
+
+`npx prisma studio` opens a schema-aware browser on http://localhost:5555.
+Adminer — the phpMyAdmin-style option, which unlike phpMyAdmin speaks
+PostgreSQL — is set up in XAMPP at http://localhost/adminer.php. See
+[docs/database-gui.md](docs/database-gui.md) for connection details.
