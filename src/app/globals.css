@@ -16,7 +16,9 @@
   --surface-2: #f2efe9;
   --ink: #17140f;
   --ink-2: #57524a;
-  --ink-3: #8b857c;
+  /* 5.2:1 on paper. The lighter #8b857c read better as "faint" but was
+     3.4:1, under WCAG AA for the 12px bylines and dates it is used on. */
+  --ink-3: #6e685f;
   --line: #e7e2da;
   --line-strong: #cbc4b9;
   --accent: #b7271f;
@@ -38,7 +40,7 @@
     --surface-2: #232019;
     --ink: #f1ede6;
     --ink-2: #b8b1a6;
-    --ink-3: #7e776d;
+    --ink-3: #948c80;
     --line: #2b2825;
     --line-strong: #403c37;
     --accent: #f06a60;
