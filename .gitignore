@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma generated client
+/src/generated/prisma
+
+# dev-only email outbox (see src/lib/email.ts)
+.email-dev-outbox.log
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+
+# dev-only local media storage (see src/lib/storage.ts)
+/.local-uploads/
+
+
+# Editor/agent tooling. Local machine settings, and vendored third-party
+# skill documentation that skills-lock.json can restore.
+.claude/settings.local.json
+/.claude/skills/
+/.agents/
+/.windsurf/

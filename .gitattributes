@@ -1,0 +1,18 @@
+# Normalize line endings in the repository to LF.
+#
+# Without this, a checkout on Windows commits CRLF back and every file
+# shows as fully rewritten to anyone on macOS or Linux. Working copies
+# still get native endings; only what git stores is normalized.
+* text=auto eol=lf
+
+# Binary files git should never try to normalize or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.woff binary
+*.woff2 binary

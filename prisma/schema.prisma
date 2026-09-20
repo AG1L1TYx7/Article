@@ -1,0 +1,428 @@
+// News & Article Platform — data model
+// See docs/ for the full architecture and security plan this schema implements.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+enum Role {
+  READER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  emailVerifiedAt  DateTime?
+  passwordHash     String?
+  name             String
+  handle           String    @unique
+  avatarUrl        String?
+  role             Role      @default(READER)
+  status           UserStatus @default(ACTIVE)
+  mfaSecret        String?
+  mfaEnabled       Boolean   @default(false)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  // Bumped to instantly invalidate every outstanding JWT for this user —
+  // "log out everywhere" and forced-logout-on-ban, without database sessions.
+  // See src/lib/auth/config.ts for why Credentials + JWT forced this design.
+  sessionVersion   Int       @default(0)
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  articles      Article[]      @relation("ArticleAuthor")
+  comments      Comment[]
+  reactions     Reaction[]
+  bookmarks     Bookmark[]
+  follows       Follow[]       @relation("FollowFollower")
+  followedBy    Follow[]       @relation("FollowTarget")
+  reports       Report[]       @relation("ReportReporter")
+  handledReports Report[]      @relation("ReportHandler")
+  auditLogs     AuditLog[]
+  media         Media[]
+  notifications Notification[] @relation("NotificationRecipient")
+  causedNotifications Notification[] @relation("NotificationActor")
+
+  @@index([role])
+  @@index([status])
+}
+
+// Auth.js (NextAuth) required tables — database sessions so any session is
+// instantly revocable (see security blueprint: "log out everywhere").
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Content
+// ---------------------------------------------------------------------------
+
+enum ArticleStatus {
+  DRAFT
+  IN_REVIEW
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  dek         String?
+  bodyJson    Json
+  bodyHtml    String        @db.Text
+  // Plain text extracted from bodyHtml at write time, purely so search
+  // can match article bodies. Indexing bodyHtml directly would match on
+  // markup ("div", "href") rather than words a reader typed.
+  searchText  String?       @db.Text
+  excerpt     String?
+  status      ArticleStatus @default(DRAFT)
+  isBreaking  Boolean       @default(false)
+  locale      String        @default("en")
+  viewCount   Int           @default(0)
+
+  seoTitle       String?
+  seoDescription String?
+  coverImageId   String?
+
+  authorId   String
+  categoryId String?
+
+  publishedAt   DateTime?
+  scheduledFor  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  author   User      @relation("ArticleAuthor", fields: [authorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+  coverImage Media?  @relation("ArticleCoverImage", fields: [coverImageId], references: [id])
+
+  tags     ArticleTag[]
+  media    Media[]      @relation("ArticleMedia")
+  links    ArticleLink[]
+  comments Comment[]
+  reactions Reaction[]
+  bookmarks Bookmark[]
+  reports  Report[]
+  notifications Notification[]
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  articles    Article[]
+  follows     Follow[]
+}
+
+model Tag {
+  id       String       @id @default(cuid())
+  slug     String       @unique
+  name     String
+  articles ArticleTag[]
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum ScanStatus {
+  PENDING
+  CLEAN
+  FLAGGED
+}
+
+// Uploaded files are not publicly servable until scanStatus = CLEAN.
+// See security blueprint: files go client -> pre-signed URL -> object storage,
+// then are re-encoded and malware-scanned before this row is marked clean.
+model Media {
+  id            String     @id @default(cuid())
+  type          MediaType
+  storageKey    String     @unique
+  url           String
+  contentType   String
+  altText       String?
+  width         Int?
+  height        Int?
+  durationSecs  Int?
+  checksum      String
+  scanStatus    ScanStatus @default(PENDING)
+  uploadedById  String
+  createdAt     DateTime   @default(now())
+
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
+  articles   Article[] @relation("ArticleMedia")
+  coverOf    Article[] @relation("ArticleCoverImage")
+
+  @@index([scanStatus])
+}
+
+// A link an author attached to an article, with whatever the linked page
+// said about itself. Those preview fields are a cached copy of a remote
+// page fetched at attach time — never trusted, always rendered as text.
+// See src/lib/linkPreview/ for how the fetch is kept from becoming SSRF.
+model ArticleLink {
+  id          String    @id @default(cuid())
+  articleId   String
+  url         String
+  label       String?
+  title       String?
+  description String?
+  siteName    String?
+  // Null when the preview could not be fetched — the link is still shown,
+  // just without the extra detail.
+  fetchedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+}
+
+// ---------------------------------------------------------------------------
+// Engagement
+// ---------------------------------------------------------------------------
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+  DELETED
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  articleId String
+  userId    String
+  parentId  String?
+  body      String        @db.Text
+  status    CommentStatus @default(PENDING)
+  // Set only when the author rewrites their own comment. Distinct from
+  // updatedAt, which also moves when a moderator changes the status —
+  // readers should see "edited" for the former and nothing for the latter.
+  editedAt  DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  article  Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author   User      @relation(fields: [userId], references: [id])
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
+
+  reactions Reaction[]
+  reports   Report[]
+  notifications Notification[]
+
+  @@index([articleId, status])
+  @@index([parentId])
+}
+
+enum ReactionType {
+  LIKE
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  userId    String
+  type      ReactionType @default(LIKE)
+  articleId String?
+  commentId String?
+  createdAt DateTime     @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  article Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@unique([userId, commentId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+}
+
+model Follow {
+  id         String   @id @default(cuid())
+  followerId String
+  authorId   String?
+  categoryId String?
+  createdAt  DateTime @default(now())
+
+  follower User      @relation("FollowFollower", fields: [followerId], references: [id])
+  author   User?     @relation("FollowTarget", fields: [authorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@unique([followerId, authorId, categoryId])
+}
+
+enum NotificationType {
+  COMMENT_REPLY
+  COMMENT_APPROVED
+}
+
+// Tells a reader that something happened to their contribution: someone
+// replied, or a held comment finally went live. Deliberately narrow —
+// notifying on every like would be noise, and noise gets muted.
+//
+// Only ever created for content that is already public, so a notification
+// can never reveal a comment still waiting on a moderator.
+model Notification {
+  id        String           @id @default(cuid())
+  // The person being told.
+  userId    String
+  type      NotificationType
+  // Who caused it. Null for anything the system did on its own.
+  actorId   String?
+  articleId String?
+  commentId String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user    User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  article Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  // Idempotency, not just tidiness: a comment can reach APPROVED more than
+  // once (held, approved, edited back to held, approved again), and each
+  // path tries to notify. This makes the second attempt a no-op instead of
+  // a duplicate in someone's list.
+  @@unique([userId, type, commentId])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Trust & safety
+// ---------------------------------------------------------------------------
+
+enum ReportReason {
+  SPAM
+  ABUSE
+  MISINFORMATION
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  reason      ReportReason
+  note        String?
+  status      ReportStatus @default(OPEN)
+  articleId   String?
+  commentId   String?
+  handledById String?
+  createdAt   DateTime     @default(now())
+  resolvedAt  DateTime?
+
+  reporter  User     @relation("ReportReporter", fields: [reporterId], references: [id])
+  handledBy User?    @relation("ReportHandler", fields: [handledById], references: [id])
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// Append-only: every privileged action writes one row here. No update/delete
+// path is exposed at the application layer — see security blueprint.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

@@ -1,36 +1,207 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Dispatch — news & article platform
 
-## Getting Started
+A publishing platform for a news site: staff write and publish articles with
+photo and video, readers register, comment, react, save, follow and share.
 
-First, run the development server:
+Built with Next.js 16 (App Router), PostgreSQL via Prisma 7, and Auth.js.
+The full architecture and security plan this implements is in [`docs/`](docs/).
+
+---
+
+## Getting started
+
+**You need:** Node 20+, PostgreSQL 15+ running locally, and npm.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env          # then edit DATABASE_URL and AUTH_SECRET
+npx prisma migrate dev        # create the schema
+npm run seed                  # starter categories
+npm run bootstrap:staff -- --email you@example.com --role ADMIN
+npm run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Two of those steps are easy to skip and then wonder why things look broken:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **`npm run seed`** creates the starter categories. Without it the category
+  dropdown in the article editor is empty and the site header has no sections.
+- **`npm run bootstrap:staff`** is the only way to create the first staff
+  account. Registration always creates a `READER`, by design — there is no
+  "first user becomes admin" path, because that is a privilege-escalation
+  race on any publicly reachable install. It prints a generated password once
+  if you don't pass one.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`AUTH_SECRET` can be generated with `openssl rand -base64 32`. It also keys
+the encryption of stored MFA secrets, so changing it invalidates every
+enrolled authenticator.
 
-## Learn More
+### Admins must enrol MFA
 
-To learn more about Next.js, take a look at the following resources:
+The first time an admin signs in they are redirected to `/dashboard/mfa` and
+cannot reach anything else in the dashboard until they scan the QR code with
+an authenticator app. This is enforced in `src/proxy.ts`, not just in the UI.
+MFA is optional for moderators.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment variables
 
-## Deploy on Vercel
+Everything in `.env.example` beyond `DATABASE_URL` and `AUTH_SECRET` has a
+working local fallback, so the app runs — and the whole test suite passes —
+before you have signed up for a single third-party service:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Missing | What happens instead |
+| --- | --- |
+| `RESEND_API_KEY` | Emails are written to `.email-dev-outbox.log` (gitignored) |
+| `S3_*` | Uploads are stored in `./.local-uploads` |
+| `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
+| `TURNSTILE_*` | The registration CAPTCHA is skipped |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Before deploying**, the Upstash one matters most: the in-process rate
+limiter gives each server process its own counters, so on more than one
+instance the effective limit is multiplied by the instance count. See the
+comment at the top of `src/lib/rateLimit.ts`.
+
+---
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and serve |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint |
+| `npm run test:unit` | Vitest unit tests |
+| `npm run test:e2e` | Playwright end-to-end tests |
+| `npm run seed` | Starter categories (idempotent) |
+| `npm run bootstrap:staff` | Create or promote a staff account |
+| `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
+
+### Testing
+
+Unit tests cover the pure logic — sanitization, spam heuristics, validation,
+search text extraction, comment policy. End-to-end tests drive a real browser
+against a **production build**, not `next dev`.
+
+That last point is deliberate and worth keeping. `next dev` compiles routes on
+demand, so under parallel load the first request to a route can take seconds.
+That produced failures which looked like application bugs — a like that
+"didn't persist", a registration that "didn't redirect" — but were really the
+dev server still compiling. The same suite failed 3 times in 24 runs against
+`next dev` and passed 24/24 against a production build, in a third of the time.
+It also surfaced two bugs that only exist in production builds.
+
+The e2e suite clears its own leftovers before each run (`globalSetup`), because
+these tests register real accounts and publish real articles. Cleanup is scoped
+to `@example.com`, a domain RFC 2606 reserves for testing, so it can never
+match a real account.
+
+---
+
+## How it fits together
+
+```
+src/
+  app/                    Routes (App Router)
+    (auth)/               Register, login, verify, reset
+    (dashboard)/          Staff: articles, categories, comment queue, MFA
+    api/                  Route handlers (uploads, auth, unread count)
+    article/ author/ category/ search/ saved/ notifications/
+  components/             UI, grouped by feature
+  lib/                    Everything that isn't a route or a component
+    auth/                 Session config, RBAC, MFA, password, lockout
+    validation/           Zod schemas — one per feature
+  proxy.ts                Route protection and security headers
+prisma/                   Schema, migrations, seed
+tests/                    unit/ and e2e/
+docs/                     Architecture and security plan, search, link previews
+```
+
+A few conventions that aren't obvious from the tree:
+
+- **`src/proxy.ts` is the middleware.** Next.js 16 renamed `middleware.ts` to
+  `proxy.ts`, and it runs on the **Node.js** runtime, not Edge. Setting a
+  `runtime` option in that file throws.
+- **One auth config, used everywhere**, including the proxy. An earlier
+  Edge/Node split let a revoked session survive at the proxy layer.
+- **Every export from a `"use server"` file must be an `async function`.**
+  `export const approve = (id) => ...` type-checks and lints cleanly and then
+  fails the build. Only `npm run build` catches it.
+- **Prisma stores `DateTime` as `timestamp without time zone` holding UTC.**
+  Any raw SQL comparing it to `now()` or to a bound `Date` must say
+  `AT TIME ZONE 'UTC'` on both sides, or every row shifts by the database
+  session's offset. See [`docs/search.md`](docs/search.md).
+
+---
+
+## Security model
+
+The short version of what's implemented and why.
+
+**Accounts.** Argon2id password hashing. After five failed logins the account
+locks, with the lock doubling on each further attempt from two minutes up to a
+day — per account, so rotating accounts does not dodge it, and per IP at the
+rate-limit layer, so rotating targets does not either.
+
+TOTP MFA, mandatory for admins, with secrets encrypted at rest (AES-256-GCM). Sessions are JWTs, but every request re-reads the user's role,
+status and `sessionVersion` from the database — so banning an account, or
+"log out everywhere", takes effect on the very next request rather than
+whenever the token happens to expire.
+
+**Authorization** is checked on the server for every mutation, in the server
+action or route handler itself. `src/proxy.ts` gates routes as well, but it is
+a second line, not the only one. Moderators can edit and publish their own
+articles; admins can act on anyone's.
+
+**Untrusted input.** Article HTML is sanitized on save *and* again on render
+(`src/lib/sanitize.ts`) — there is exactly one `dangerouslySetInnerHTML` in
+the codebase and it is fed by that sanitizer. Comments are plain text,
+rendered as text, so React escapes them; no sanitizer is involved and none is
+needed. Everything is validated with Zod before it reaches the database.
+
+**Uploads.** File type comes from magic bytes, not the extension or the
+`Content-Type` header. Images are re-encoded with `sharp`, which strips EXIF
+and any embedded payload, and are only marked servable once that succeeds.
+
+**Abuse.** Per-endpoint rate limits. New accounts' comments are held for
+moderation until they have three approved; spam heuristics hold anything
+link-stuffed or shouty regardless of who wrote it, and editing a comment
+re-runs those checks so an edit can't be used to slip past approval.
+Registration can require a CAPTCHA.
+
+**Outbound fetches.** Link previews make the server request a URL an author
+typed — the classic SSRF setup. Every address a hostname resolves to must be
+public, the connection is made to the address that was checked rather than
+resolving the name a second time, every redirect hop is re-checked, and
+failures are reported coarsely so this cannot be used to map the internal
+network. [`docs/link-previews.md`](docs/link-previews.md) walks through each
+attack and what stops it.
+
+**Audit.** Every privileged action writes an append-only `AuditLog` row. The
+application exposes no way to update or delete one. Comments and articles are
+soft-removed via status flags, never hard-deleted, so the trail survives.
+
+---
+
+## Not done yet
+
+Stated plainly so nobody assumes otherwise:
+
+- **Video is not fully hardened.** Uploads are accepted and stored, but there
+  is no transcoding or malware scanning, so video stays `scanStatus: PENDING`
+  and is never publicly served. Wiring up a real pipeline (e.g. MediaConvert
+  plus a scanning service) is a prerequisite for enabling video in production.
+- **Google OAuth** is not scaffolded — it needs a Google Cloud OAuth client.
+- **Search has no GIN index yet.** Fine into the low tens of thousands of
+  articles; [`docs/search.md`](docs/search.md) has the exact migration for
+  when it isn't.
+- No internationalization.
+
+## Known local hazard
+
+If this working copy lives in a OneDrive-synced folder, OneDrive locks files
+inside `.next` mid-sync and builds fail with
+`EPERM: operation not permitted, unlink`. The e2e config works around it by
+wiping `.next` before building. For day-to-day work, either exclude
+`.next` and `node_modules` from sync, or keep the project outside OneDrive.
