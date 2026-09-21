@@ -75,8 +75,13 @@ test.describe("Search", () => {
       authorName: "Search Body Author",
     });
 
-    await page.goto(`/search?q=${marker}`);
-    await expect(page.getByRole("link", { name: title })).toBeVisible();
+    // Reloaded until the hit appears: a body-only word lives in the
+    // full-text index, and on a busy CI database the index can trail the
+    // committed row by a few seconds. Same approach as waitForOnHomepage.
+    await expect(async () => {
+      await page.goto(`/search?q=${marker}`);
+      await expect(page.getByRole("link", { name: title })).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
     await expect(page.getByText("1 article matching")).toBeVisible();
   });
 
