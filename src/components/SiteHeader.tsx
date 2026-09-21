@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
-import { formatLongDate } from "@/lib/format";
 import { SITE_NAME } from "@/lib/siteUrl";
+import { getI18n } from "@/i18n/server";
 import { HeaderAccountLinks } from "./HeaderAccountLinks";
 import { SearchIcon } from "./icons";
 
@@ -19,6 +19,8 @@ import { SearchIcon } from "./icons";
  * that would cost static rendering on every page.
  */
 export async function SiteHeader() {
+  const { t, formatLongDate } = await getI18n();
+
   // Wrapped because this header is in every public page's layout: an
   // unreachable database would otherwise 500 every page rather than just
   // dropping the section list, and would fail `next build`, which
@@ -57,11 +59,11 @@ export async function SiteHeader() {
       <div className="sticky top-0 z-40 border-y border-line bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/80">
         <div className="mx-auto flex h-11 max-w-6xl items-center gap-2 px-4 sm:px-6">
           <nav
-            aria-label="Sections"
+            aria-label={t("header.sections")}
             className="-mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <Link href="/" className="nav-link shrink-0 font-medium text-ink">
-              Latest
+              {t("common.latest")}
             </Link>
             {categories.map((c) => (
               <Link key={c.slug} href={`/category/${c.slug}`} className="nav-link shrink-0">
@@ -74,7 +76,7 @@ export async function SiteHeader() {
               (or without) hydration — see components/search/SearchForm.tsx. */}
           <form action="/search" method="get" className="relative shrink-0">
             <label htmlFor="site-search" className="sr-only">
-              Search articles
+              {t("common.searchArticles")}
             </label>
             <SearchIcon
               size={15}
@@ -84,7 +86,7 @@ export async function SiteHeader() {
               id="site-search"
               name="q"
               type="search"
-              placeholder="Search"
+              placeholder={t("common.search")}
               maxLength={200}
               autoComplete="off"
               className="input h-8 w-24 rounded-full py-1 pr-3 pl-8 text-[13px] transition-[width] focus:w-40 sm:w-44 sm:focus:w-60"

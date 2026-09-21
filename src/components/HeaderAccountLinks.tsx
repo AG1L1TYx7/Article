@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { NotificationsLink } from "./NotificationsLink";
 import { BookmarkIcon } from "./icons";
 import { initials } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 
 /**
  * Account links read the session on the client on purpose.
@@ -17,6 +18,7 @@ import { initials } from "@/lib/format";
  */
 export function HeaderAccountLinks() {
   const { data: session, status } = useSession();
+  const { t } = useI18n();
 
   // Render nothing rather than "Log in" while we don't know yet — showing
   // the wrong state for a moment on every page load is worse than a brief
@@ -33,29 +35,29 @@ export function HeaderAccountLinks() {
           <NotificationsLink />
           <Link href="/saved" className="btn btn-ghost btn-sm gap-1.5">
             <BookmarkIcon size={16} />
-            Saved
+            {t("header.saved")}
           </Link>
           {isStaff && (
             <Link href="/dashboard" className="btn btn-secondary btn-sm ml-1">
-              Dashboard
+              {t("common.dashboard")}
             </Link>
           )}
           <Link
             href="/account"
             className="avatar ml-1 h-8 w-8 text-[11px] transition-shadow hover:ring-ink"
-            title="Your account"
+            title={t("common.yourAccount")}
           >
             {initials(session.user.name ?? session.user.email ?? "?")}
-            <span className="sr-only">Your account</span>
+            <span className="sr-only">{t("common.yourAccount")}</span>
           </Link>
         </>
       ) : (
         <>
           <Link href="/login" className="btn btn-ghost btn-sm">
-            Log in
+            {t("common.login")}
           </Link>
           <Link href="/register" className="btn btn-primary btn-sm">
-            Register
+            {t("common.register")}
           </Link>
         </>
       )}

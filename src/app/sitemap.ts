@@ -31,7 +31,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           where: { status: "PUBLISHED", publishedAt: { not: null } },
           orderBy: { publishedAt: "desc" },
           take: MAX_ARTICLES,
-          select: { slug: true, updatedAt: true, publishedAt: true },
+          select: {
+            slug: true,
+            locale: true,
+            updatedAt: true,
+            publishedAt: true,
+            translationOfId: true,
+            translationOf: { select: { slug: true, locale: true, status: true } },
+            translations: { select: { slug: true, locale: true, status: true } },
+          },
         }),
       [],
       "sitemap articles"
@@ -97,13 +105,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.4,
     })),
-    ...articles.map((article) => ({
-      url: absoluteUrl(`/article/${article.slug}`),
-      // updatedAt, not publishedAt: a crawler wants to know when the
-      // content last changed, so a corrected story gets recrawled.
-      lastModified: article.updatedAt,
-      changeFrequency: "monthly" as const,
-      priority: 0.7,
-    })),
+    ...articles.map((article) => {
+      // Every published version of the story, keyed by language — what a
+      // crawler needs to pair them up. Two translations of one original
+      // reach each other through that original's row in this same list.
+      type Version = { slug: string; locale: string };
+      const siblings: Version[] = article.translationOfId
+        ? articles
+            .filter((a) => a.translationOfId === article.translationOfId && a.slug !== article.slug)
+            .map((a) => ({ slug: a.slug, locale: a.locale }))
+        : [];
+      const linked = [article.translationOf, ...article.translations]
+        .filter((v) => v !== null && v.status === "PUBLISHED")
+        .map((v) => ({ slug: v!.slug, locale: v!.locale }));
+      const versions: Version[] = [...linked, ...siblings];
+      const languages =
+        versions.length > 0
+          ? Object.fromEntries([article, ...versions].map((v) => [v.locale, absoluteUrl(`/article/${v.slug}`)]))
+          : undefined;
+      return {
+        url: absoluteUrl(`/article/${article.slug}`),
+        // updatedAt, not publishedAt: a crawler wants to know when the
+        // content last changed, so a corrected story gets recrawled.
+        lastModified: article.updatedAt,
+        changeFrequency: "monthly" as const,
+        priority: 0.7,
+        ...(languages ? { alternates: { languages } } : {}),
+      };
+    }),
   ];
 }

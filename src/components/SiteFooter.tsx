@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/siteUrl";
+import { getI18n } from "@/i18n/server";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { RssIcon } from "./icons";
 import { PushToggle } from "./push/PushToggle";
 
@@ -11,6 +13,8 @@ import { PushToggle } from "./push/PushToggle";
  * would make screen-reader "jump to navigation" ambiguous.
  */
 export async function SiteFooter() {
+  const { t } = await getI18n();
+
   const categories = await withDatabaseFallback(
     () =>
       db.category.findMany({
@@ -33,7 +37,7 @@ export async function SiteFooter() {
             href="/feed.xml"
             className="mt-5 inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink"
           >
-            <RssIcon size={16} /> RSS feed
+            <RssIcon size={16} /> {t("footer.rss")}
           </a>
           {/* Renders nothing unless push is configured and the browser
               supports it — see components/push/PushToggle.tsx. */}
@@ -43,11 +47,11 @@ export async function SiteFooter() {
         </div>
 
         <div>
-          <p className="kicker">Sections</p>
+          <p className="kicker">{t("header.sections")}</p>
           <ul className="mt-3 flex flex-col gap-2 text-sm">
             <li>
               <Link href="/" className="text-ink-2 hover:text-ink">
-                Latest
+                {t("common.latest")}
               </Link>
             </li>
             {categories.map((c) => (
@@ -61,36 +65,36 @@ export async function SiteFooter() {
         </div>
 
         <div>
-          <p className="kicker">Reader</p>
+          <p className="kicker">{t("footer.reader")}</p>
           <ul className="mt-3 flex flex-col gap-2 text-sm">
             <li>
               <Link href="/search" className="text-ink-2 hover:text-ink">
-                Search the archive
+                {t("footer.searchArchive")}
               </Link>
             </li>
             <li>
               <Link href="/following" className="text-ink-2 hover:text-ink">
-                Writers and sections you follow
+                {t("footer.following")}
               </Link>
             </li>
             <li>
               <Link href="/saved" className="text-ink-2 hover:text-ink">
-                Your reading list
+                {t("footer.readingList")}
               </Link>
             </li>
             <li>
               <Link href="/notifications" className="text-ink-2 hover:text-ink">
-                Your activity
+                {t("footer.activity")}
               </Link>
             </li>
             <li>
               <Link href="/account" className="text-ink-2 hover:text-ink">
-                Your account
+                {t("footer.account")}
               </Link>
             </li>
             <li>
               <Link href="/register" className="text-ink-2 hover:text-ink">
-                Create an account
+                {t("footer.createAccount")}
               </Link>
             </li>
           </ul>
@@ -101,22 +105,23 @@ export async function SiteFooter() {
           <p>
             © {new Date().getUTCFullYear()} {SITE_NAME}
           </p>
+          <LanguageSwitcher />
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             <li>
               <Link href="/privacy" className="hover:text-ink">
-                Privacy
+                {t("footer.privacy")}
               </Link>
             </li>
             <li>
               <Link href="/terms" className="hover:text-ink">
-                Terms
+                {t("footer.terms")}
               </Link>
             </li>
             <li>
               {/* CCPA/CPRA: a "privacy choices" link in the footer, even
                   though nothing is sold — the section says so. */}
               <Link href="/privacy#california" className="hover:text-ink">
-                Your privacy choices
+                {t("footer.privacyChoices")}
               </Link>
             </li>
           </ul>

@@ -4,20 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { verifyEmail } from "./actions";
 import { AuthCard } from "@/components/AuthCard";
+import { useI18n } from "@/i18n/client";
 
 type State = "idle" | "working" | "verified" | "failed";
 
 export function VerifyEmailButton({ email, token }: { email: string; token: string }) {
+  const { t } = useI18n();
   const [state, setState] = useState<State>("idle");
 
   if (state === "verified") {
     return (
-      <AuthCard title="Email verified">
+      <AuthCard title={t("auth.emailVerified")}>
         <p className="alert alert-ok" role="status">
-          Your email address has been confirmed.
+          {t("auth.emailConfirmed")}
         </p>
         <Link href="/login" className="btn btn-primary mt-6">
-          Go to login
+          {t("auth.goToLogin")}
         </Link>
       </AuthCard>
     );
@@ -25,23 +27,25 @@ export function VerifyEmailButton({ email, token }: { email: string; token: stri
 
   if (state === "failed") {
     return (
-      <AuthCard title="Link expired or invalid">
-        <p className="text-sm text-ink-2">
-          This verification link is no longer valid. Log in and request a new one.
-        </p>
+      <AuthCard title={t("auth.linkExpired")}>
+        <p className="text-sm text-ink-2">{t("auth.verifyInvalid")}</p>
         <Link href="/login" className="btn btn-primary mt-6">
-          Go to login
+          {t("auth.goToLogin")}
         </Link>
       </AuthCard>
     );
   }
 
+  const [before, after = ""] = t("auth.confirmingFor", { email: "\u0000" }).split("\u0000");
+
   return (
     <AuthCard
-      title="Confirm your email"
+      title={t("auth.confirmEmail")}
       intro={
         <>
-          Confirming <strong className="text-ink">{email}</strong> for this account.
+          {before}
+          <strong className="text-ink">{email}</strong>
+          {after}
         </>
       }
     >
@@ -57,7 +61,7 @@ export function VerifyEmailButton({ email, token }: { email: string; token: stri
         }}
         className="btn btn-primary w-full py-2.5"
       >
-        {state === "working" ? "Confirming…" : "Confirm my email"}
+        {state === "working" ? t("auth.confirming") : t("auth.confirmMyEmail")}
       </button>
     </AuthCard>
   );

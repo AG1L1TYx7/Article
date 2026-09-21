@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LegalLanguageNotice } from "@/components/LegalLanguageNotice";
 import Link from "next/link";
 import { activeProcessors, LEGAL, LEGAL_COMPLETE, RETENTION } from "@/lib/legal";
 
@@ -31,6 +32,7 @@ export default function PrivacyPage() {
       <p className="kicker">Legal</p>
       <h1 className="headline mt-2 text-4xl">Privacy policy</h1>
       <p className="mt-3 text-sm text-ink-3">Version {LEGAL.policyVersion}</p>
+      <LegalLanguageNotice />
 
       {!LEGAL_COMPLETE && (
         <p className="alert alert-warn mt-6">
@@ -159,6 +161,13 @@ export default function PrivacyPage() {
               </td>
               <td>Protects sign-in forms from forgery</td>
               <td>Session</td>
+            </tr>
+            <tr>
+              <td>
+                <code>locale</code>
+              </td>
+              <td>Only if you choose a language from the switcher: remembers it. Holds a two-letter code and nothing else.</td>
+              <td>1 year</td>
             </tr>
             <tr>
               <td>

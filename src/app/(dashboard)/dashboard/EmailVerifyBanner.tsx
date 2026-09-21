@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { resendVerificationEmail } from "@/app/(auth)/verify-email/actions";
+import { useI18n } from "@/i18n/client";
 
 export function EmailVerifyBanner({ email }: { email: string }) {
+  const { t } = useI18n();
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
 
   return (
     <div className="alert alert-warn mb-6 flex flex-wrap items-center justify-between gap-3">
-      <span>
-        {sent ? "Check your inbox for a new verification link." : "Your email address isn't verified yet."}
-      </span>
+      <span>{sent ? t("verify.checkInbox") : t("verify.notVerified")}</span>
       {!sent && (
         <button
           disabled={pending}
@@ -23,7 +23,7 @@ export function EmailVerifyBanner({ email }: { email: string }) {
           }}
           className="btn btn-sm btn-secondary"
         >
-          {pending ? "Sending…" : "Resend"}
+          {pending ? t("verify.sending") : t("verify.resend")}
         </button>
       )}
     </div>

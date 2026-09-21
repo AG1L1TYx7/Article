@@ -6,6 +6,7 @@ import { SearchForm, type SearchFormOptions } from "@/components/search/SearchFo
 import { searchArticles } from "@/lib/search";
 import { DATE_RANGES, parseSearchParams, rangeToSince, searchHref } from "@/lib/searchParams";
 import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons";
+import { getI18n } from "@/i18n/server";
 
 export const metadata: Metadata = {
   title: "Search",
@@ -53,6 +54,7 @@ async function loadFilterOptions(selectedAuthor: string): Promise<SearchFormOpti
 
 export default async function SearchPage(props: PageProps<"/search">) {
   const query = parseSearchParams(await props.searchParams);
+  const { t, n, formatNumber } = await getI18n();
 
   const [options, results] = await Promise.all([
     loadFilterOptions(query.author),
@@ -70,29 +72,33 @@ export default async function SearchPage(props: PageProps<"/search">) {
 
   // "3 articles in Sport by Ada Lovelace from the past week" — the
   // filters read back in words, so a reader can see what narrowed the list.
+  const range = DATE_RANGES.find((r) => r.value === query.range);
   const filterWords = [
-    query.category && `in ${options.categories.find((c) => c.slug === query.category)?.name ?? query.category}`,
-    query.author && `by ${options.authors.find((a) => a.handle === query.author)?.name ?? query.author}`,
-    query.range && `from the ${DATE_RANGES.find((r) => r.value === query.range)?.label.toLowerCase()}`,
+    query.category &&
+      t("search.inSection", {
+        section: options.categories.find((c) => c.slug === query.category)?.name ?? query.category,
+      }),
+    query.author &&
+      t("search.byAuthor", { author: options.authors.find((a) => a.handle === query.author)?.name ?? query.author }),
+    query.range && range && t("search.fromRange", { range: t(range.label).toLowerCase() }),
   ]
     .filter(Boolean)
     .join(" ");
 
-  const count = `${results.total} ${results.total === 1 ? "article" : "articles"}`;
   const status = hasQuery
     ? results.total === 0
-      ? `No articles match “${query.q}”${filterWords ? ` ${filterWords}` : ""}.`
-      : `${count} matching “${query.q}”${filterWords ? ` ${filterWords}` : ""}.`
+      ? t("search.noMatch", { query: query.q, filters: filterWords ? ` ${filterWords}` : "" })
+      : n(results.total, "search.matching", { query: query.q, filters: filterWords ? ` ${filterWords}` : "" })
     : hasFilters
       ? results.total === 0
-        ? `No articles ${filterWords}.`
-        : `${count} ${filterWords}, newest first.`
+        ? t("search.noneWithFilters", { filters: filterWords })
+        : n(results.total, "search.browsing", { filters: filterWords })
       : null;
 
   return (
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
-      <p className="kicker">Archive</p>
-      <h1 className="headline mt-2 text-4xl">Search</h1>
+      <p className="kicker">{t("search.kicker")}</p>
+      <h1 className="headline mt-2 text-4xl">{t("search.title")}</h1>
 
       <div className="mt-6">
         <SearchForm query={query} options={options} />
@@ -104,18 +110,10 @@ export default async function SearchPage(props: PageProps<"/search">) {
         </p>
       )}
 
-      {!status && (
-        <p className="mt-8 text-sm leading-relaxed text-ink-2">
-          Enter a word or phrase to search published articles, or pick a section, author or
-          date range to browse. Put a phrase in quotes to match it exactly, or put a minus
-          sign before a word to exclude it.
-        </p>
-      )}
+      {!status && <p className="mt-8 text-sm leading-relaxed text-ink-2">{t("search.hint")}</p>}
 
       {(hasQuery || hasFilters) && results.total === 0 && (
-        <p className="mt-2 text-sm text-ink-3">
-          Try fewer words, check the spelling, or widen the date range.
-        </p>
+        <p className="mt-2 text-sm text-ink-3">{t("search.tryFewer")}</p>
       )}
 
       {results.hits.length > 0 && (
@@ -127,20 +125,20 @@ export default async function SearchPage(props: PageProps<"/search">) {
       )}
 
       {results.pageCount > 1 && (
-        <nav className="mt-8 flex items-center justify-between text-sm" aria-label="Search results pages">
+        <nav className="mt-8 flex items-center justify-between text-sm" aria-label={t("search.pages")}>
           {query.page > 1 ? (
             <Link href={searchHref({ ...query, page: query.page - 1 })} className="btn btn-secondary btn-sm gap-1.5">
-              <ArrowLeftIcon size={14} /> Newer matches
+              <ArrowLeftIcon size={14} /> {t("search.newer")}
             </Link>
           ) : (
             <span />
           )}
           <span className="text-ink-3">
-            Page {results.page} of {results.pageCount}
+            {t("search.pageOf", { page: formatNumber(results.page), total: formatNumber(results.pageCount) })}
           </span>
           {query.page < results.pageCount ? (
             <Link href={searchHref({ ...query, page: query.page + 1 })} className="btn btn-secondary btn-sm gap-1.5">
-              Older matches <ArrowRightIcon size={14} />
+              {t("search.older")} <ArrowRightIcon size={14} />
             </Link>
           ) : (
             <span />

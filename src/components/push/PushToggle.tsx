@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BellIcon } from "@/components/icons";
+import { useI18n } from "@/i18n/client";
 
 /**
  * "Get breaking news alerts" — turns Web Push on or off for this browser.
@@ -57,6 +58,7 @@ export function PushToggle({
   /** "button" is a pill; "row" fits a settings list with a description. */
   variant?: "button" | "row";
 }) {
+  const { t } = useI18n();
   const [state, setState] = useState<State>("checking");
   const [publicKey, setPublicKey] = useState<string | null>(null);
 
@@ -132,7 +134,7 @@ export function PushToggle({
 
   const on = state === "on";
   const busy = state === "working";
-  const label = on ? "Breaking news alerts on" : "Get breaking news alerts";
+  const label = on ? t("push.on") : t("push.off");
 
   const button = (
     <button
@@ -146,18 +148,18 @@ export function PushToggle({
       }`}
     >
       <BellIcon size={variant === "button" ? 14 : 16} />
-      {busy ? "One moment…" : label}
+      {busy ? t("common.oneMoment") : label}
     </button>
   );
 
   const note =
     state === "denied"
-      ? "Notifications are blocked for this site in your browser settings."
+      ? t("push.blocked")
       : state === "error"
-        ? "That didn't work. Try again in a moment."
+        ? t("push.error")
         : on
-          ? "This device is alerted when a breaking story goes live. Turn it off any time."
-          : "A notification on this device the moment a breaking story goes live. No account needed.";
+          ? t("push.onNote")
+          : t("push.offNote");
 
   if (variant === "button") {
     return (

@@ -5,6 +5,7 @@ import { SITE_NAME } from "@/lib/siteUrl";
 import { initials } from "@/lib/format";
 import { DashboardNav } from "./DashboardNav";
 import { ExternalIcon, LogoutIcon } from "@/components/icons";
+import { getI18n } from "@/i18n/server";
 
 /**
  * The newsroom shell: a sidebar of tools on the left, the page on the
@@ -19,6 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await auth();
   if (!session?.user) redirect("/login?from=/dashboard");
 
+  const { t } = await getI18n();
   const { name, email, role, mfaEnabled } = session.user;
 
   return (
@@ -28,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/dashboard" className="headline text-xl font-semibold tracking-[-0.02em]">
             {SITE_NAME}
           </Link>
-          <span className="kicker hidden md:inline">Newsroom</span>
+          <span className="kicker hidden md:inline">{t("dashboard.newsroom")}</span>
         </div>
 
         <DashboardNav role={role} mfaEnabled={!!mfaEnabled} locked={role === "ADMIN" && !mfaEnabled} />
@@ -45,7 +47,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
           <div className="flex items-center gap-2 md:mt-3">
             <Link href="/" className="btn btn-ghost btn-sm flex-1 justify-start gap-1.5">
-              <ExternalIcon size={14} /> View site
+              <ExternalIcon size={14} /> {t("dashboard.viewSite")}
             </Link>
             <form
               action={async () => {
@@ -55,7 +57,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               className="flex-1"
             >
               <button className="btn btn-ghost btn-sm w-full justify-start gap-1.5">
-                <LogoutIcon size={14} /> Log out
+                <LogoutIcon size={14} /> {t("common.logout")}
               </button>
             </form>
           </div>

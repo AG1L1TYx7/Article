@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { resetPassword } from "./actions";
 import { AuthCard } from "@/components/AuthCard";
+import { useI18n } from "@/i18n/client";
 
 export default function ResetPasswordPage() {
   return (
@@ -17,6 +18,7 @@ export default function ResetPasswordPage() {
 function ResetPasswordForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -30,7 +32,7 @@ function ResetPasswordForm() {
     const result = await resetPassword(new FormData(e.currentTarget));
     setPending(false);
     if (!result.ok) {
-      setError(result.error ?? "Something went wrong.");
+      setError(result.error ?? t("common.somethingWentWrong"));
       return;
     }
     router.push("/login?reset=1");
@@ -39,25 +41,36 @@ function ResetPasswordForm() {
   if (!token || !email) {
     return (
       <AuthCard
-        title="Link incomplete"
+        title={t("auth.linkIncomplete")}
         footer={
           <Link href="/forgot-password" className="text-link">
-            Request a new reset link
+            {t("auth.requestNewLink")}
           </Link>
         }
       >
-        <p className="text-sm text-ink-2">This reset link is missing required parameters.</p>
+        <p className="text-sm text-ink-2">{t("auth.linkMissingParams")}</p>
       </AuthCard>
     );
   }
 
+  const [before, after = ""] = t("auth.forEmail", { email: "\u0000" }).split("\u0000");
+
   return (
-    <AuthCard title="Choose a new password" intro={<>For <strong className="text-ink">{email}</strong>.</>}>
+    <AuthCard
+      title={t("auth.chooseNewPassword")}
+      intro={
+        <>
+          {before}
+          <strong className="text-ink">{email}</strong>
+          {after}
+        </>
+      }
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <input type="hidden" name="token" value={token} />
         <input type="hidden" name="email" value={email} />
         <label className="field">
-          <span className="label">New password</span>
+          <span className="label">{t("auth.newPassword")}</span>
           <input
             name="password"
             type="password"
@@ -66,7 +79,7 @@ function ResetPasswordForm() {
             minLength={12}
             className="input"
           />
-          <span className="hint">At least 12 characters.</span>
+          <span className="hint">{t("auth.passwordHelp")}</span>
         </label>
         {error && (
           <p className="text-sm text-danger" role="alert">
@@ -74,7 +87,7 @@ function ResetPasswordForm() {
           </p>
         )}
         <button type="submit" disabled={pending} className="btn btn-primary mt-1 w-full py-2.5">
-          {pending ? "Saving…" : "Save new password"}
+          {pending ? t("common.saving") : t("auth.saveNewPassword")}
         </button>
       </form>
     </AuthCard>

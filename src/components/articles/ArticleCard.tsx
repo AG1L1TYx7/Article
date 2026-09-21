@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { formatDate } from "@/lib/format";
 import { imageSrcSet, imageVariantUrl } from "@/lib/imageUrl";
+import { getI18n } from "@/i18n/server";
+import { LOCALE_NAMES, isLocale } from "@/i18n/config";
 
 export interface ArticleCardData {
   id: string;
@@ -9,6 +10,8 @@ export interface ArticleCardData {
   dek: string | null;
   isBreaking?: boolean;
   publishedAt: Date | null;
+  /** The language the story is written in; shown when it differs from the reader's. */
+  locale?: string;
   author: { name: string; handle?: string };
   category?: { name: string; slug?: string } | null;
   coverImage?: { url: string; altText: string | null } | null;
@@ -26,8 +29,11 @@ export type ArticleCardVariant = "lead" | "featured" | "row" | "compact";
  *   featured  an image-first card for a grid
  *   row       a list entry, image to the side when there is one
  *   compact   headline and byline only
+ *
+ * A server component (it reads the request's language), so it is only
+ * ever rendered from server components — which every list page is.
  */
-export function ArticleCard({
+export async function ArticleCard({
   article,
   variant = "row",
   hideCategory,
@@ -36,12 +42,17 @@ export function ArticleCard({
   variant?: ArticleCardVariant;
   hideCategory?: boolean;
 }) {
+  const { locale, t, formatDate } = await getI18n();
   const href = `/article/${article.slug}`;
   const image = article.coverImage;
+  // The story's own language, on the headline, so a screen reader
+  // switches voice — and a small tag when it is not the reader's.
+  const storyLang = article.locale && isLocale(article.locale) ? article.locale : undefined;
+  const foreign = storyLang && storyLang !== locale;
 
   const kicker = (
     <div className="flex items-center gap-2">
-      {article.isBreaking && <span className="badge-breaking">Breaking</span>}
+      {article.isBreaking && <span className="badge-breaking">{t("common.breaking")}</span>}
       {!hideCategory && article.category && (
         <span className="eyebrow">
           {article.category.slug ? (
@@ -51,6 +62,11 @@ export function ArticleCard({
           ) : (
             article.category.name
           )}
+        </span>
+      )}
+      {foreign && (
+        <span className="pill pill-neutral" lang={storyLang}>
+          {LOCALE_NAMES[storyLang]}
         </span>
       )}
     </div>
@@ -93,6 +109,18 @@ export function ArticleCard({
       </Link>
     ) : null;
 
+  const headline = (className: string) => (
+    <Link href={href} className={className} lang={foreign ? storyLang : undefined}>
+      {article.title}
+    </Link>
+  );
+  const dek = (className: string) =>
+    article.dek ? (
+      <p className={className} lang={foreign ? storyLang : undefined}>
+        {article.dek}
+      </p>
+    ) : null;
+
   if (variant === "lead") {
     return (
       <li className="flex flex-col gap-5">
@@ -100,13 +128,9 @@ export function ArticleCard({
         <div className="flex flex-col gap-3">
           {kicker}
           <h2 className="headline text-[34px] leading-[1.08] sm:text-[44px]">
-            <Link href={href} className="hover:underline decoration-line-strong underline-offset-4">
-              {article.title}
-            </Link>
+            {headline("hover:underline decoration-line-strong underline-offset-4")}
           </h2>
-          {article.dek && (
-            <p className="font-serif text-lg leading-snug text-ink-2 sm:text-xl">{article.dek}</p>
-          )}
+          {dek("font-serif text-lg leading-snug text-ink-2 sm:text-xl")}
           {byline}
         </div>
       </li>
@@ -123,16 +147,14 @@ export function ArticleCard({
             aria-hidden="true"
             className="flex aspect-[3/2] w-full items-center justify-center rounded-md bg-surface-2 font-serif text-2xl text-ink-3 italic"
           >
-            {article.category?.name ?? "The Dispatch"}
+            {article.category?.name ?? t("common.siteName")}
           </div>
         )}
         {kicker}
         <h2 className="headline text-2xl leading-tight">
-          <Link href={href} className="hover:underline decoration-line-strong underline-offset-4">
-            {article.title}
-          </Link>
+          {headline("hover:underline decoration-line-strong underline-offset-4")}
         </h2>
-        {article.dek && <p className="line-clamp-3 text-sm leading-relaxed text-ink-2">{article.dek}</p>}
+        {dek("line-clamp-3 text-sm leading-relaxed text-ink-2")}
         {byline}
       </li>
     );
@@ -143,9 +165,7 @@ export function ArticleCard({
       <li className="flex flex-col gap-1.5">
         {kicker}
         <h3 className="headline text-lg leading-snug">
-          <Link href={href} className="hover:underline decoration-line-strong underline-offset-4">
-            {article.title}
-          </Link>
+          {headline("hover:underline decoration-line-strong underline-offset-4")}
         </h3>
         {byline}
       </li>
@@ -157,11 +177,9 @@ export function ArticleCard({
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {kicker}
         <h2 className="headline text-[22px] leading-snug">
-          <Link href={href} className="hover:underline decoration-line-strong underline-offset-4">
-            {article.title}
-          </Link>
+          {headline("hover:underline decoration-line-strong underline-offset-4")}
         </h2>
-        {article.dek && <p className="line-clamp-2 text-[15px] leading-relaxed text-ink-2">{article.dek}</p>}
+        {dek("line-clamp-2 text-[15px] leading-relaxed text-ink-2")}
         {byline}
       </div>
       {picture("aspect-[4/3] w-24 shrink-0 self-start sm:w-40", "160px")}

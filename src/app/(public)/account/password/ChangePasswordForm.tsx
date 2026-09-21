@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { changePassword } from "./actions";
+import { useI18n } from "@/i18n/client";
 
 export function ChangePasswordForm({ required, next }: { required: boolean; next: string }) {
+  const { t } = useI18n();
   const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,7 +19,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
     const result = await changePassword({ current, next: password, confirm });
     setPending(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't change the password.");
+      setError(result.error ?? t("password.couldntChange"));
       return;
     }
     // A full navigation: the session token is re-read on the next request
@@ -30,7 +32,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className="field">
-        <span className="label">{required ? "Temporary password" : "Current password"}</span>
+        <span className="label">{required ? t("password.temporary") : t("password.current")}</span>
         <input
           name="current"
           type="password"
@@ -43,7 +45,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
         />
       </label>
       <label className="field">
-        <span className="label">New password</span>
+        <span className="label">{t("password.new")}</span>
         <input
           name="next"
           type="password"
@@ -55,12 +57,10 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
           maxLength={256}
           className="input"
         />
-        <span className={`hint ${password && !strong ? "text-warn" : ""}`}>
-          At least 12 characters. Length beats symbols — a short phrase you will remember is ideal.
-        </span>
+        <span className={`hint ${password && !strong ? "text-warn" : ""}`}>{t("password.hint")}</span>
       </label>
       <label className="field">
-        <span className="label">New password again</span>
+        <span className="label">{t("password.newAgain")}</span>
         <input
           name="confirm"
           type="password"
@@ -70,7 +70,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
           required
           className="input"
         />
-        {confirm && confirm !== password && <span className="hint text-warn">These don&apos;t match yet.</span>}
+        {confirm && confirm !== password && <span className="hint text-warn">{t("password.mismatch")}</span>}
       </label>
       {error && (
         <p className="text-sm text-danger" role="alert">
@@ -82,7 +82,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
         disabled={pending || !strong || confirm !== password || !current}
         className="btn btn-primary mt-1 w-full py-2.5"
       >
-        {pending ? "Saving…" : required ? "Set my password and continue" : "Change password"}
+        {pending ? t("common.saving") : required ? t("password.setAndContinue") : t("password.change")}
       </button>
     </form>
   );

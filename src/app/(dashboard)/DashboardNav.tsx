@@ -14,10 +14,12 @@ import {
   TagIcon,
   UsersIcon,
 } from "@/components/icons";
+import { useI18n } from "@/i18n/client";
+import type { MessageKey } from "@/i18n/t";
 
 interface Item {
   href: string;
-  label: string;
+  label: MessageKey;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   adminOnly?: boolean;
   /** Match on exactly this path rather than any path beneath it. */
@@ -25,14 +27,14 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
-  { href: "/dashboard", label: "Overview", icon: HomeIcon, exact: true },
-  { href: "/dashboard/articles", label: "Articles", icon: PenIcon },
-  { href: "/dashboard/comments", label: "Comment moderation", icon: MessageIcon },
-  { href: "/dashboard/analytics", label: "Analytics", icon: ChartIcon },
-  { href: "/dashboard/categories", label: "Categories", icon: TagIcon, adminOnly: true },
-  { href: "/dashboard/users", label: "People", icon: UsersIcon, adminOnly: true },
-  { href: "/dashboard/audit-log", label: "Audit log", icon: ListIcon, adminOnly: true },
-  { href: "/dashboard/settings", label: "Settings", icon: SlidersIcon, adminOnly: true },
+  { href: "/dashboard", label: "dashboard.overview", icon: HomeIcon, exact: true },
+  { href: "/dashboard/articles", label: "dashboard.articles", icon: PenIcon },
+  { href: "/dashboard/comments", label: "dashboard.commentModeration", icon: MessageIcon },
+  { href: "/dashboard/analytics", label: "dashboard.analytics", icon: ChartIcon },
+  { href: "/dashboard/categories", label: "dashboard.categories", icon: TagIcon, adminOnly: true },
+  { href: "/dashboard/users", label: "dashboard.people", icon: UsersIcon, adminOnly: true },
+  { href: "/dashboard/audit-log", label: "dashboard.auditLog", icon: ListIcon, adminOnly: true },
+  { href: "/dashboard/settings", label: "dashboard.settings", icon: SlidersIcon, adminOnly: true },
 ];
 
 const MFA_HREF = "/dashboard/mfa";
@@ -53,20 +55,21 @@ export function DashboardNav({
   locked?: boolean;
 }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const isAdmin = role === "ADMIN";
 
   const items: Item[] = [
     ...ITEMS.filter((item) => !item.adminOnly || isAdmin),
     {
       href: MFA_HREF,
-      label: mfaEnabled ? "Manage two-factor authentication" : "Set up two-factor authentication",
+      label: mfaEnabled ? "dashboard.manageTwoFactor" : "dashboard.setUpTwoFactor",
       icon: ShieldIcon,
     },
   ];
 
   return (
     <nav
-      aria-label="Newsroom"
+      aria-label={t("dashboard.newsroom")}
       className="flex gap-1 overflow-x-auto px-3 pb-3 [scrollbar-width:none] md:flex-col md:px-3 md:pb-0 [&::-webkit-scrollbar]:hidden"
     >
       {items.map(({ href, label, icon: Icon, exact }) => {
@@ -81,11 +84,11 @@ export function DashboardNav({
             <span
               key={href}
               aria-disabled="true"
-              title="Set up two-factor authentication first"
+              title={t("dashboard.setUpTwoFactorFirst")}
               className={`${classes} cursor-not-allowed opacity-50 hover:bg-transparent hover:text-ink-2`}
             >
               <LockIcon size={16} className="shrink-0" />
-              <span className="whitespace-nowrap md:whitespace-normal">{label}</span>
+              <span className="whitespace-nowrap md:whitespace-normal">{t(label)}</span>
             </span>
           );
         }
@@ -93,7 +96,7 @@ export function DashboardNav({
         return (
           <Link key={href} href={href} aria-current={active ? "page" : undefined} className={classes}>
             <Icon size={16} className="shrink-0" />
-            <span className="whitespace-nowrap md:whitespace-normal">{label}</span>
+            <span className="whitespace-nowrap md:whitespace-normal">{t(label)}</span>
           </Link>
         );
       })}

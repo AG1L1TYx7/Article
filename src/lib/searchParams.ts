@@ -5,12 +5,13 @@
  * the URL. Parsing lives here so the page, the form and the pagination
  * links all agree on what a parameter means.
  */
+/** `label` is a message key; the form and the results line translate it. */
 export const DATE_RANGES = [
-  { value: "", label: "Any time" },
-  { value: "24h", label: "Past 24 hours" },
-  { value: "week", label: "Past week" },
-  { value: "month", label: "Past month" },
-  { value: "year", label: "Past year" },
+  { value: "", label: "search.anyTime" },
+  { value: "24h", label: "search.past24h" },
+  { value: "week", label: "search.pastWeek" },
+  { value: "month", label: "search.pastMonth" },
+  { value: "year", label: "search.pastYear" },
 ] as const;
 
 export type DateRange = (typeof DATE_RANGES)[number]["value"];

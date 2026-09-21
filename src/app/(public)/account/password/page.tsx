@@ -6,6 +6,7 @@ import { safeRedirectPath } from "@/lib/safeRedirect";
 import { one } from "@/lib/searchParams";
 import { AuthCard } from "@/components/AuthCard";
 import { ChangePasswordForm } from "./ChangePasswordForm";
+import { getI18n } from "@/i18n/server";
 
 export const metadata: Metadata = {
   title: "Change password",
@@ -21,6 +22,7 @@ export default async function ChangePasswordPage(props: PageProps<"/account/pass
   const session = await auth();
   if (!session?.user) redirect("/login?from=/account/password");
 
+  const { t } = await getI18n();
   const params = await props.searchParams;
   const required = session.user.mustChangePassword || one(params.required) === "1";
   const isStaff = session.user.role === "ADMIN" || session.user.role === "MODERATOR";
@@ -29,16 +31,12 @@ export default async function ChangePasswordPage(props: PageProps<"/account/pass
   return (
     <div className="flex justify-center px-4 pt-10 pb-16 sm:px-6">
       <AuthCard
-        title={required ? "Choose your own password" : "Change password"}
-        intro={
-          required
-            ? "You signed in with a temporary password. Pick one that is yours before going any further — nothing else on the site opens until you do."
-            : "Your password is asked for at every sign-in, on every device."
-        }
+        title={required ? t("password.chooseOwn") : t("password.change")}
+        intro={required ? t("password.requiredIntro") : t("password.intro")}
         footer={
           required ? undefined : (
             <Link href="/account" className="text-link">
-              Back to your account
+              {t("password.backToAccount")}
             </Link>
           )
         }

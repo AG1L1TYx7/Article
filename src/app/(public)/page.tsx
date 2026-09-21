@@ -6,6 +6,7 @@ import { ArticleCard } from "@/components/articles/ArticleCard";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { daysAgo } from "@/lib/timeWindow";
 import { ArrowRightIcon } from "@/components/icons";
+import { getI18n } from "@/i18n/server";
 
 const CARD_SELECT = {
   id: true,
@@ -14,12 +15,15 @@ const CARD_SELECT = {
   dek: true,
   isBreaking: true,
   publishedAt: true,
+  locale: true,
   author: { select: { name: true, handle: true } },
   category: { select: { name: true, slug: true } },
   coverImage: { select: { url: true, altText: true } },
 } as const;
 
 export default async function Home() {
+  const { t } = await getI18n();
+
   // Rendered on every request (the root layout forces dynamic rendering
   // for the whole site), so what a reader sees is always the database as
   // it is now. The fallback is for a database outage — and for `next
@@ -70,6 +74,7 @@ export default async function Home() {
         return { sources, items };
       })()
     : null;
+
   // The image-led row takes the next three stories that have a cover, so
   // the grid is three pictures rather than two pictures and a gap.
   const remaining = rest.slice(3);
@@ -79,19 +84,19 @@ export default async function Home() {
   if (!lead) {
     return (
       <main id="main-content" className="mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
-        <p className="eyebrow">Latest</p>
-        <h1 className="headline mt-3 text-4xl">Nothing published yet.</h1>
-        <p className="mt-3 text-ink-2">The first story will appear here the moment it goes live.</p>
+        <p className="eyebrow">{t("common.latest")}</p>
+        <h1 className="headline mt-3 text-4xl">{t("home.nothingYet")}</h1>
+        <p className="mt-3 text-ink-2">{t("home.firstStory")}</p>
       </main>
     );
   }
 
   return (
     <main id="main-content" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6 sm:pt-10">
-      <h1 className="sr-only">Latest</h1>
+      <h1 className="sr-only">{t("common.latest")}</h1>
 
       {/* Top of the page: the lead story and the three after it. */}
-      <section aria-label="Top stories" className="grid gap-10 lg:grid-cols-[1.55fr_1fr] lg:gap-14">
+      <section aria-label={t("home.topStories")} className="grid gap-10 lg:grid-cols-[1.55fr_1fr] lg:gap-14">
         <ul>
           <ArticleCard article={lead} variant="lead" />
         </ul>
@@ -108,10 +113,10 @@ export default async function Home() {
         <section aria-labelledby="for-you-heading" className="mt-14 border-t border-line pt-10">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 id="for-you-heading" className="section-title">
-              From writers and sections you follow
+              {t("home.forYou")}
             </h2>
             <Link href="/following" className="text-link inline-flex items-center gap-1 text-sm">
-              Everything you follow <ArrowRightIcon size={14} />
+              {t("home.everythingYouFollow")} <ArrowRightIcon size={14} />
             </Link>
           </div>
           {forYou.items.length > 0 ? (
@@ -121,13 +126,13 @@ export default async function Home() {
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-ink-2">Nothing new from them beyond the stories above.</p>
+            <p className="mt-4 text-sm text-ink-2">{t("home.nothingNewFromFollows")}</p>
           )}
         </section>
       )}
 
       {featured.length > 0 && (
-        <section aria-label="Featured" className="mt-14 border-t border-line pt-10">
+        <section aria-label={t("home.featured")} className="mt-14 border-t border-line pt-10">
           <ul className="grid gap-10 md:grid-cols-3">
             {featured.map((article) => (
               <ArticleCard key={article.id} article={article} variant="featured" />
@@ -139,7 +144,7 @@ export default async function Home() {
       {latest.length > 0 && (
         <section aria-labelledby="latest-heading" className="mt-16">
           <h2 id="latest-heading" className="section-title">
-            More stories
+            {t("home.moreStories")}
           </h2>
           <ul className="mt-2 grid gap-x-12 md:grid-cols-2 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
             {latest.map((article) => (
@@ -151,7 +156,7 @@ export default async function Home() {
 
       <div className="mt-12 flex justify-center">
         <Link href="/search" className="btn btn-secondary gap-2">
-          Search the archive <ArrowRightIcon size={16} />
+          {t("home.searchArchive")} <ArrowRightIcon size={16} />
         </Link>
       </div>
     </main>

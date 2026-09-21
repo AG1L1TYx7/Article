@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { BookmarkIcon } from "@/components/icons";
-import { plural } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
 
 export const metadata: Metadata = {
   title: "Saved articles",
@@ -15,6 +15,8 @@ export const metadata: Metadata = {
 export default async function SavedPage() {
   const session = await auth();
   if (!session?.user) redirect("/login?from=/saved");
+
+  const { t, n } = await getI18n();
 
   const bookmarks = await db.bookmark.findMany({
     where: { userId: session.user.id },
@@ -29,6 +31,7 @@ export default async function SavedPage() {
           dek: true,
           status: true,
           publishedAt: true,
+          locale: true,
           author: { select: { name: true, handle: true } },
           category: { select: { name: true, slug: true } },
           coverImage: { select: { url: true, altText: true } },
@@ -44,10 +47,10 @@ export default async function SavedPage() {
 
   return (
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
-      <p className="kicker">Your reading list</p>
-      <h1 className="headline mt-2 text-4xl">Saved articles</h1>
+      <p className="kicker">{t("saved.kicker")}</p>
+      <h1 className="headline mt-2 text-4xl">{t("saved.title")}</h1>
       {readable.length > 0 && (
-        <p className="mt-2 text-sm text-ink-3">{plural(readable.length, "article")}</p>
+        <p className="mt-2 text-sm text-ink-3">{n(readable.length, "common.articles")}</p>
       )}
 
       {readable.length === 0 && (
@@ -55,12 +58,10 @@ export default async function SavedPage() {
           <span className="avatar h-12 w-12">
             <BookmarkIcon size={20} />
           </span>
-          <p className="mt-4 font-medium">Nothing saved yet</p>
-          <p className="mt-1 max-w-sm text-sm text-ink-2">
-            Use <strong>Save</strong> on any article to keep it here for later.
-          </p>
+          <p className="mt-4 font-medium">{t("saved.nothingYet")}</p>
+          <p className="mt-1 max-w-sm text-sm text-ink-2">{t("saved.howTo")}</p>
           <Link href="/" className="btn btn-secondary mt-6">
-            Browse the front page
+            {t("saved.browse")}
           </Link>
         </div>
       )}

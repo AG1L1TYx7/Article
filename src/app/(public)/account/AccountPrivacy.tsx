@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteMyAccount, updateProfile } from "./actions";
 import { PenIcon, TrashIcon } from "@/components/icons";
+import { useI18n } from "@/i18n/client";
 
 /**
  * The rights a person can exercise without asking anyone: correct their
@@ -14,6 +15,7 @@ import { PenIcon, TrashIcon } from "@/components/icons";
  */
 export function AccountPrivacy({ name: initialName, canDelete }: { name: string; canDelete: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(initialName);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -25,6 +27,11 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // The confirmation phrase is the same in every language, so it can be
+  // documented once and checked once.
+  const phrase = t("account.deletePhrase");
+  const [blurbBefore, blurbAfter] = t("account.yourDataBlurb").split("{privacyPolicy}");
+
   async function saveName(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSavingName(true);
@@ -32,7 +39,7 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
     const result = await updateProfile({ name });
     setSavingName(false);
     if (!result.ok) {
-      setNameError(result.error ?? "Couldn't save that.");
+      setNameError(result.error ?? t("account.couldntSaveThat"));
       return;
     }
     setEditing(false);
@@ -46,7 +53,7 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
     const result = await deleteMyAccount({ password });
     if (!result.ok) {
       setDeleting(false);
-      setDeleteError(result.error ?? "Couldn't delete the account.");
+      setDeleteError(result.error ?? t("account.couldntDelete"));
       return;
     }
     // A full navigation on purpose: the session no longer exists, and a
@@ -57,20 +64,20 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
   return (
     <section className="card mt-4 p-6" aria-labelledby="privacy-heading">
       <h2 id="privacy-heading" className="text-lg font-medium">
-        Your data
+        {t("account.yourData")}
       </h2>
       <p className="mt-1 text-sm text-ink-2">
-        Everything here is yours to see, correct and remove. The{" "}
+        {blurbBefore}
         <Link href="/privacy" className="text-link">
-          privacy policy
-        </Link>{" "}
-        says what is held and why.
+          {t("account.privacyPolicy")}
+        </Link>
+        {blurbAfter}
       </p>
 
       <dl className="mt-5 divide-y divide-line border-t border-line">
         <div className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div className="min-w-0">
-            <dt className="text-sm font-medium">Name</dt>
+            <dt className="text-sm font-medium">{t("common.name")}</dt>
             {editing ? (
               <form onSubmit={saveName} className="mt-2 flex flex-wrap items-center gap-2">
                 <input
@@ -79,11 +86,11 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
                   required
                   maxLength={120}
                   autoFocus
-                  aria-label="Name"
+                  aria-label={t("common.name")}
                   className="input w-64"
                 />
                 <button type="submit" disabled={savingName || !name.trim()} className="btn btn-primary btn-sm">
-                  {savingName ? "Saving…" : "Save"}
+                  {savingName ? t("common.saving") : t("common.save")}
                 </button>
                 <button
                   type="button"
@@ -94,7 +101,7 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
                   }}
                   className="btn btn-ghost btn-sm"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 {nameError && (
                   <span className="text-xs text-danger" role="alert">
@@ -108,51 +115,48 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
           </div>
           {!editing && (
             <button type="button" onClick={() => setEditing(true)} className="btn btn-secondary btn-sm gap-1">
-              <PenIcon size={14} /> Edit
+              <PenIcon size={14} /> {t("common.edit")}
             </button>
           )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div>
-            <dt className="text-sm font-medium">Download your data</dt>
-            <dd className="text-sm text-ink-2">
-              Your account details, comments, likes, saved articles, follows and sign-in history, as a JSON file.
-            </dd>
+            <dt className="text-sm font-medium">{t("account.downloadData")}</dt>
+            <dd className="text-sm text-ink-2">{t("account.downloadDataBlurb")}</dd>
           </div>
           <a href="/account/data" download className="btn btn-secondary btn-sm">
-            Download
+            {t("account.download")}
           </a>
         </div>
 
         <div className="py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <dt className="text-sm font-medium">Delete your account</dt>
+              <dt className="text-sm font-medium">{t("account.deleteAccount")}</dt>
               <dd className="text-sm text-ink-2">
-                {canDelete
-                  ? "Erases your name, email, password and settings immediately and removes your comments. This cannot be undone."
-                  : "This account has written articles. Ask an admin to reassign them first; then the account can be deleted."}
+                {canDelete ? t("account.deleteBlurb") : t("account.deleteBlockedByArticles")}
               </dd>
             </div>
             {canDelete && !confirming && (
               <button type="button" onClick={() => setConfirming(true)} className="btn btn-danger btn-sm gap-1">
-                <TrashIcon size={14} /> Delete account
+                <TrashIcon size={14} /> {t("account.deleteButton")}
               </button>
             )}
           </div>
 
           {confirming && (
             <form onSubmit={remove} className="alert alert-danger mt-4 flex flex-col gap-3">
-              <p className="font-medium">This is permanent.</p>
+              <p className="font-medium">{t("account.permanent")}</p>
               <label className="field">
                 <span className="text-sm">
-                  Type <strong>delete my account</strong> to confirm
+                  {t("account.typeToConfirm", { phrase: "" }).replace(/\s{2,}/g, " ").trim()}{" "}
+                  <strong>{phrase}</strong>
                 </span>
                 <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className="input" />
               </label>
               <label className="field">
-                <span className="text-sm">Your password</span>
+                <span className="text-sm">{t("account.yourPassword")}</span>
                 <input
                   type="password"
                   autoComplete="current-password"
@@ -170,10 +174,10 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  disabled={deleting || typed.trim().toLowerCase() !== "delete my account" || !password}
+                  disabled={deleting || typed.trim().toLowerCase() !== phrase || !password}
                   className="btn btn-danger btn-sm"
                 >
-                  {deleting ? "Deleting…" : "Delete my account"}
+                  {deleting ? t("account.deleting") : t("account.deleteMyAccount")}
                 </button>
                 <button
                   type="button"
@@ -185,7 +189,7 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
                   }}
                   className="btn btn-ghost btn-sm"
                 >
-                  Keep my account
+                  {t("account.keepMyAccount")}
                 </button>
               </div>
             </form>

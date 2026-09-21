@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOCALES } from "@/i18n/config";
 
 // Two characters, not three: "ai", "eu" and "us" are real section names,
 // and search already indexes two-letter words for the same reason.
@@ -34,6 +35,17 @@ export const articleInputSchema = z.object({
   // Search-result title and description. Google truncates around 60 and
   // 160 characters; the limits leave a little room rather than enforcing
   // the exact cut-off, which changes.
+  // The language the story is written in (its own, not the reader's).
+  locale: z.enum(LOCALES).optional(),
+  // The slug of the article this one translates, so the two link to each
+  // other and search engines see them as one story in two languages.
+  // Empty means "not a translation".
+  translationOfSlug: z
+    .string()
+    .max(160)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Enter the other article's slug, e.g. budget-vote-2026.")
+    .optional()
+    .or(z.literal("")),
   seoTitle: z.string().max(70).optional(),
   seoDescription: z.string().max(170).optional(),
   // ISO timestamp. Set (in the future) to schedule; absent to leave the

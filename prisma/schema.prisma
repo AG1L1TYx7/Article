@@ -154,6 +154,12 @@ model Article {
   authorId   String
   categoryId String?
 
+  // Links a translation to the article it translates. A story published
+  // in one language and then translated is two Article rows, each with
+  // its own slug, body and locale, joined here so the page can offer
+  // "Read this in …" and emit hreflang alternates. See docs/i18n.md.
+  translationOfId String?
+
   publishedAt   DateTime?
   scheduledFor  DateTime?
   createdAt     DateTime  @default(now())
@@ -162,6 +168,8 @@ model Article {
   author   User      @relation("ArticleAuthor", fields: [authorId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
   coverImage Media?  @relation("ArticleCoverImage", fields: [coverImageId], references: [id])
+  translationOf Article?  @relation("ArticleTranslations", fields: [translationOfId], references: [id], onDelete: SetNull)
+  translations  Article[] @relation("ArticleTranslations")
 
   tags     ArticleTag[]
   media    Media[]      @relation("ArticleMedia")

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { ToggleResult } from "./actions";
+import { useI18n } from "@/i18n/client";
 
 /**
  * Shared on/off control for likes, bookmarks and follows.
@@ -32,6 +33,7 @@ export function ToggleButton({
   icon?: React.ReactNode;
   size?: "sm" | "md";
 }) {
+  const { t } = useI18n();
   const [active, setActive] = useState(initialActive);
   const [count, setCount] = useState(initialCount);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function ToggleButton({
       if (!result.ok) {
         setActive(previousActive);
         setCount(previousCount);
-        setError(result.error ?? "That didn't work.");
+        setError(result.error ?? t("engagement.didntWork"));
         return;
       }
       if (typeof result.active === "boolean") setActive(result.active);

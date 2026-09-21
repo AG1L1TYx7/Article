@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BellIcon } from "./icons";
+import { useI18n } from "@/i18n/client";
 
 /**
  * The header's Notifications link, with an unread count.
@@ -15,6 +16,7 @@ import { BellIcon } from "./icons";
  * better than showing a wrong one.
  */
 export function NotificationsLink() {
+  const { t, formatNumber } = useI18n();
   const [count, setCount] = useState<number | null>(null);
   const pathname = usePathname();
   // Guards against a slow response landing after the component has gone,
@@ -44,15 +46,15 @@ export function NotificationsLink() {
   const unread = count !== null && count > 0;
 
   return (
-    <Link href="/notifications" className="btn btn-ghost btn-icon relative" aria-label="Notifications">
+    <Link href="/notifications" className="btn btn-ghost btn-icon relative" aria-label={t("header.notifications")}>
       <BellIcon size={18} />
       {/* The accessible name stays "Notifications" whether or not the
           badge is showing; the count is read out after it. */}
-      <span className="sr-only">Notifications</span>
+      <span className="sr-only">{t("header.notifications")}</span>
       {unread && (
         <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white ring-2 ring-paper">
-          {count > 99 ? "99+" : count}
-          <span className="sr-only"> unread</span>
+          {count > 99 ? "99+" : formatNumber(count)}
+          <span className="sr-only"> {t("header.unread")}</span>
         </span>
       )}
     </Link>

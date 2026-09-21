@@ -134,6 +134,22 @@ function scheduleFields(
   return { data: {} };
 }
 
+/**
+ * Turns the "translation of" slug into an article id. Refuses a slug
+ * that does not exist (a silent null would look like the field was
+ * ignored) and an article pointing at itself.
+ */
+async function resolveTranslationOf(
+  slug: string | undefined,
+  selfId: string | null
+): Promise<{ id: string | null } | { error: string }> {
+  if (!slug) return { id: null };
+  const original = await db.article.findUnique({ where: { slug }, select: { id: true } });
+  if (!original) return { error: `No article has the slug "${slug}".` };
+  if (original.id === selfId) return { error: "An article cannot be a translation of itself." };
+  return { id: original.id };
+}
+
 export async function createArticle(input: ArticleInput): Promise<ArticleActionResult> {
   return guardAction(async () => {
     const session = await requireRole("MODERATOR");
@@ -151,9 +167,14 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
     const schedule = scheduleFields(data, null, session.user.emailConfirmed);
     if (schedule.error) return { ok: false, error: schedule.error };
 
+    const translationOf = await resolveTranslationOf(data.translationOfSlug || undefined, null);
+    if ("error" in translationOf) return { ok: false, error: translationOf.error };
+
     const article = await db.article.create({
       data: {
         title: data.title,
+        locale: data.locale ?? "en",
+        translationOfId: translationOf.id,
         dek: data.dek,
         slug,
         bodyJson: data.bodyJson as object,
@@ -214,6 +235,9 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
     const schedule = scheduleFields(data, article, session.user.emailConfirmed);
     if (schedule.error) return { ok: false, error: schedule.error };
 
+    const translationOf = await resolveTranslationOf(data.translationOfSlug || undefined, articleId);
+    if ("error" in translationOf) return { ok: false, error: translationOf.error };
+
     await db.article.update({
       where: { id: articleId },
       data: {
@@ -233,6 +257,8 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
         isBreaking: data.isBreaking ?? false,
         seoTitle: data.seoTitle?.trim() || null,
         seoDescription: data.seoDescription?.trim() || null,
+        locale: data.locale ?? "en",
+        translationOfId: translationOf.id,
         ...schedule.data,
       },
     });

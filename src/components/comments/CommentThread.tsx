@@ -8,7 +8,8 @@ import { useCommentNotice } from "./CommentNotice";
 import { ToggleButton } from "@/components/engagement/ToggleButton";
 import { toggleCommentLike } from "@/components/engagement/actions";
 import { HeartIcon } from "@/components/icons";
-import { formatDate, initials } from "@/lib/format";
+import { initials } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 
 /** Replies shown under a comment before the rest fold behind a button. */
 const REPLIES_SHOWN = 3;
@@ -53,6 +54,7 @@ export function CommentThread({
   depth?: number;
 }) {
   const router = useRouter();
+  const { t, n, formatDate } = useI18n();
   const [replying, setReplying] = useState(false);
   const [reported, setReported] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -95,7 +97,7 @@ export function CommentThread({
             onClick={() => setShowAllReplies(true)}
             className="btn btn-ghost btn-sm mt-3 ml-4 gap-1 text-ink-2 sm:ml-5"
           >
-            Show {foldedReplies} more {foldedReplies === 1 ? "reply" : "replies"}
+            {n(foldedReplies, "comments.showMoreReplies")}
           </button>
         )}
       </>
@@ -104,7 +106,7 @@ export function CommentThread({
   if (comment.deleted) {
     return (
       <li id={`comment-${comment.id}`} className={indent}>
-        <p className="text-sm text-ink-3 italic">This comment was deleted by its author.</p>
+        <p className="text-sm text-ink-3 italic">{t("comments.deletedByAuthor")}</p>
         {replies}
       </li>
     );
@@ -122,7 +124,7 @@ export function CommentThread({
     setPending(false);
 
     if (!result.ok) {
-      setError(result.error ?? "Couldn't save that edit.");
+      setError(result.error ?? t("comments.couldntSave"));
       return;
     }
 
@@ -131,7 +133,7 @@ export function CommentThread({
       // An edit can send an already-public comment back to the queue, at
       // which point this comment is dropped from the rendered thread. Say
       // so rather than letting it vanish without explanation.
-      setNotice("Edited — a moderator will review it before it reappears.");
+      setNotice(t("comments.editedPending"));
     }
     router.refresh();
   }
@@ -142,7 +144,7 @@ export function CommentThread({
     const result = await deleteOwnComment(comment.id);
     setPending(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't delete that comment.");
+      setError(result.error ?? t("comments.couldntDelete"));
       return;
     }
     router.refresh();
@@ -155,17 +157,17 @@ export function CommentThread({
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
             <span className="font-medium text-ink">{comment.authorName}</span>
-            {comment.isOwn && <span className="pill pill-neutral">You</span>}
+            {comment.isOwn && <span className="pill pill-neutral">{t("common.you")}</span>}
             <span className="text-xs text-ink-3">
               <time dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>
-              {comment.editedAt && " · edited"}
+              {comment.editedAt && ` · ${t("comments.edited")}`}
             </span>
           </p>
 
           {editing ? (
             <form onSubmit={saveEdit} className="mt-2 flex flex-col gap-2">
               <label htmlFor={`edit-${comment.id}`} className="sr-only">
-                Edit your comment
+                {t("comments.editYourComment")}
               </label>
               <textarea
                 id={`edit-${comment.id}`}
@@ -184,7 +186,7 @@ export function CommentThread({
                   disabled={pending || draft.trim().length < 2}
                   className="btn btn-primary btn-sm"
                 >
-                  {pending ? "Saving…" : "Save changes"}
+                  {pending ? t("common.saving") : t("comments.saveChanges")}
                 </button>
                 <button
                   type="button"
@@ -195,7 +197,7 @@ export function CommentThread({
                   }}
                   className="btn btn-ghost btn-sm"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </form>
@@ -223,27 +225,27 @@ export function CommentThread({
             <ToggleButton
               initialActive={comment.likedByViewer}
               initialCount={comment.likeCount}
-              activeLabel="Liked"
-              inactiveLabel="Like"
+              activeLabel={t("engagement.liked")}
+              inactiveLabel={t("engagement.like")}
               icon={<HeartIcon size={14} />}
               size="sm"
               action={() => toggleCommentLike(comment.id)}
               disabled={!canReply}
-              disabledTitle="Log in to like comments"
+              disabledTitle={t("engagement.loginToLikeComments")}
             />
             {canReply && (
               <button onClick={() => setReplying((v) => !v)} className="btn btn-ghost btn-sm">
-                {replying ? "Cancel" : "Reply"}
+                {replying ? t("common.cancel") : t("comments.reply")}
               </button>
             )}
             {canManage && comment.editable && !editing && (
               <button onClick={() => setEditing(true)} className="btn btn-ghost btn-sm">
-                Edit
+                {t("common.edit")}
               </button>
             )}
             {canManage && (
               <button onClick={remove} disabled={pending} className="btn btn-ghost btn-sm">
-                Delete
+                {t("common.delete")}
               </button>
             )}
             {/* You can't report yourself, and offering it makes no sense. */}
@@ -256,7 +258,7 @@ export function CommentThread({
                 }}
                 className="btn btn-ghost btn-sm text-ink-3 disabled:opacity-100"
               >
-                {reported ? "Reported — thank you" : "Report"}
+                {reported ? t("comments.reported") : t("comments.report")}
               </button>
             )}
           </div>

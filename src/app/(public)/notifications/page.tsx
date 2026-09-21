@@ -5,8 +5,9 @@ import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { MarkAllReadButton } from "./MarkAllReadButton";
 import { BellIcon, MessageIcon, CheckIcon } from "@/components/icons";
-import { formatDateTime, initials } from "@/lib/format";
+import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
+import { getI18n } from "@/i18n/server";
 
 export const metadata: Metadata = {
   title: "Notifications",
@@ -18,6 +19,8 @@ const PAGE_SIZE = 50;
 export default async function NotificationsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login?callbackUrl=/notifications");
+
+  const { t, formatDateTime, formatNumber } = await getI18n();
 
   const notifications = await db.notification.findMany({
     // Scoped to the signed-in reader. Notifications are per-person by
@@ -43,9 +46,11 @@ export default async function NotificationsPage() {
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="kicker">Activity</p>
-          <h1 className="headline mt-2 text-4xl">Notifications</h1>
-          {unread > 0 && <p className="mt-2 text-sm text-ink-3">{unread} unread</p>}
+          <p className="kicker">{t("notifications.kicker")}</p>
+          <h1 className="headline mt-2 text-4xl">{t("notifications.title")}</h1>
+          {unread > 0 && (
+            <p className="mt-2 text-sm text-ink-3">{t("notifications.unread", { count: formatNumber(unread) })}</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PushToggle variant="button" />
@@ -58,10 +63,8 @@ export default async function NotificationsPage() {
           <span className="avatar h-12 w-12">
             <BellIcon size={20} />
           </span>
-          <p className="mt-4 font-medium">Nothing yet</p>
-          <p className="mt-1 max-w-sm text-sm text-ink-2">
-            When someone replies to one of your comments, it will show up here.
-          </p>
+          <p className="mt-4 font-medium">{t("notifications.nothingYet")}</p>
+          <p className="mt-1 max-w-sm text-sm text-ink-2">{t("notifications.howTo")}</p>
         </div>
       )}
 
@@ -76,10 +79,10 @@ export default async function NotificationsPage() {
 
           const headline =
             n.type === "COMMENT_REPLY"
-              ? `${n.actor?.name ?? "Someone"} replied to your comment`
+              ? t("notifications.replied", { name: n.actor?.name ?? t("notifications.someone") })
               : n.type === "BREAKING_NEWS"
-                ? "Breaking news"
-                : "Your comment was approved and is now public";
+                ? t("notifications.breakingNews")
+                : t("notifications.approved");
 
           const glyph =
             n.type === "COMMENT_REPLY" ? (
@@ -102,13 +105,13 @@ export default async function NotificationsPage() {
               {glyph}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-ink">
-                  {!n.readAt && <span className="sr-only">Unread: </span>}
+                  {!n.readAt && <span className="sr-only">{t("notifications.unreadPrefix")} </span>}
                   {headline}
                 </p>
 
                 {n.article && (
                   <p className="mt-0.5 text-xs text-ink-3">
-                    on{" "}
+                    {t("notifications.on")}{" "}
                     <span className="font-serif text-[13px] text-ink-2 italic">“{n.article.title}”</span>
                   </p>
                 )}
@@ -125,7 +128,7 @@ export default async function NotificationsPage() {
                   <time dateTime={n.createdAt.toISOString()}>{formatDateTime(n.createdAt)}</time>
                   {href && (
                     <Link href={href} className="text-link">
-                      View in thread
+                      {t("notifications.viewInThread")}
                     </Link>
                   )}
                 </p>

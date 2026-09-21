@@ -16,6 +16,8 @@ import { ArticleEngagement } from "@/components/engagement/ArticleEngagement";
 import { auth } from "@/lib/auth/config";
 import { getBaseUrl } from "@/lib/url";
 import { readingTime } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
+import { OG_LOCALE, isLocale } from "@/i18n/config";
 
 /**
  * An article counts as updated when it was edited a meaningful time after
@@ -23,6 +25,8 @@ import { readingTime } from "@/lib/format";
  * tidy-up — a typo, a missing link — that readers do not need flagged.
  */
 const UPDATED_AFTER_MS = 30 * 60 * 1000;
+
+const TRANSLATION_SELECT = { slug: true, locale: true, status: true } as const;
 
 // Wrapped in React's cache() because generateMetadata and the page
 // component both need the article: without it every article view runs the
@@ -42,6 +46,7 @@ const getArticle = cache(async (slug: string) =>
       bodyHtml: true,
       excerpt: true,
       isBreaking: true,
+      locale: true,
       publishedAt: true,
       updatedAt: true,
       seoTitle: true,
@@ -62,9 +67,36 @@ const getArticle = cache(async (slug: string) =>
           siteName: true,
         },
       },
+      // The same story in other languages: the original this one
+      // translates (and its other translations), or this one's own
+      // translations. Only published ones are ever offered.
+      translationOf: {
+        select: { ...TRANSLATION_SELECT, translations: { select: TRANSLATION_SELECT } },
+      },
+      translations: { select: TRANSLATION_SELECT },
     },
   })
 );
+
+type Article = NonNullable<Awaited<ReturnType<typeof getArticle>>>;
+
+/** Every published version of the story other than this one, one per language. */
+function otherVersions(article: Article): { slug: string; locale: string }[] {
+  const candidates = [
+    article.translationOf,
+    ...(article.translationOf?.translations ?? []),
+    ...article.translations,
+  ];
+  const seen = new Set<string>([article.locale]);
+  const out: { slug: string; locale: string }[] = [];
+  for (const c of candidates) {
+    if (!c || c.status !== "PUBLISHED" || c.slug === article.slug) continue;
+    if (!isLocale(c.locale) || seen.has(c.locale)) continue;
+    seen.add(c.locale);
+    out.push({ slug: c.slug, locale: c.locale });
+  }
+  return out;
+}
 
 export async function generateMetadata(props: PageProps<"/article/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
@@ -73,19 +105,34 @@ export async function generateMetadata(props: PageProps<"/article/[slug]">): Pro
 
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.excerpt || article.dek || undefined;
+  const versions = otherVersions(article);
 
   return {
     title,
     description,
-    // Tells a search engine which URL is the real one. Without it, the
-    // same article reached with a tracking parameter appended looks like
-    // a separate, duplicate page.
-    alternates: { canonical: `/article/${article.slug}` },
+    alternates: {
+      // Tells a search engine which URL is the real one. Without it, the
+      // same article reached with a tracking parameter appended looks
+      // like a separate, duplicate page.
+      canonical: `/article/${article.slug}`,
+      // hreflang: each language version points at every other, and at
+      // itself, so a search engine shows a reader the right one.
+      ...(versions.length > 0
+        ? {
+            languages: Object.fromEntries([
+              [article.locale, `/article/${article.slug}`],
+              ...versions.map((v) => [v.locale, `/article/${v.slug}`]),
+            ]),
+          }
+        : {}),
+    },
     openGraph: {
       title,
       description,
       type: "article",
       url: `/article/${article.slug}`,
+      locale: isLocale(article.locale) ? OG_LOCALE[article.locale] : undefined,
+      alternateLocale: versions.map((v) => OG_LOCALE[v.locale as keyof typeof OG_LOCALE]),
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
       section: article.category?.name,
@@ -100,6 +147,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   const article = await getArticle(slug);
   if (!article) notFound();
 
+  const { t } = await getI18n();
   const search = await props.searchParams;
   const commentSort = parseCommentSort(search.comments);
   const showAllComments = search.all === "1";
@@ -159,6 +207,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
         dek: true,
         isBreaking: true,
         publishedAt: true,
+        locale: true,
         author: { select: { name: true, handle: true } },
         category: { select: { name: true, slug: true } },
         coverImage: { select: { url: true, altText: true } },
@@ -181,6 +230,8 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
           publishedAt={article.publishedAt}
           updatedAt={updatedAfterPublish}
           minutes={readingTime(article.bodyHtml)}
+          locale={article.locale}
+          translations={otherVersions(article)}
           aside={<ShareLinks title={article.title} url={shareUrl} />}
         />
 
@@ -201,7 +252,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
             />
           </div>
 
-          <ArticleBody html={safeHtml} />
+          <ArticleBody html={safeHtml} lang={article.locale} />
 
           <ArticleTags tags={article.tags.map((t) => t.tag)} />
 
@@ -219,7 +270,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
       {moreFromSection.length > 0 && (
         <section aria-labelledby="more-heading" className="mx-auto mt-16 max-w-6xl px-4 sm:px-6">
           <h2 id="more-heading" className="section-title">
-            {article.category ? `More from ${article.category.name}` : "More stories"}
+            {article.category ? t("article.moreFrom", { section: article.category.name }) : t("article.moreStories")}
           </h2>
           <ul className="mt-6 grid gap-8 md:grid-cols-3">
             {moreFromSection.map((item) => (

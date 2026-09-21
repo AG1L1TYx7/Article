@@ -6,12 +6,14 @@ import { CommentThread, type CommentNode } from "./CommentThread";
 import { CommentNoticeProvider } from "./CommentNotice";
 import { isCommentEditable } from "@/lib/commentPolicy";
 import { initials } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
+import type { MessageKey } from "@/i18n/t";
 
 export const COMMENT_SORTS = [
-  { value: "oldest", label: "Oldest first" },
-  { value: "newest", label: "Newest first" },
-  { value: "top", label: "Most liked" },
-] as const;
+  { value: "oldest", label: "comments.sortOldest" },
+  { value: "newest", label: "comments.sortNewest" },
+  { value: "top", label: "comments.sortTop" },
+] as const satisfies readonly { value: string; label: MessageKey }[];
 export type CommentSort = (typeof COMMENT_SORTS)[number]["value"];
 
 export function parseCommentSort(raw: string | string[] | undefined): CommentSort {
@@ -77,6 +79,7 @@ export async function CommentSection({
   sort?: CommentSort;
   showAll?: boolean;
 }) {
+  const { t, n } = await getI18n();
   const session = await auth();
   const viewerId = session?.user?.id ?? null;
 
@@ -154,10 +157,10 @@ export async function CommentSection({
     <section id="comments" className="mt-14 scroll-mt-20 border-t border-line pt-8" aria-labelledby="comments-heading">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 id="comments-heading" className="headline text-2xl">
-          {visibleCount} {visibleCount === 1 ? "comment" : "comments"}
+          {n(visibleCount, "common.comments")}
         </h2>
         {tree.length > 1 && (
-          <div className="flex gap-1" role="group" aria-label="Sort comments">
+          <div className="flex gap-1" role="group" aria-label={t("comments.sortLabel")}>
             {COMMENT_SORTS.map((option) => (
               <Link
                 key={option.value}
@@ -165,7 +168,7 @@ export async function CommentSection({
                 aria-current={sort === option.value ? "true" : undefined}
                 className={`btn btn-sm rounded-full ${sort === option.value ? "btn-primary" : "btn-ghost"}`}
               >
-                {option.label}
+                {t(option.label)}
               </Link>
             ))}
           </div>
@@ -177,22 +180,22 @@ export async function CommentSection({
           <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <p className="text-sm text-ink-2">
               <Link href="/login" className="text-link font-medium">
-                Log in
+                {t("common.login")}
               </Link>{" "}
-              to join the discussion.
+              {t("comments.loginToJoin")}
             </p>
             <Link href="/register" className="btn btn-secondary btn-sm">
-              Create an account
+              {t("common.createAccount")}
             </Link>
           </div>
         )}
         {signedIn && !verified && (
-          <p className="alert alert-warn">Verify your email address to comment.</p>
+          <p className="alert alert-warn">{t("comments.verifyToComment")}</p>
         )}
         {signedIn && verified && (
           <div className="flex gap-3">
             <span className="avatar mt-1 hidden h-9 w-9 text-xs sm:inline-flex">
-              {initials(session?.user?.name ?? "You")}
+              {initials(session?.user?.name ?? t("common.you"))}
             </span>
             <div className="min-w-0 flex-1">
               <CommentForm articleId={articleId} />
@@ -220,7 +223,7 @@ export async function CommentSection({
               href={`${articlePath}?${sort === "oldest" ? "" : `comments=${sort}&`}all=1#comments`}
               className="btn btn-secondary"
             >
-              Show {hidden} more {hidden === 1 ? "comment" : "comments"}
+              {n(hidden, "comments.showMore")}
             </Link>
           </p>
         )}

@@ -3,6 +3,7 @@
 import { ToggleButton } from "@/components/engagement/ToggleButton";
 import { toggleFollowAuthor } from "@/components/engagement/actions";
 import { UserPlusIcon } from "@/components/icons";
+import { useI18n } from "@/i18n/client";
 
 export function FollowAuthorButton({
   authorId,
@@ -15,15 +16,16 @@ export function FollowAuthorButton({
   signedIn: boolean;
   following: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <ToggleButton
       initialActive={following}
-      activeLabel={`Following ${authorName}`}
-      inactiveLabel={`Follow ${authorName}`}
+      activeLabel={t("engagement.following", { name: authorName })}
+      inactiveLabel={t("engagement.follow", { name: authorName })}
       icon={<UserPlusIcon size={16} />}
       action={() => toggleFollowAuthor(authorId)}
       disabled={!signedIn}
-      disabledTitle="Log in to follow authors"
+      disabledTitle={t("engagement.loginToFollowAuthors")}
     />
   );
 }

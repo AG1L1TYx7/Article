@@ -3,6 +3,7 @@
 import { ToggleButton } from "./ToggleButton";
 import { toggleArticleLike, toggleBookmark, toggleFollowAuthor } from "./actions";
 import { BookmarkIcon, HeartIcon, UserPlusIcon } from "@/components/icons";
+import { useI18n } from "@/i18n/client";
 
 export function ArticleEngagement({
   articleId,
@@ -25,15 +26,16 @@ export function ArticleEngagement({
   followingAuthor: boolean;
   isOwnArticle: boolean;
 }) {
-  const signedOutTitle = "Log in to do that";
+  const { t } = useI18n();
+  const signedOutTitle = t("engagement.loginToDoThat");
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ToggleButton
         initialActive={liked}
         initialCount={likeCount}
-        activeLabel="Liked"
-        inactiveLabel="Like"
+        activeLabel={t("engagement.liked")}
+        inactiveLabel={t("engagement.like")}
         icon={<HeartIcon size={16} />}
         action={() => toggleArticleLike(articleId)}
         disabled={!signedIn}
@@ -41,8 +43,8 @@ export function ArticleEngagement({
       />
       <ToggleButton
         initialActive={bookmarked}
-        activeLabel="Saved"
-        inactiveLabel="Save"
+        activeLabel={t("engagement.saved")}
+        inactiveLabel={t("engagement.save")}
         icon={<BookmarkIcon size={16} />}
         action={() => toggleBookmark(articleId)}
         disabled={!signedIn}
@@ -52,8 +54,8 @@ export function ArticleEngagement({
       {!isOwnArticle && (
         <ToggleButton
           initialActive={followingAuthor}
-          activeLabel={`Following ${authorName}`}
-          inactiveLabel={`Follow ${authorName}`}
+          activeLabel={t("engagement.following", { name: authorName })}
+          inactiveLabel={t("engagement.follow", { name: authorName })}
           icon={<UserPlusIcon size={16} />}
           action={() => toggleFollowAuthor(authorId)}
           disabled={!signedIn}

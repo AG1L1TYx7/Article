@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LegalLanguageNotice } from "@/components/LegalLanguageNotice";
 import Link from "next/link";
 import { LEGAL, LEGAL_COMPLETE } from "@/lib/legal";
 
@@ -21,6 +22,7 @@ export default function TermsPage() {
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
       <p className="kicker">Legal</p>
       <h1 className="headline mt-2 text-4xl">Terms of use</h1>
+      <LegalLanguageNotice />
       <p className="mt-3 text-sm text-ink-3">Version {LEGAL.policyVersion}</p>
 
       {!LEGAL_COMPLETE && (

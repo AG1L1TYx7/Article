@@ -23,6 +23,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
       tags: { include: { tag: true } },
       links: { orderBy: { createdAt: "asc" } },
       coverImage: { select: { id: true, url: true, altText: true } },
+      translationOf: { select: { slug: true } },
     },
   });
   if (!article) notFound();
@@ -90,6 +91,8 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             seoTitle: article.seoTitle ?? "",
             seoDescription: article.seoDescription ?? "",
             scheduledFor: article.scheduledFor?.toISOString() ?? null,
+            locale: article.locale,
+            translationOfSlug: article.translationOf?.slug ?? "",
           }}
         />
 

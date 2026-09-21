@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { postComment } from "./actions";
+import { useI18n } from "@/i18n/client";
 
 export function CommentForm({
   articleId,
@@ -16,6 +17,7 @@ export function CommentForm({
   autoFocus?: boolean;
 }) {
   const router = useRouter();
+  const { t, formatNumber } = useI18n();
   const [body, setBody] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function CommentForm({
     setPending(false);
 
     if (!result.ok) {
-      setError(result.error ?? "Couldn't post that comment.");
+      setError(result.error ?? t("comments.couldntPost"));
       return;
     }
 
@@ -39,7 +41,7 @@ export function CommentForm({
     if (result.status === "PENDING") {
       // Say so plainly rather than showing nothing and letting them
       // wonder whether it posted.
-      setNotice("Posted — a moderator will review it before it appears.");
+      setNotice(t("comments.postedPending"));
     } else {
       onDone?.();
       router.refresh();
@@ -58,7 +60,7 @@ export function CommentForm({
         maxLength={5000}
         rows={parentId ? 2 : 3}
         autoFocus={autoFocus}
-        placeholder={parentId ? "Write a reply…" : "Join the discussion…"}
+        placeholder={parentId ? t("comments.writeReply") : t("comments.joinDiscussion")}
         className="input resize-y leading-relaxed"
       />
       {error && (
@@ -77,15 +79,17 @@ export function CommentForm({
           disabled={pending || body.trim().length < 2}
           className="btn btn-primary"
         >
-          {pending ? "Posting…" : parentId ? "Reply" : "Post comment"}
+          {pending ? t("comments.posting") : parentId ? t("comments.reply") : t("comments.postComment")}
         </button>
         {onDone && (
           <button type="button" onClick={onDone} className="btn btn-ghost">
-            Cancel
+            {t("common.cancel")}
           </button>
         )}
         {remaining < 500 && (
-          <span className="ml-auto text-xs text-ink-3 tabular-nums">{remaining} left</span>
+          <span className="ml-auto text-xs text-ink-3 tabular-nums">
+            {t("comments.charactersLeft", { count: formatNumber(remaining) })}
+          </span>
         )}
       </div>
     </form>

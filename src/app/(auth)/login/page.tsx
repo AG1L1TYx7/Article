@@ -7,6 +7,7 @@ import { getSession, signIn } from "next-auth/react";
 import { checkMfaRequired, rememberThisDevice } from "./actions";
 import { safeRedirectPath } from "@/lib/safeRedirect";
 import { AuthCard } from "@/components/AuthCard";
+import { useI18n } from "@/i18n/client";
 
 export default function LoginPage() {
   return (
@@ -18,6 +19,7 @@ export default function LoginPage() {
 
 function LoginForm() {
   const params = useSearchParams();
+  const { t, n } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   // Holds the verified-so-far credentials once a TOTP code is required, so
@@ -45,7 +47,7 @@ function LoginForm() {
       redirect: false,
     });
     if (result?.error) {
-      setError(awaitingTotp ? "Incorrect code." : "Incorrect email or password.");
+      setError(awaitingTotp ? t("auth.incorrectCode") : t("auth.incorrectCredentials"));
       return;
     }
     // A code was just accepted on this device; if asked, remember it so
@@ -95,9 +97,7 @@ function LoginForm() {
       // times and extend the lock.
       const until = new Date(check.lockedUntil);
       const minutes = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60_000));
-      setError(
-        `Too many failed attempts. This account is locked for another ${minutes} minute${minutes === 1 ? "" : "s"} — your password is right, so just wait and try again.`
-      );
+      setError(n(minutes, "auth.locked"));
       setPending(false);
       return;
     }
@@ -124,17 +124,17 @@ function LoginForm() {
   if (awaitingTotp) {
     return (
       <AuthCard
-        title="Enter your code"
-        intro="Open your authenticator app and enter the 6-digit code for this account."
+        title={t("auth.enterCode")}
+        intro={t("auth.enterCodeIntro")}
         footer={
           <button onClick={() => setAwaitingTotp(null)} className="text-link">
-            Use a different account
+            {t("auth.useDifferentAccount")}
           </button>
         }
       >
         <form onSubmit={onSubmitTotp} className="flex flex-col gap-4">
           <label htmlFor="totp" className="sr-only">
-            6-digit code
+            {t("auth.sixDigitCode")}
           </label>
           <input
             id="totp"
@@ -155,10 +155,8 @@ function LoginForm() {
               className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
             />
             <span>
-              <span className="font-medium">Don&apos;t ask for a code on this device for 30 days</span>
-              <span className="mt-0.5 block text-xs text-ink-3">
-                Your password is still required every time. Leave this off on a shared computer.
-              </span>
+              <span className="font-medium">{t("auth.rememberDevice")}</span>
+              <span className="mt-0.5 block text-xs text-ink-3">{t("auth.rememberDeviceNote")}</span>
             </span>
           </label>
           {error && (
@@ -167,7 +165,7 @@ function LoginForm() {
             </p>
           )}
           <button type="submit" disabled={pending} className="btn btn-primary w-full py-2.5">
-            {pending ? "Verifying…" : "Verify"}
+            {pending ? t("auth.verifying") : t("auth.verify")}
           </button>
         </form>
       </AuthCard>
@@ -176,37 +174,37 @@ function LoginForm() {
 
   return (
     <AuthCard
-      title="Log in"
-      intro="Welcome back."
+      title={t("auth.login")}
+      intro={t("auth.welcomeBack")}
       footer={
         <>
-          New here?{" "}
+          {t("auth.newHere")}{" "}
           <Link href="/register" className="text-link font-medium">
-            Create an account
+            {t("common.createAccount")}
           </Link>
         </>
       }
     >
       {params.get("registered") && (
         <p className="alert alert-ok mb-4" role="status">
-          Account created — check your email to verify it, then log in below.
+          {t("auth.accountCreated")}
         </p>
       )}
       {params.get("reset") && (
         <p className="alert alert-ok mb-4" role="status">
-          Password updated — log in with your new password.
+          {t("auth.passwordUpdated")}
         </p>
       )}
       <form onSubmit={onSubmitCredentials} className="flex flex-col gap-4">
         <label className="field">
-          <span className="label">Email</span>
+          <span className="label">{t("common.email")}</span>
           <input name="email" type="email" autoComplete="email" required className="input" />
         </label>
         <label className="field">
           <span className="flex items-center justify-between">
-            <span className="label">Password</span>
+            <span className="label">{t("common.password")}</span>
             <a href="/forgot-password" className="text-xs text-ink-2 hover:text-ink">
-              Forgot your password?
+              {t("auth.forgotPassword")}
             </a>
           </span>
           <input
@@ -223,7 +221,7 @@ function LoginForm() {
           </p>
         )}
         <button type="submit" disabled={pending} className="btn btn-primary mt-1 w-full py-2.5">
-          {pending ? "Logging in…" : "Log in"}
+          {pending ? t("auth.loggingIn") : t("auth.login")}
         </button>
       </form>
     </AuthCard>

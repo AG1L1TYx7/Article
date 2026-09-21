@@ -264,8 +264,11 @@ Stated plainly so nobody assumes otherwise:
   (CSP, headers, MFA, audit log, dependency gate) is in, and the load test
   and backup/restore drill are single commands ([docs/operations.md](docs/operations.md))
   that still have to be *run* against the real server once it exists.
-- **Internationalization.** Everything is English; dates and copy are not
-  localised. Push notifications and the personalised "Following" feed are done.
+- **The privacy policy and terms are English-only** even when the
+  interface is in Nepali; a translated policy is a legal document and
+  needs a lawyer. The newsroom's inner pages (editor, moderation queue,
+  analytics) are English too. See [docs/i18n.md](docs/i18n.md) for what
+  is translated, how to add a language, and how translated stories link.
 
 ## Deploying
 

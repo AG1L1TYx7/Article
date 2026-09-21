@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckIcon, LinkIcon } from "@/components/icons";
+import { useI18n } from "@/i18n/client";
 
 /**
  * The URL is passed in from the server rather than read from
@@ -15,18 +16,20 @@ import { CheckIcon, LinkIcon } from "@/components/icons";
  * crawlers and with JavaScript disabled.
  */
 export function ShareLinks({ title, url }: { title: string; url: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
+  // Service names are brands, not words, so they are not translated.
   const links = [
     { label: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}` },
     { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
     { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}` },
-    { label: "Email", href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}` },
+    { label: t("common.email"), href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}` },
   ];
 
   return (
     <div className="flex flex-wrap items-center gap-1 text-sm">
-      <span className="mr-1 text-xs font-medium tracking-wide text-ink-3 uppercase">Share:</span>
+      <span className="mr-1 text-xs font-medium tracking-wide text-ink-3 uppercase">{t("article.share")}</span>
       {links.map((l) => (
         <a
           key={l.label}
@@ -49,13 +52,13 @@ export function ShareLinks({ title, url }: { title: string; url: string }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           } catch {
-            window.prompt("Copy this link:", url);
+            window.prompt(t("article.copyPrompt"), url);
           }
         }}
         className={`btn btn-ghost btn-sm gap-1.5 ${copied ? "text-ok" : ""}`}
       >
         {copied ? <CheckIcon size={14} /> : <LinkIcon size={14} />}
-        {copied ? "Copied!" : "Copy link"}
+        {copied ? t("article.copied") : t("article.copyLink")}
       </button>
     </div>
   );

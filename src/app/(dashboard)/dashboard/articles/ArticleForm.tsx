@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArticleEditor } from "@/components/editor/ArticleEditor";
 import { slugify } from "@/lib/slugify";
+import { DEFAULT_LOCALE, LOCALES, LOCALE_NAMES, isLocale, type Locale } from "@/i18n/config";
 import { uploadFile } from "@/lib/uploadClient";
 import { readingTime } from "@/lib/format";
 import type { ArticleInput } from "@/lib/validation/article";
@@ -43,6 +44,8 @@ export interface ArticleFormInitial {
   seoTitle?: string;
   seoDescription?: string;
   scheduledFor?: string | null; // ISO
+  locale?: string;
+  translationOfSlug?: string;
 }
 
 interface ArticleFormProps {
@@ -89,6 +92,8 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
   const [coverAlt, setCoverAlt] = useState(initial?.coverImage?.altText ?? "");
   const [seoTitle, setSeoTitle] = useState(initial?.seoTitle ?? "");
   const [seoDescription, setSeoDescription] = useState(initial?.seoDescription ?? "");
+  const [locale, setLocale] = useState<Locale>(isLocale(initial?.locale) ? initial.locale : DEFAULT_LOCALE);
+  const [translationOfSlug, setTranslationOfSlug] = useState(initial?.translationOfSlug ?? "");
   const [scheduledFor, setScheduledFor] = useState(toLocalInput(initial?.scheduledFor));
   const [coverUploading, setCoverUploading] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
@@ -131,6 +136,8 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
       coverAltText: cover ? coverAlt : undefined,
       seoTitle: seoTitle || undefined,
       seoDescription: seoDescription || undefined,
+      locale,
+      translationOfSlug: translationOfSlug.trim() || undefined,
       scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
     };
   }
@@ -186,7 +193,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
     return () => clearTimeout(timer);
     // buildInput reads every field; the effect re-arms on any of them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, title, dek, slug, excerpt, categoryId, tagSlugs, isBreaking, cover, coverAlt, seoTitle, seoDescription, scheduledFor, body, pending, actionPending, persist]);
+  }, [dirty, title, dek, slug, excerpt, categoryId, tagSlugs, isBreaking, cover, coverAlt, seoTitle, seoDescription, locale, translationOfSlug, scheduledFor, body, pending, actionPending, persist]);
 
   // Leaving with unsaved changes asks first. Browsers show their own
   // wording; the string here just has to be non-empty.
@@ -616,6 +623,45 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="article-locale" className="label">
+              Language
+            </label>
+            <select
+              id="article-locale"
+              value={locale}
+              onChange={(e) => {
+                if (isLocale(e.target.value)) setLocale(e.target.value);
+                touch();
+              }}
+              className="input"
+            >
+              {LOCALES.map((l) => (
+                <option key={l} value={l} lang={l}>
+                  {LOCALE_NAMES[l]}
+                </option>
+              ))}
+            </select>
+            <p className="hint">The language the story is written in. Readers see it marked when it differs from their own.</p>
+          </div>
+
+          <div className="field">
+            <label htmlFor="article-translation-of" className="label">
+              Translation of <span className="font-normal text-ink-3">(optional)</span>
+            </label>
+            <input
+              id="article-translation-of"
+              value={translationOfSlug}
+              onChange={(e) => {
+                setTranslationOfSlug(e.target.value.trim().toLowerCase());
+                touch();
+              }}
+              placeholder="slug of the original, e.g. budget-vote-2026"
+              className="input"
+            />
+            <p className="hint">Links this story to the same story in another language: each page offers the other, and search engines treat them as one.</p>
           </div>
 
           <div className="field">

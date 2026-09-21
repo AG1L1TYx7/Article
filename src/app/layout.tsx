@@ -3,6 +3,10 @@ import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/siteUrl";
+import { I18nProvider } from "@/i18n/client";
+import { LOCALE_DIR } from "@/i18n/config";
+import { MESSAGES } from "@/i18n/messages";
+import { getI18n, getLocale } from "@/i18n/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -105,10 +109,18 @@ export const metadata: Metadata = {
  * pages and the newsroom each have their own shell in a route group, so
  * the newsroom is not wearing the reader-facing masthead and footer.
  */
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Decided by src/proxy.ts from the reader's cookie or Accept-Language;
+  // see src/i18n. The dictionary for that one language is handed to the
+  // client provider so client components render the same text on both
+  // sides of hydration.
+  const locale = await getLocale();
+  const { t } = await getI18n();
+
   return (
     <html
-      lang="en"
+      lang={locale}
+      dir={LOCALE_DIR[locale]}
       // Tells Next.js the smooth scrolling in globals.css is deliberate,
       // so it can switch it off for the instant during a route change
       // (otherwise a navigation visibly scrolls up from the old position).
@@ -120,9 +132,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-paper"
         >
-          Skip to content
+          {t("common.skipToContent")}
         </a>
-        <Providers>{children}</Providers>
+        <I18nProvider locale={locale} messages={MESSAGES[locale]}>
+          <Providers>{children}</Providers>
+        </I18nProvider>
       </body>
     </html>
   );

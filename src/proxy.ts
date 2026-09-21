@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/config";
 import { buildCsp, generateNonce } from "@/lib/csp";
+import { LOCALE_COOKIE, LOCALE_HEADER } from "@/i18n/config";
+import { negotiateLocale } from "@/i18n/negotiate";
 
 // Uses the same full, database-backed auth() as every page and server
 // action — see the design note at the top of lib/auth/config.ts for why
@@ -85,8 +87,17 @@ export default auth((req) => {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);
 
+  // The interface language: an explicit choice (cookie) wins, then the
+  // browser's Accept-Language, then English. Decided once here and read
+  // everywhere through i18n/server.ts. The pathname rides along so the
+  // language switcher can send the reader back to the page they were on.
+  const locale = negotiateLocale(req.cookies.get(LOCALE_COOKIE)?.value, req.headers.get("accept-language"));
+  requestHeaders.set(LOCALE_HEADER, locale);
+  requestHeaders.set("x-pathname", pathname + req.nextUrl.search);
+
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("Content-Security-Policy", csp);
+  res.headers.set("Content-Language", locale);
   applySecurityHeaders(res);
   return res;
 });

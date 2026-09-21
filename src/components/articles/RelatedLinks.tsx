@@ -1,4 +1,5 @@
 import { ExternalIcon } from "@/components/icons";
+import { getI18n } from "@/i18n/server";
 
 export interface RelatedLink {
   id: string;
@@ -20,13 +21,14 @@ export interface RelatedLink {
  * page, noreferrer so a reader's path through this site isn't handed to
  * whoever is on the other end.
  */
-export function RelatedLinks({ links }: { links: RelatedLink[] }) {
+export async function RelatedLinks({ links }: { links: RelatedLink[] }) {
   if (links.length === 0) return null;
+  const { t } = await getI18n();
 
   return (
     <section className="mt-12" aria-labelledby="related-links-heading">
       <h2 id="related-links-heading" className="section-title">
-        Related links
+        {t("article.relatedLinks")}
       </h2>
       <ul className="mt-5 grid gap-3 sm:grid-cols-2">
         {links.map((link) => (
