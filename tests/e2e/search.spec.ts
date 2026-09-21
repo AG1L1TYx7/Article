@@ -178,6 +178,37 @@ test.describe("Search", () => {
     await expect(page.getByRole("link", { name: title })).toBeVisible();
   });
 
+  test("a filter with no search words browses the section, newest first", async ({ page }) => {
+    const marker = `browseonly${Date.now()}`;
+    const title = `Search Browse ${marker}`;
+    await publish(page, {
+      title,
+      body: `A story that is only reached by browsing ${marker}.`,
+      authorName: "Search Browse Author",
+      categorySlug: "sport",
+    });
+
+    // No q at all: the section filter alone must list the story, and say so.
+    await page.goto("/search?category=sport");
+    await expect(page.getByRole("link", { name: title })).toBeVisible();
+    // Scoped to main: the footer's push toggle carries its own status text.
+    await expect(page.getByRole("main").getByRole("status")).toContainText(/articles? in Sport, newest first/);
+
+    // A different section must not show it.
+    await page.goto("/search?category=world");
+    await expect(page.getByRole("link", { name: title })).toHaveCount(0);
+  });
+
+  test("changing a filter dropdown applies it without pressing Search", async ({ page }) => {
+    await page.goto("/search", { waitUntil: "networkidle" });
+    // By role, not label: the masthead's <nav aria-label="Sections"> also
+    // answers to getByLabel("Section").
+    const section = page.getByRole("combobox", { name: "Section" });
+    await section.selectOption("sport");
+    await page.waitForURL(/\/search\?.*category=sport/);
+    await expect(page.getByRole("combobox", { name: "Section" })).toHaveValue("sport");
+  });
+
   test("a draft is never searchable", async ({ page }) => {
     const marker = `draftonly${Date.now()}`;
     const title = `Search Draft ${marker}`;

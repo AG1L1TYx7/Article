@@ -111,3 +111,30 @@ recovers any of them if the old schema ever needs consulting.
 
 The empty `prisma/migrations/` directories left behind are untracked and
 harmless; delete them whenever you like.
+
+## Search suddenly returns nothing? Rebuild the full-text index
+
+InnoDB keeps recent full-text index changes in an in-memory cache and
+writes them to disk only when the cache fills, on `OPTIMIZE TABLE`, or
+at a clean shutdown. If MariaDB is killed rather than shut down — which
+is what happens when a terminal running `mysqld --standalone` is closed
+— that cache is lost and the index can be left in a state where every
+`MATCH ... AGAINST` returns zero rows, including for rows inserted
+afterwards. Nothing errors; search just finds nothing.
+
+Check it directly:
+
+```sql
+SELECT COUNT(*) FROM Article WHERE MATCH(title) AGAINST('+the' IN BOOLEAN MODE);
+```
+
+If that is 0 on a database with articles, rebuild the index:
+
+```sql
+OPTIMIZE TABLE Article;
+```
+
+(MariaDB reports "Table does not support optimize, doing recreate +
+analyze instead" — that recreate is the fix.) Takes a second at this
+size. On a server, stop MariaDB with `mysqladmin shutdown` or the
+service manager and this does not arise.

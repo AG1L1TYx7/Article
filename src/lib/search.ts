@@ -87,10 +87,17 @@ export function normalizeQuery(raw: string | undefined | null): string {
  */
 export async function searchArticles(filters: SearchFilters): Promise<SearchResults> {
   const q = normalizeQuery(filters.q);
-  if (!q) return EMPTY;
-
   const page = Math.max(1, Math.floor(filters.page ?? 1));
   const offset = (page - 1) * SEARCH_PAGE_SIZE;
+
+  // No words, but a section, author or date range: that is browsing, not
+  // searching, and a reader who picked "Sport, past week" and got a blank
+  // page would reasonably conclude the filters are broken. Newest first,
+  // since there is no relevance to rank by.
+  if (!q) {
+    if (!filters.categorySlug && !filters.authorHandle && !filters.since) return EMPTY;
+    return browseArticles(filters, page, offset);
+  }
 
   // Optional filters are folded into one WHERE via `param IS NULL OR ...`
   // so the SQL stays a single static statement.
@@ -170,4 +177,40 @@ export async function searchArticles(filters: SearchFilters): Promise<SearchResu
     page,
     pageCount: Math.ceil(total / SEARCH_PAGE_SIZE),
   };
+}
+
+/**
+ * The filter-only path: every published article that fits the section,
+ * author and date range, newest first. Ordinary Prisma rather than raw
+ * SQL, because with no words there is nothing for MATCH to do.
+ */
+async function browseArticles(filters: SearchFilters, page: number, offset: number): Promise<SearchResults> {
+  const where = {
+    status: "PUBLISHED" as const,
+    publishedAt: { not: null, lte: new Date(), ...(filters.since ? { gte: filters.since } : {}) },
+    ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
+    ...(filters.authorHandle ? { author: { handle: filters.authorHandle } } : {}),
+  };
+
+  const [rows, total] = await Promise.all([
+    db.article.findMany({
+      where,
+      orderBy: { publishedAt: "desc" },
+      skip: offset,
+      take: SEARCH_PAGE_SIZE,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        dek: true,
+        isBreaking: true,
+        publishedAt: true,
+        author: { select: { name: true, handle: true } },
+        category: { select: { name: true, slug: true } },
+      },
+    }),
+    db.article.count({ where }),
+  ]);
+
+  return { hits: rows, total, page, pageCount: Math.ceil(total / SEARCH_PAGE_SIZE) };
 }

@@ -117,3 +117,15 @@ with the SQL equivalent of `extractSearchText`. HTML entities are left
 encoded by the backfill; any affected article gets a clean value the next
 time an author saves it. New and edited articles always go through the
 TypeScript path.
+
+## Browsing without words
+
+A section, author or date range with an empty search box is a browse,
+not a search: `searchArticles()` lists every published article that fits
+the filters, newest first, through ordinary Prisma rather than the
+`MATCH` query (there are no words for it to rank). The page reads the
+filters back in words — "4 articles in Sport from the past week, newest
+first" — so it is clear what narrowed the list. Changing a dropdown
+submits the form at once when JavaScript is on
+(`components/search/SubmitOnChange.tsx`); the Search button still works
+without it.

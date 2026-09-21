@@ -1,5 +1,6 @@
 import { DATE_RANGES, type SearchQuery } from "@/lib/searchParams";
 import { SearchIcon } from "@/components/icons";
+import { SubmitOnChange } from "./SubmitOnChange";
 
 export interface SearchFormOptions {
   categories: { slug: string; name: string }[];
@@ -48,6 +49,9 @@ export function SearchForm({
         </button>
       </div>
 
+      {/* Changing a dropdown applies it at once when JavaScript is on;
+          the Search button covers the case when it is not. */}
+      <SubmitOnChange>
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
         <label className="flex items-center gap-2">
           <span className="text-ink-3">Section</span>
@@ -84,6 +88,7 @@ export function SearchForm({
           </select>
         </label>
       </div>
+      </SubmitOnChange>
     </form>
   );
 }

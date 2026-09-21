@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { SearchForm, type SearchFormOptions } from "@/components/search/SearchForm";
 import { searchArticles } from "@/lib/search";
-import { parseSearchParams, rangeToSince, searchHref } from "@/lib/searchParams";
+import { DATE_RANGES, parseSearchParams, rangeToSince, searchHref } from "@/lib/searchParams";
 import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons";
 
 export const metadata: Metadata = {
@@ -66,6 +66,28 @@ export default async function SearchPage(props: PageProps<"/search">) {
   ]);
 
   const hasQuery = query.q.trim().length > 0;
+  const hasFilters = !!(query.category || query.author || query.range);
+
+  // "3 articles in Sport by Ada Lovelace from the past week" — the
+  // filters read back in words, so a reader can see what narrowed the list.
+  const filterWords = [
+    query.category && `in ${options.categories.find((c) => c.slug === query.category)?.name ?? query.category}`,
+    query.author && `by ${options.authors.find((a) => a.handle === query.author)?.name ?? query.author}`,
+    query.range && `from the ${DATE_RANGES.find((r) => r.value === query.range)?.label.toLowerCase()}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const count = `${results.total} ${results.total === 1 ? "article" : "articles"}`;
+  const status = hasQuery
+    ? results.total === 0
+      ? `No articles match “${query.q}”${filterWords ? ` ${filterWords}` : ""}.`
+      : `${count} matching “${query.q}”${filterWords ? ` ${filterWords}` : ""}.`
+    : hasFilters
+      ? results.total === 0
+        ? `No articles ${filterWords}.`
+        : `${count} ${filterWords}, newest first.`
+      : null;
 
   return (
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
@@ -76,23 +98,21 @@ export default async function SearchPage(props: PageProps<"/search">) {
         <SearchForm query={query} options={options} />
       </div>
 
-      {hasQuery && (
+      {status && (
         <p className="mt-8 text-sm text-ink-2" role="status">
-          {results.total === 0
-            ? `No articles match “${query.q}”.`
-            : `${results.total} ${results.total === 1 ? "article" : "articles"} matching “${query.q}”.`}
+          {status}
         </p>
       )}
 
-      {!hasQuery && (
+      {!status && (
         <p className="mt-8 text-sm leading-relaxed text-ink-2">
-          Enter a word or phrase to search published articles. Put a phrase in
-          quotes to match it exactly, or put a minus sign before a word to
-          exclude it.
+          Enter a word or phrase to search published articles, or pick a section, author or
+          date range to browse. Put a phrase in quotes to match it exactly, or put a minus
+          sign before a word to exclude it.
         </p>
       )}
 
-      {hasQuery && results.total === 0 && (
+      {(hasQuery || hasFilters) && results.total === 0 && (
         <p className="mt-2 text-sm text-ink-3">
           Try fewer words, check the spelling, or widen the date range.
         </p>
