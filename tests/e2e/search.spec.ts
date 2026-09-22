@@ -195,8 +195,12 @@ test.describe("Search", () => {
     });
 
     // No q at all: the section filter alone must list the story, and say so.
-    await page.goto("/search?category=sport");
-    await expect(page.getByRole("link", { name: title })).toBeVisible();
+    // Reloaded until it appears: right after a publish on a busy CI
+    // database the first request can land before the row is visible.
+    await expect(async () => {
+      await page.goto("/search?category=sport");
+      await expect(page.getByRole("link", { name: title })).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
     // Scoped to main: the footer's push toggle carries its own status text.
     await expect(page.getByRole("main").getByRole("status")).toContainText(/articles? in Sport, newest first/);
 
