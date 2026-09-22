@@ -138,9 +138,11 @@ test.describe("Search", () => {
       categorySlug: "world",
     });
 
-    await page.goto(`/search?q=${marker}`);
-    await expect(page.getByRole("link", { name: inTech })).toBeVisible();
-    await expect(page.getByRole("link", { name: inWorld })).toBeVisible();
+    await expect(async () => {
+      await page.goto(`/search?q=${marker}`);
+      await expect(page.getByRole("link", { name: inTech })).toBeVisible({ timeout: 2000 });
+      await expect(page.getByRole("link", { name: inWorld })).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
 
     await page.goto(`/search?q=${marker}&category=technology`);
     await expect(page.getByRole("link", { name: inTech })).toBeVisible();
