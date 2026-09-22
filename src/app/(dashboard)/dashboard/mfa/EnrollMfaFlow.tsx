@@ -3,12 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { beginMfaSetup, confirmMfaSetup } from "./actions";
+import { RecoveryCodesSheet } from "./RecoveryCodesPanel";
 
 export function EnrollMfaFlow() {
   const router = useRouter();
   const [enrollment, setEnrollment] = useState<{ qrCodeDataUrl: string; manualEntryKey: string } | null>(
     null
   );
+  // Shown once, after the code is confirmed, before the page refreshes
+  // into its "enabled" state. Nothing can show them again.
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -37,7 +41,18 @@ export function EnrollMfaFlow() {
       setError(result.error ?? "Something went wrong.");
       return;
     }
-    router.refresh();
+    setRecoveryCodes(result.recoveryCodes ?? []);
+  }
+
+  if (recoveryCodes) {
+    return (
+      <div>
+        <p className="alert alert-ok" role="status">
+          MFA is enabled on this account.
+        </p>
+        <RecoveryCodesSheet codes={recoveryCodes} onDone={() => router.refresh()} />
+      </div>
+    );
   }
 
   if (!enrollment) {
@@ -54,7 +69,7 @@ export function EnrollMfaFlow() {
           </li>
           <li className="flex gap-3">
             <span className="avatar h-6 w-6 text-[11px]">3</span>
-            Enter the six-digit code the app shows to confirm.
+            Enter the six-digit code the app shows to confirm, then save the recovery codes you are given.
           </li>
         </ol>
         {error && (

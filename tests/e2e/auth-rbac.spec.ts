@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { sql } from "./support/db";
+import { answerMfaIfPrompted, mfaColumnsSql } from "./support/staff";
 
 // Regression gate for the security blueprint's RBAC guarantee: a role claim
 // is never trusted from the client, and every dashboard route re-checks the
@@ -13,7 +14,7 @@ import { sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteToModerator(email: string) {
-  sql(`UPDATE \`User\` SET role = 'MODERATOR' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = 'MODERATOR', ${mfaColumnsSql()} WHERE email = '${email}';`);
 }
 
 function bumpSessionVersion(email: string) {
@@ -35,6 +36,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
+  await answerMfaIfPrompted(page);
 }
 
 // Each test gets its own synthetic source IP so the real per-IP rate

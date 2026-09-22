@@ -33,7 +33,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className="kicker hidden md:inline">{t("dashboard.newsroom")}</span>
         </div>
 
-        <DashboardNav role={role} mfaEnabled={!!mfaEnabled} locked={role === "ADMIN" && !mfaEnabled} />
+        {/* Every newsroom account must enrol in two-factor before the rest
+            of the dashboard opens — see src/proxy.ts. */}
+        <DashboardNav role={role} mfaEnabled={!!mfaEnabled} locked={!mfaEnabled} />
 
         <div className="mt-auto border-t border-line px-3 py-2 md:p-4">
           {/* Who is signed in — on a phone the nav row is enough, and this

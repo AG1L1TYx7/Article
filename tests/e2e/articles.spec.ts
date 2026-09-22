@@ -1,41 +1,17 @@
 import { test, expect, type Page } from "@playwright/test";
-import * as OTPAuth from "otpauth";
 import { uniqueTestIp } from "./support/testIp";
 import { waitForOnHomepage } from "./support/homepage";
 import { sql } from "./support/db";
+import { answerMfaIfPrompted, mfaColumnsSql } from "./support/staff";
 
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteTo(role: "ADMIN" | "MODERATOR", email: string) {
-  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}'${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE email = '${email}';`);
 }
 
 function markEmailVerified(email: string) {
   sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
-}
-
-function codeFor(base32Secret: string): string {
-  return new OTPAuth.TOTP({
-    algorithm: "SHA1",
-    digits: 6,
-    period: 30,
-    secret: OTPAuth.Secret.fromBase32(base32Secret),
-  }).generate();
-}
-
-// Admin accounts are forced through MFA enrollment before they can reach
-// anything else under /dashboard (see proxy.ts) — a moderator promoted
-// straight to ADMIN via SQL, like these tests do, hits that same gate on
-// its very next navigation. Real admin onboarding would go through this
-// too, so the test mirrors it rather than working around it.
-async function enrollMfa(page: Page): Promise<void> {
-  await page.goto("/dashboard/mfa");
-  await page.getByRole("button", { name: "Set up authenticator app" }).click();
-  const secret = await page.locator("p.font-mono.text-xs.break-all").textContent();
-  if (!secret) throw new Error("Manual entry key not found on enrollment screen");
-  await page.fill('input[name="code"]', codeFor(secret.trim()));
-  await page.getByRole("button", { name: "Confirm and enable" }).click();
-  await expect(page.getByText("MFA is enabled on this account.")).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -60,6 +36,7 @@ async function registerModerator(page: Page, email: string, handle: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
+  await answerMfaIfPrompted(page);
   await page.waitForURL("/dashboard");
 }
 
@@ -116,6 +93,7 @@ test.describe("Article authoring", () => {
     await page.fill('input[name="email"]', email);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
+    await answerMfaIfPrompted(page);
     await page.waitForURL("/dashboard");
 
     await page.goto("/dashboard/articles/new");
@@ -195,10 +173,9 @@ test.describe("Article authoring", () => {
     promoteTo("ADMIN", adminEmail);
     // Session was issued as MODERATOR; the jwt callback re-reads role from
     // the DB on every request, so a fresh navigation picks up ADMIN
-    // without needing to log in again. That does mean the very next
-    // /dashboard/* request now hits the mandatory-MFA gate, so enroll
-    // before trying to reach the edit page.
-    await enrollMfa(page);
+    // without needing to log in again. The account already has two-factor
+    // (every SQL-promoted moderator is enrolled by the test helper), so
+    // the mandatory-MFA gate is already satisfied.
     await page.goto(articleHref!);
     await expect(page.getByLabel("Title", { exact: true })).toHaveValue(title);
   });

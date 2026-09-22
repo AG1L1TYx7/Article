@@ -1,4 +1,8 @@
 import { defineConfig } from "@playwright/test";
+// The test process needs AUTH_SECRET (tests/e2e/support/staff.ts enrols
+// staff accounts in MFA with the application's own encryption). Locally
+// that lives in .env; CI sets it in the environment and .env is absent.
+import "dotenv/config";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 

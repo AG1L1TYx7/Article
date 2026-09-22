@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { waitForHydration } from "./support/hydration";
 import { scalar, sql } from "./support/db";
+import { finishLogin } from "./support/staff";
 
 const PASSWORD = "correct-horse-battery-staple";
 
@@ -56,7 +57,7 @@ async function registerAndLogin(page: Page, email: string, handle: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 async function clickToggle(page: Page, name: string) {

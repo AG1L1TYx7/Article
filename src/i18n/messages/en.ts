@@ -298,6 +298,9 @@ export const en = {
     checkInbox: "Check your inbox for a new verification link.",
     resend: "Resend",
     sending: "Sending…",
+    nudge: "Please confirm your email address — it lets you comment and helps you recover your account. Everything else works in the meantime.",
+    nudgeSent: "A new verification link is on its way. Check your inbox.",
+    dismiss: "Not now",
   },
 
   password: {
@@ -335,6 +338,7 @@ export const en = {
     enterCodeIntro: "Open your authenticator app and enter the 6-digit code for this account.",
     useDifferentAccount: "Use a different account",
     sixDigitCode: "6-digit code",
+    recoveryHint: "Lost your authenticator? Enter one of your recovery codes instead.",
     rememberDevice: "Don't ask for a code on this device for 30 days",
     rememberDeviceNote: "Your password is still required every time. Leave this off on a shared computer.",
     verifying: "Verifying…",

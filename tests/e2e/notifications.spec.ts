@@ -2,11 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { sql, scalar } from "./support/db";
 import { commentInThread } from "./support/comments";
+import { finishLogin, mfaColumnsSql } from "./support/staff";
 
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = '${role}'${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 
@@ -66,7 +67,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 async function publishArticle(page: Page, title: string): Promise<string> {

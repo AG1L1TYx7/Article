@@ -39,7 +39,8 @@ activity, not on this software.
 | Name, handle, email | `User` | Account; byline on comments | Contract | Until deletion |
 | Password | `User.passwordHash` (Argon2id) | Authentication | Contract | Until deletion |
 | Email verified at; terms accepted at | `User` | Proof the address is theirs; proof of consent (Art. 7) | Legal obligation / legitimate interest | Until deletion |
-| MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent | Until disabled or deletion |
+| MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent (readers); condition of newsroom access (staff) | Until disabled, reset by an admin, or deletion |
+| MFA recovery codes | `User.mfaRecoveryCodes` (HMAC-SHA256 hashes keyed by `AUTH_SECRET`; each removed when used) | A way back in without the authenticator | As above | Until regenerated, disabled, reset or deletion |
 | Last sign-in time and IP | `User.lastLoginAt/Ip` | "When did I last sign in, and from where" | Legitimate interest (security) | IP cleared after 90 days |
 | Comments, likes, saves, follows (writers and sections), reports | own tables | The features themselves; the "Following" feed is a time-ordered list of the reader's own choices, not profiling | Contract | Until deletion |
 | Security audit log (action, actor, IP, time) | `AuditLog` | Detecting and investigating abuse | Legitimate interest (security) | 365 days (`AUDIT_RETENTION_DAYS`) |

@@ -10,6 +10,8 @@ import { AccountPrivacy } from "./AccountPrivacy";
 import { EmailVerifyBanner } from "@/app/(dashboard)/dashboard/EmailVerifyBanner";
 import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
+import { RecoveryCodesPanel } from "@/app/(dashboard)/dashboard/mfa/RecoveryCodesPanel";
+import { parseStoredCodes } from "@/lib/auth/recoveryCodes";
 import { BellIcon, BookmarkIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/components/icons";
 import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
@@ -49,6 +51,7 @@ export default async function AccountPage() {
       role: true,
       mfaEnabled: true,
       mfaSecret: true,
+      mfaRecoveryCodes: true,
       sessionVersion: true,
       emailVerifiedAt: true,
       createdAt: true,
@@ -161,7 +164,10 @@ export default async function AccountPage() {
               <p className="alert alert-ok mb-4" role="status">
                 {t("account.twoFactorIsOn")}
               </p>
-              <DisableMfaForm />
+              <RecoveryCodesPanel remaining={parseStoredCodes(user.mfaRecoveryCodes).length} />
+              <div className="mt-5 border-t border-line pt-5">
+                <DisableMfaForm />
+              </div>
             </>
           ) : (
             <EnrollMfaFlow />

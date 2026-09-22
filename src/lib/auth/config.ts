@@ -6,6 +6,7 @@ import { isLocked, nextLockout } from "@/lib/auth/lockout";
 import { loginSchema } from "@/lib/validation/auth";
 import { loginLimiter } from "@/lib/rateLimit";
 import { verifyTotp } from "@/lib/auth/mfa";
+import { consumeRecoveryCode, looksLikeRecoveryCode, parseStoredCodes } from "@/lib/auth/recoveryCodes";
 import { readCookie, TRUST_COOKIE, verifyTrustToken } from "@/lib/auth/trustedDevice";
 import { recordAuthEvent } from "@/lib/audit";
 
@@ -130,7 +131,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // code doesn't count against the password-lockout counter above
           // (that's specifically for password guessing); the per-IP
           // loginLimiter still throttles repeated attempts either way.
-          if (!totp || !user.mfaSecret || !verifyTotp(user.email, user.mfaSecret, totp)) {
+          //
+          // Six digits is the authenticator; anything else is tried as a
+          // one-time recovery code (lib/auth/recoveryCodes.ts), which is
+          // consumed on success so it can never be replayed.
+          let secondFactorOk = false;
+          if (totp && user.mfaSecret && /^\d{6}$/.test(totp)) {
+            secondFactorOk = verifyTotp(user.email, user.mfaSecret, totp);
+          } else if (totp && looksLikeRecoveryCode(totp)) {
+            const { matched, remaining } = consumeRecoveryCode(parseStoredCodes(user.mfaRecoveryCodes), totp);
+            if (matched) {
+              secondFactorOk = true;
+              await db.user.update({
+                where: { id: user.id },
+                data: { mfaRecoveryCodes: JSON.stringify(remaining) },
+              });
+              await recordAuthEvent({
+                userId: user.id,
+                action: "auth.mfa.recovery_used",
+                metadata: { remaining: remaining.length },
+                ip,
+              });
+            }
+          }
+          if (!secondFactorOk) {
             // The password was right and the second factor was not. That
             // is the signal that a password is already compromised, and
             // it is the single most urgent line in this log.

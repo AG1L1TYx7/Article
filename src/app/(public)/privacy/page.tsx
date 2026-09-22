@@ -105,9 +105,9 @@ export default function PrivacyPage() {
               <td>Legitimate interest in the security of the service</td>
             </tr>
             <tr>
-              <td>Two-factor authentication secret (encrypted)</td>
+              <td>Two-factor authentication secret (encrypted) and recovery codes (stored only as keyed hashes)</td>
               <td>You enable two-factor authentication</td>
-              <td>To verify your codes</td>
+              <td>To verify your codes, and to let you back in if you lose your authenticator</td>
               <td>Consent; security</td>
             </tr>
             <tr>

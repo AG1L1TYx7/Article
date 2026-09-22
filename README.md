@@ -186,7 +186,13 @@ locks, with the lock doubling on each further attempt from two minutes up to a
 day — per account, so rotating accounts does not dodge it, and per IP at the
 rate-limit layer, so rotating targets does not either.
 
-TOTP MFA, mandatory for admins, with secrets encrypted at rest (AES-256-GCM). Sessions are JWTs, but every request re-reads the user's role,
+TOTP MFA, mandatory for every newsroom account (moderators as well as
+admins), with secrets encrypted at rest (AES-256-GCM). Ten one-time
+recovery codes are issued at enrolment and stored only as keyed hashes;
+an admin can reset another account's second factor from the People page,
+which signs it out everywhere and forces a fresh enrolment. Readers are
+asked to confirm their email address but never blocked from reading,
+saving or following; only commenting and publishing require it. Sessions are JWTs, but every request re-reads the user's role,
 status and `sessionVersion` from the database — so banning an account, or
 "log out everywhere", takes effect on the very next request rather than
 whenever the token happens to expire.

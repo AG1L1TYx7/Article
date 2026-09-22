@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { scalar, sql } from "./support/db";
+import { finishLogin } from "./support/staff";
 
 /**
  * The data-protection rights a reader exercises without asking anyone:
@@ -40,7 +41,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 test.describe("Consent", () => {

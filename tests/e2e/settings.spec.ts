@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import * as OTPAuth from "otpauth";
 import { uniqueTestIp } from "./support/testIp";
 import { scalar, sql } from "./support/db";
+import { finishLogin, mfaColumnsSql } from "./support/staff";
 
 /**
  * Site settings: an admin chooses how much comment moderation the
@@ -43,7 +44,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 async function signInAsAdmin(page: Page, prefix: string) {
@@ -73,7 +74,7 @@ async function chooseMode(page: Page, label: RegExp) {
 /** Publishes an article as a fresh moderator and returns its slug and author. */
 async function publishArticle(page: Page, title: string) {
   const email = await register(page, "setwriter");
-  sql(`UPDATE \`User\` SET role = 'MODERATOR' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` SET role = 'MODERATOR', ${mfaColumnsSql()} WHERE email = '${email}';`);
   await login(page, email);
   await page.goto("/dashboard/articles/new");
   await page.getByLabel("Title", { exact: true }).fill(title);

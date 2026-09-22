@@ -136,17 +136,20 @@ function LoginForm() {
           <label htmlFor="totp" className="sr-only">
             {t("auth.sixDigitCode")}
           </label>
+          {/* No numeric pattern: a recovery code (eight letters and
+              digits) is accepted here too. */}
           <input
             id="totp"
             name="totp"
-            inputMode="numeric"
-            pattern="\d{6}"
-            maxLength={6}
+            inputMode="text"
+            maxLength={9}
             autoComplete="one-time-code"
+            autoCapitalize="off"
             autoFocus
             required
-            className="input py-3 text-center font-mono text-2xl tracking-[0.5em]"
+            className="input py-3 text-center font-mono text-2xl tracking-[0.3em]"
           />
+          <p className="-mt-2 text-xs text-ink-3">{t("auth.recoveryHint")}</p>
           <label className="flex items-start gap-2.5 text-sm">
             <input
               type="checkbox"

@@ -216,6 +216,55 @@ export async function setUserRole(userId: string, role: string): Promise<UserAct
   });
 }
 
+/**
+ * Clears two-factor for someone who has lost both their authenticator
+ * and their recovery codes. They are signed out everywhere and, being
+ * staff, will be made to enrol again before the dashboard opens.
+ *
+ * Never for your own account: an admin locked out of their second factor
+ * is exactly the case another admin exists for, and self-service here
+ * would make the second factor optional in practice.
+ */
+export async function resetUserMfa(userId: string): Promise<UserActionResult> {
+  return guardAction(async () => {
+    const session = await requireRole("ADMIN");
+
+    if (userId === session.user.id) {
+      return { ok: false, error: "Ask another administrator to reset your own two-factor." };
+    }
+
+    const target = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, mfaEnabled: true },
+    });
+    if (!target) return { ok: false, error: "That account no longer exists." };
+    if (!target.mfaEnabled) return { ok: false, error: "Two-factor is not enabled on that account." };
+
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        mfaEnabled: false,
+        mfaSecret: null,
+        mfaRecoveryCodes: null,
+        // Every open session — and every remembered device, whose cookie
+        // is bound to the secret just removed — stops working now.
+        sessionVersion: { increment: 1 },
+      },
+    });
+
+    await recordAudit({
+      actorId: session.user.id,
+      action: "user.mfa.reset",
+      targetType: "User",
+      targetId: userId,
+      ip: await getClientIp(),
+    });
+
+    revalidatePath("/dashboard/users");
+    return { ok: true };
+  });
+}
+
 export async function setUserStatus(userId: string, status: string): Promise<UserActionResult> {
   return guardAction(async () => {
     const session = await requireRole("ADMIN");

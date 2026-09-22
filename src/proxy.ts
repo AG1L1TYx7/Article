@@ -54,11 +54,13 @@ export default auth((req) => {
       return NextResponse.redirect(new URL("/", req.nextUrl));
     }
 
-    // Mandatory MFA for Admin accounts (security blueprint §Authentication
-    // & sessions). An admin without MFA enrolled can reach only the
-    // enrollment page itself — every other /dashboard/* route bounces
-    // here until they finish setting it up.
-    if (user.role === "ADMIN" && !user.mfaEnabled && pathname !== "/dashboard/mfa") {
+    // Mandatory MFA for every newsroom account — moderators as well as
+    // admins, since a moderator can publish to the whole site. Someone
+    // without it enrolled can reach only the enrolment page itself; every
+    // other /dashboard/* route bounces here until they finish setting it
+    // up. Readers are never asked: their account cannot change what the
+    // public sees.
+    if (STAFF_ROLES.has(user.role) && !user.mfaEnabled && pathname !== "/dashboard/mfa") {
       return NextResponse.redirect(new URL("/dashboard/mfa", req.nextUrl));
     }
 

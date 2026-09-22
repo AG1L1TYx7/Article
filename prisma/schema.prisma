@@ -38,6 +38,10 @@ model User {
   status           UserStatus @default(ACTIVE)
   mfaSecret        String?
   mfaEnabled       Boolean   @default(false)
+  // One-time codes for a lost authenticator: a JSON array of keyed
+  // hashes, each removed as it is used. Shown to the person once, at
+  // enrolment. See lib/auth/recoveryCodes.ts.
+  mfaRecoveryCodes String?   @db.Text
   // Set when an admin creates the account (or a temporary password is
   // issued): proxy.ts sends the person to /account/password before any
   // other page until they have chosen their own. See lib/auth/config.ts.

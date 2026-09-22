@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import { randomUUID } from "node:crypto";
 import { uniqueTestIp } from "./support/testIp";
 import { count, scalar } from "./support/db";
+import { finishLogin } from "./support/staff";
 
 const PASSWORD = "correct-horse-battery-staple";
 
@@ -46,7 +47,7 @@ async function registerAndLogin(page: Page, email: string, handle: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 test.beforeEach(async ({ page }) => {
