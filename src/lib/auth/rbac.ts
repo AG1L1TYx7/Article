@@ -79,6 +79,10 @@ export async function guardAction<T>(
     if (err instanceof ForbiddenError) {
       return { ok: false, error: err.message };
     }
+    // Anything else is a bug. Logged here, where the message and stack
+    // are still intact, because what the client receives is a serialised
+    // shadow of it that says nothing about the cause.
+    console.error("[action failed]", err);
     throw err;
   }
 }
