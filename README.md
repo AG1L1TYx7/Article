@@ -47,12 +47,14 @@ the sitemap, the RSS feed and every share card use to build absolute URLs.
 the encryption of stored MFA secrets, so changing it invalidates every
 enrolled authenticator.
 
-### Admins must enrol MFA
+### Staff must enrol MFA
 
-The first time an admin signs in they are redirected to `/dashboard/mfa` and
-cannot reach anything else in the dashboard until they scan the QR code with
-an authenticator app. This is enforced in `src/proxy.ts`, not just in the UI.
-MFA is optional for moderators.
+The first time a moderator or admin signs in they are redirected to
+`/dashboard/mfa` and cannot reach anything else in the dashboard until they
+scan the QR code with an authenticator app. This is enforced in
+`src/proxy.ts`, not just in the UI. Enrolment issues ten one-time recovery
+codes (stored as keyed hashes); an admin can reset another account's second
+factor from the People page. Readers are never asked.
 
 After one successful code, "Don't ask for a code on this device for 30
 days" (ticked by default) sets a signed cookie so that browser needs only
@@ -72,6 +74,7 @@ before you have signed up for a single third-party service:
 | Missing | What happens instead |
 | --- | --- |
 | `RESEND_API_KEY` | Emails are written to `.email-dev-outbox.log` (gitignored) |
+| `TWILIO_*` | Phone-verification texts are written to `.sms-dev-outbox.log` (gitignored) |
 | `S3_*` | Uploads are stored in `./.local-uploads` |
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
@@ -271,7 +274,7 @@ Stated plainly so nobody assumes otherwise:
   and backup/restore drill are single commands ([docs/operations.md](docs/operations.md))
   that still have to be *run* against the real server once it exists.
 - **The privacy policy and terms are English-only** even when the
-  interface is in Nepali; a translated policy is a legal document and
+  interface is in Spanish; a translated policy is a legal document and
   needs a lawyer. The newsroom's inner pages (editor, moderation queue,
   analytics) are English too. See [docs/i18n.md](docs/i18n.md) for what
   is translated, how to add a language, and how translated stories link.

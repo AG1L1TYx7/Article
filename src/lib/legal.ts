@@ -41,6 +41,9 @@ export function activeProcessors(): { name: string; purpose: string; data: strin
   if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
     list.push({ name: "Cloudflare Turnstile", purpose: "Telling people from bots at registration", data: "IP address, browser characteristics", region: "Global (Cloudflare)" });
   }
+  if (process.env.TWILIO_ACCOUNT_SID) {
+    list.push({ name: "Twilio", purpose: "Sending the text message that verifies a phone number", data: "Phone number, the six-digit code", region: "United States" });
+  }
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     list.push({ name: "Your browser's push service (Google, Apple or Mozilla)", purpose: "Delivering the breaking-news alerts you asked for to your device", data: "An encrypted message it cannot read, and the device address its own browser issued", region: "Set by the browser vendor" });
   }

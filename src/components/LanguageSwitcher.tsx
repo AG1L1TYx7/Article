@@ -8,7 +8,7 @@ import { getI18n } from "@/i18n/server";
  * stored in a cookie by a server action, so it works with JavaScript off
  * and does not need every URL to carry a language prefix.
  *
- * Each language is written in its own name ("नेपाली", not "Nepali"),
+ * Each language is written in its own name ("Español", not "Spanish"),
  * because the person who needs the button is the one who cannot read the
  * current language.
  */

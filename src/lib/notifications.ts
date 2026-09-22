@@ -62,6 +62,7 @@ export async function notifyReply(replyId: string): Promise<void> {
       userId: true,
       articleId: true,
       body: true,
+      anonymous: true,
       author: { select: { name: true } },
       article: { select: { slug: true, title: true } },
       parent: { select: { userId: true, status: true } },
@@ -87,7 +88,9 @@ export async function notifyReply(replyId: string): Promise<void> {
     },
     () =>
       commentReplyPayload({
-        actorName: reply.author.name,
+        // A push notification lands on a lock screen; an anonymous reply
+        // must not name its author there either.
+        actorName: reply.anonymous ? "Someone" : reply.author.name,
         articleSlug: reply.article.slug,
         articleTitle: reply.article.title,
         commentId: reply.id,

@@ -16,6 +16,9 @@ import { BellIcon, BookmarkIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/compo
 import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ContactDetails } from "./ContactDetails";
+import { decryptPhone } from "@/lib/phone";
+import { maskPhone } from "@/lib/phoneFormat";
 import { getI18n } from "@/i18n/server";
 import type { MessageKey } from "@/i18n/t";
 
@@ -52,6 +55,9 @@ export default async function AccountPage() {
       mfaEnabled: true,
       mfaSecret: true,
       mfaRecoveryCodes: true,
+      phoneEncrypted: true,
+      phoneVerifiedAt: true,
+      pendingEmail: true,
       sessionVersion: true,
       emailVerifiedAt: true,
       createdAt: true,
@@ -151,6 +157,15 @@ export default async function AccountPage() {
           </div>
         )}
       </section>
+
+      {/* Email and phone: the number is decrypted only to be masked. */}
+      <ContactDetails
+        email={user.email}
+        emailVerified={!!user.emailVerifiedAt}
+        pendingEmail={user.pendingEmail}
+        phoneMasked={user.phoneEncrypted ? maskPhone(decryptPhone(user.phoneEncrypted)) : null}
+        phoneVerified={!!user.phoneVerifiedAt}
+      />
 
       {/* Security */}
       <section className="card mt-4 p-6" aria-labelledby="security-heading">

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { verifyEmail } from "./actions";
+import { verifyEmail, verifyEmailChange } from "./actions";
 import { AuthCard } from "@/components/AuthCard";
 import { useI18n } from "@/i18n/client";
 
 type State = "idle" | "working" | "verified" | "failed";
 
-export function VerifyEmailButton({ email, token }: { email: string; token: string }) {
+export function VerifyEmailButton({ email, token, change = false }: { email: string; token: string; change?: boolean }) {
   const { t } = useI18n();
   const [state, setState] = useState<State>("idle");
 
@@ -54,7 +54,8 @@ export function VerifyEmailButton({ email, token }: { email: string; token: stri
         onClick={async () => {
           setState("working");
           try {
-            setState((await verifyEmail(email, token)) ? "verified" : "failed");
+            const ok = change ? await verifyEmailChange(email, token) : await verifyEmail(email, token);
+            setState(ok ? "verified" : "failed");
           } catch {
             setState("failed");
           }

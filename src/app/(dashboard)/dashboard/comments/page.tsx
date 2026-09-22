@@ -101,6 +101,8 @@ export default async function CommentModerationPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm">
                         <strong>{c.author.name}</strong>{" "}
+                        {/* Moderators always see who wrote it; readers will not. */}
+                        {c.anonymous && <span className="pill pill-neutral mr-1">posted anonymously</span>}
                         <span className="text-ink-3">on</span>{" "}
                         <Link href={`/article/${c.article.slug}`} className="text-link">{c.article.title}</Link>
                       </p>

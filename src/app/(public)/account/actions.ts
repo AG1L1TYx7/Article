@@ -9,6 +9,23 @@ import { TRUST_COOKIE } from "@/lib/auth/trustedDevice";
 import { anonymiseAccount } from "@/lib/accountDeletion";
 import { recordAudit, recordAuthEvent } from "@/lib/audit";
 import { getClientIp } from "@/lib/request";
+import { revalidatePath } from "next/cache";
+import { createToken } from "@/lib/auth/tokens";
+import { sendEmail } from "@/lib/email";
+import { getBaseUrl } from "@/lib/url";
+import { SITE_NAME } from "@/lib/siteUrl";
+import { emailChangeLimiter, phoneCodeLimiter, phoneVerifyLimiter } from "@/lib/rateLimit";
+import { isSixDigitCode, maskPhone, normalisePhone } from "@/lib/phoneFormat";
+import {
+  PHONE_CODE_MAX_ATTEMPTS,
+  PHONE_CODE_TTL_MS,
+  encryptPhone,
+  generatePhoneCode,
+  hashPhoneCode,
+  phoneCodeMatches,
+  phoneHash,
+} from "@/lib/phone";
+import { phoneCodeMessage, sendSms } from "@/lib/sms";
 
 /**
  * Clears the "remember this device" cookie for two-factor authentication,
@@ -47,6 +64,182 @@ export async function updateProfile(input: { name: string }): Promise<{ ok: bool
  * an account. On success the person is signed out; the session token
  * would stop validating anyway, since anonymisation bumps sessionVersion.
  */
+const EMAIL_CHANGE_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * Starts moving the account to a new email address.
+ *
+ * Password-confirmed, because a browser left signed in must not be
+ * enough to redirect every future sign-in link to a stranger. The old
+ * address stays in force; nothing changes until the link sent to the
+ * new one is opened (verifyEmailChange in app/(auth)/verify-email).
+ */
+export async function requestEmailChange(input: {
+  newEmail: string;
+  password: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "You need to be signed in to do that." };
+
+  const parsed = z.object({ newEmail: z.email().max(254), password: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "That doesn't look like an email address." };
+  const newEmail = parsed.data.newEmail.toLowerCase();
+
+  const { success } = await emailChangeLimiter.limit(session.user.id);
+  if (!success) return { ok: false, error: "Too many attempts. Try again in a few minutes." };
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, email: true, passwordHash: true },
+  });
+  if (!user?.passwordHash || !(await verifyPassword(user.passwordHash, parsed.data.password).catch(() => false))) {
+    return { ok: false, error: "Incorrect password." };
+  }
+  if (newEmail === user.email.toLowerCase()) return { ok: false, error: "That is already your address." };
+
+  // Same answer whether or not the address is taken: an "already in use"
+  // message would turn this into a way to test which emails have accounts.
+  const taken = await db.user.findUnique({ where: { email: newEmail }, select: { id: true } });
+  if (!taken) {
+    await db.user.update({ where: { id: user.id }, data: { pendingEmail: newEmail } });
+    const token = await createToken("email-change", newEmail, EMAIL_CHANGE_TTL_MS);
+    const link = `${await getBaseUrl()}/verify-email?change=1&token=${token}&email=${encodeURIComponent(newEmail)}`;
+    await sendEmail({
+      to: newEmail,
+      subject: `Confirm your new ${SITE_NAME} email address`,
+      html: `<p>Open this link to make ${newEmail} the address for your ${SITE_NAME} account. It works once and expires in an hour.</p><p><a href="${link}">${link}</a></p><p>If you did not ask for this, ignore it — nothing changes.</p>`,
+    });
+  }
+  await recordAudit({
+    actorId: user.id,
+    action: "account.email.change_requested",
+    targetType: "User",
+    targetId: user.id,
+    ip: await getClientIp(),
+  });
+  revalidatePath("/account");
+  return { ok: true };
+}
+
+/**
+ * Attaches a phone number and sends it a code. The number is stored at
+ * once — encrypted, with a keyed hash for uniqueness — but marked
+ * unverified until the code comes back. See lib/phone.ts.
+ */
+export async function startPhoneVerification(input: {
+  phone: string;
+}): Promise<{ ok: boolean; error?: string; masked?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "You need to be signed in to do that." };
+
+  const e164 = normalisePhone(String(input.phone ?? ""));
+  if (!e164) return { ok: false, error: "Enter the number in international format, starting with +." };
+
+  const { success } = await phoneCodeLimiter.limit(session.user.id);
+  if (!success) return { ok: false, error: "Too many codes requested. Try again in a few minutes." };
+
+  const hash = phoneHash(e164);
+  const owner = await db.user.findUnique({ where: { phoneHash: hash }, select: { id: true } });
+  if (owner && owner.id !== session.user.id) {
+    return { ok: false, error: "That number is already verified on another account." };
+  }
+
+  const code = generatePhoneCode();
+  await db.user.update({
+    where: { id: session.user.id },
+    data: {
+      phoneEncrypted: encryptPhone(e164),
+      phoneHash: hash,
+      phoneVerifiedAt: null,
+      phoneCodeHash: hashPhoneCode(code, session.user.id),
+      phoneCodeExpires: new Date(Date.now() + PHONE_CODE_TTL_MS),
+      phoneCodeAttempts: 0,
+    },
+  });
+
+  try {
+    await sendSms({ to: e164, body: phoneCodeMessage(code, SITE_NAME) });
+  } catch (error) {
+    console.error("[sms] send failed", error);
+    return { ok: false, error: "The message could not be sent. Check the number and try again." };
+  }
+
+  await recordAudit({
+    actorId: session.user.id,
+    action: "account.phone.code_sent",
+    targetType: "User",
+    targetId: session.user.id,
+    ip: await getClientIp(),
+  });
+  revalidatePath("/account");
+  return { ok: true, masked: maskPhone(e164) };
+}
+
+export async function confirmPhone(input: { code: string }): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "You need to be signed in to do that." };
+  if (!isSixDigitCode(String(input.code ?? ""))) return { ok: false, error: "Enter the six-digit code." };
+
+  const { success } = await phoneVerifyLimiter.limit(session.user.id);
+  if (!success) return { ok: false, error: "Too many attempts. Request a new code." };
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { phoneCodeHash: true, phoneCodeExpires: true, phoneCodeAttempts: true, phoneEncrypted: true },
+  });
+  if (!user?.phoneCodeHash || !user.phoneEncrypted) return { ok: false, error: "Request a code first." };
+  if (!user.phoneCodeExpires || user.phoneCodeExpires.getTime() < Date.now()) {
+    return { ok: false, error: "That code has expired. Request a new one." };
+  }
+  if (user.phoneCodeAttempts >= PHONE_CODE_MAX_ATTEMPTS) {
+    return { ok: false, error: "Too many wrong codes. Request a new one." };
+  }
+
+  if (!phoneCodeMatches(user.phoneCodeHash, input.code, session.user.id)) {
+    await db.user.update({ where: { id: session.user.id }, data: { phoneCodeAttempts: { increment: 1 } } });
+    return { ok: false, error: "That code didn't match." };
+  }
+
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { phoneVerifiedAt: new Date(), phoneCodeHash: null, phoneCodeExpires: null, phoneCodeAttempts: 0 },
+  });
+  await recordAudit({
+    actorId: session.user.id,
+    action: "account.phone.verified",
+    targetType: "User",
+    targetId: session.user.id,
+    ip: await getClientIp(),
+  });
+  revalidatePath("/account");
+  return { ok: true };
+}
+
+export async function removePhone(): Promise<{ ok: boolean }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false };
+  await db.user.update({
+    where: { id: session.user.id },
+    data: {
+      phoneEncrypted: null,
+      phoneHash: null,
+      phoneVerifiedAt: null,
+      phoneCodeHash: null,
+      phoneCodeExpires: null,
+      phoneCodeAttempts: 0,
+    },
+  });
+  await recordAudit({
+    actorId: session.user.id,
+    action: "account.phone.removed",
+    targetType: "User",
+    targetId: session.user.id,
+    ip: await getClientIp(),
+  });
+  revalidatePath("/account");
+  return { ok: true };
+}
+
 export async function deleteMyAccount(input: { password: string }): Promise<{ ok: boolean; error?: string }> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "You are not signed in." };

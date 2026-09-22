@@ -36,6 +36,7 @@ export async function postComment(input: {
   articleId: string;
   body: string;
   parentId?: string;
+  anonymous?: boolean;
 }): Promise<CommentActionResult> {
   return guardAction(async () => {
     // Commenting needs a confirmed address, same as publishing — the
@@ -52,7 +53,7 @@ export async function postComment(input: {
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid comment" };
     }
-    const { articleId, body, parentId } = parsed.data;
+    const { articleId, body, parentId, anonymous = false } = parsed.data;
 
     const article = await db.article.findFirst({
       where: { id: articleId, status: "PUBLISHED" },
@@ -78,7 +79,7 @@ export async function postComment(input: {
     const { status } = await decideCommentStatus(session.user, body);
 
     const comment = await db.comment.create({
-      data: { articleId, userId: session.user.id, parentId, body, status },
+      data: { articleId, userId: session.user.id, parentId, body, status, anonymous },
     });
 
     // Only a reply that is already public announces itself. A held one is

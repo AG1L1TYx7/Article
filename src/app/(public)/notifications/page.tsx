@@ -36,7 +36,7 @@ export default async function NotificationsPage() {
       commentId: true,
       actor: { select: { name: true } },
       article: { select: { slug: true, title: true } },
-      comment: { select: { body: true, status: true } },
+      comment: { select: { body: true, status: true, anonymous: true } },
     },
   });
 
@@ -77,16 +77,19 @@ export default async function NotificationsPage() {
             ? `/article/${n.article.slug}${n.commentId ? `#comment-${n.commentId}` : ""}`
             : null;
 
+          // An anonymous reply stays anonymous here too: the author's name
+          // must not leak through the notification about their comment.
+          const actorName = n.comment?.anonymous ? t("notifications.someone") : (n.actor?.name ?? t("notifications.someone"));
           const headline =
             n.type === "COMMENT_REPLY"
-              ? t("notifications.replied", { name: n.actor?.name ?? t("notifications.someone") })
+              ? t("notifications.replied", { name: actorName })
               : n.type === "BREAKING_NEWS"
                 ? t("notifications.breakingNews")
                 : t("notifications.approved");
 
           const glyph =
             n.type === "COMMENT_REPLY" ? (
-              <span className="avatar h-9 w-9 text-xs">{initials(n.actor?.name ?? "?")}</span>
+              <span className="avatar h-9 w-9 text-xs">{initials(n.comment?.anonymous ? "?" : (n.actor?.name ?? "?"))}</span>
             ) : n.type === "BREAKING_NEWS" ? (
               <span className="avatar h-9 w-9 bg-accent-soft text-accent ring-accent/20">
                 <BellIcon size={16} />

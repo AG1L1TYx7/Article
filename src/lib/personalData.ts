@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { LEGAL } from "@/lib/legal";
+import { decryptPhone } from "@/lib/phone";
 
 /**
  * Everything the site holds about one person, as plain JSON — the right
@@ -27,12 +28,16 @@ export async function exportPersonalData(userId: string) {
       createdAt: true,
       lastLoginAt: true,
       lastLoginIp: true,
+      phoneEncrypted: true,
+      phoneVerifiedAt: true,
+      pendingEmail: true,
       comments: {
         orderBy: { createdAt: "asc" },
         select: {
           id: true,
           body: true,
           status: true,
+          anonymous: true,
           createdAt: true,
           editedAt: true,
           article: { select: { title: true, slug: true } },
@@ -83,6 +88,11 @@ export async function exportPersonalData(userId: string) {
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
       lastLoginIp: user.lastLoginIp,
+      // Decrypted for its owner: the right of access means the number
+      // itself, not the ciphertext we keep.
+      phone: user.phoneEncrypted ? decryptPhone(user.phoneEncrypted) : null,
+      phoneVerifiedAt: user.phoneVerifiedAt,
+      pendingEmail: user.pendingEmail,
     },
     comments: user.comments,
     likes: user.reactions.map((r) => ({

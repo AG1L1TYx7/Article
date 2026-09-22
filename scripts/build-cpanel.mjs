@@ -105,7 +105,7 @@ for (const name of leaked) {
  * password-reset and verification links; .local-uploads is whatever was
  * uploaded while testing. Neither belongs on a server.
  */
-for (const name of [".email-dev-outbox.log", ".local-uploads"]) {
+for (const name of [".email-dev-outbox.log", ".sms-dev-outbox.log", ".local-uploads"]) {
   if (fs.existsSync(path.join(OUT, name))) {
     fs.rmSync(path.join(OUT, name), { recursive: true, force: true });
     console.log("removed from bundle: " + name + " (development data)");

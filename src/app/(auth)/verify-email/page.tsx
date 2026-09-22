@@ -12,12 +12,14 @@ import { getI18n } from "@/i18n/server";
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; email?: string }>;
+  searchParams: Promise<{ token?: string; email?: string; change?: string }>;
 }) {
-  const { token, email } = await searchParams;
+  const { token, email, change } = await searchParams;
 
   if (token && email) {
-    return <VerifyEmailButton email={email} token={token} />;
+    // change=1 is a new address for an existing account rather than a
+    // first verification; the button calls the matching action.
+    return <VerifyEmailButton email={email} token={token} change={change === "1"} />;
   }
 
   const { t } = await getI18n();

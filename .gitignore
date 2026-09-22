@@ -44,8 +44,9 @@ next-env.d.ts
 # prisma generated client
 /src/generated/prisma
 
-# dev-only email outbox (see src/lib/email.ts)
+# dev-only email and SMS outboxes (see src/lib/email.ts, src/lib/sms.ts)
 .email-dev-outbox.log
+.sms-dev-outbox.log
 
 # playwright
 /test-results/

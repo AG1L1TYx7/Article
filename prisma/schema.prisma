@@ -42,6 +42,21 @@ model User {
   // hashes, each removed as it is used. Shown to the person once, at
   // enrolment. See lib/auth/recoveryCodes.ts.
   mfaRecoveryCodes String?   @db.Text
+  // A verified phone number, for account recovery and alerts. Stored
+  // encrypted (AES-256-GCM under AUTH_SECRET) so it can be shown back to
+  // its owner, with a keyed hash beside it so uniqueness can be enforced
+  // without the number itself being indexed. See lib/phone.ts.
+  phoneEncrypted   String?
+  phoneHash        String?   @unique @db.VarChar(64)
+  phoneVerifiedAt  DateTime?
+  // The one-time code sent by SMS, as a keyed hash; single use, ten
+  // minutes, five attempts.
+  phoneCodeHash    String?   @db.VarChar(64)
+  phoneCodeExpires DateTime?
+  phoneCodeAttempts Int      @default(0)
+  // A new address waiting for its confirmation link. The old address
+  // stays in force until the link is used.
+  pendingEmail     String?
   // Set when an admin creates the account (or a temporary password is
   // issued): proxy.ts sends the person to /account/password before any
   // other page until they have chosen their own. See lib/auth/config.ts.
@@ -312,6 +327,10 @@ model Comment {
   // updatedAt, which also moves when a moderator changes the status —
   // readers should see "edited" for the former and nothing for the latter.
   editedAt  DateTime?
+  // Shown to readers as "Anonymous". The account is still recorded —
+  // moderators see it, replies still reach the author, and erasure still
+  // works — it is only the public byline that is withheld.
+  anonymous Boolean       @default(false)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 

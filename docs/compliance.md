@@ -42,6 +42,10 @@ activity, not on this software.
 | MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent (readers); condition of newsroom access (staff) | Until disabled, reset by an admin, or deletion |
 | MFA recovery codes | `User.mfaRecoveryCodes` (HMAC-SHA256 hashes keyed by `AUTH_SECRET`; each removed when used) | A way back in without the authenticator | As above | Until regenerated, disabled, reset or deletion |
 | Last sign-in time and IP | `User.lastLoginAt/Ip` | "When did I last sign in, and from where" | Legitimate interest (security) | IP cleared after 90 days |
+| Phone number | `User.phoneEncrypted` (AES-256-GCM under `AUTH_SECRET`) + `User.phoneHash` (HMAC-SHA256, unique index) | Verification code; a second proof of identity | Consent (optional; removing it deletes both) | Until removed or deletion |
+| Phone verification code | `User.phoneCodeHash` (HMAC keyed by secret + user id), expiry, attempt count | One-time proof the number is theirs | Consent | 10 minutes, 5 attempts, cleared on success |
+| Pending new email | `User.pendingEmail` | A change of address awaiting its confirmation link | Contract | Until confirmed (1 hour token) or replaced |
+| Anonymous flag on a comment | `Comment.anonymous` | Readers see "Anonymous"; the account link is kept for moderation, replies and erasure | Contract | With the comment |
 | Comments, likes, saves, follows (writers and sections), reports | own tables | The features themselves; the "Following" feed is a time-ordered list of the reader's own choices, not profiling | Contract | Until deletion |
 | Security audit log (action, actor, IP, time) | `AuditLog` | Detecting and investigating abuse | Legitimate interest (security) | 365 days (`AUDIT_RETENTION_DAYS`) |
 | Notifications | `Notification` | In-app alerts | Contract | 180 days |

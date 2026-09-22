@@ -91,4 +91,9 @@ export const engagementLimiter = makeLimiter(60, 60, "ratelimit:engagement");
 // Subscribing to push alerts happens once per device, so anything
 // resembling a burst from one address is a script.
 export const pushSubscribeLimiter = makeLimiter(10, 60 * 10, "ratelimit:push-subscribe");
+// Every SMS costs money and every code is a guessable secret: three
+// sends per account per quarter hour, and a small budget of guesses.
+export const phoneCodeLimiter = makeLimiter(3, 60 * 15, "ratelimit:phone-code");
+export const phoneVerifyLimiter = makeLimiter(10, 60 * 15, "ratelimit:phone-verify");
+export const emailChangeLimiter = makeLimiter(3, 60 * 15, "ratelimit:email-change");
 export const linkPreviewLimiter = makeLimiter(10, 60, "ratelimit:link-preview");

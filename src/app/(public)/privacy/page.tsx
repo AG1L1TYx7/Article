@@ -91,6 +91,26 @@ export default function PrivacyPage() {
             </tr>
             <tr>
               <td>
+                A phone number, if you add one. Stored encrypted, with a keyed hash beside it so the same number
+                cannot be verified on two accounts. The verification code is stored only as a keyed hash and
+                expires in ten minutes.
+              </td>
+              <td>You add a phone number on your account page</td>
+              <td>To send you a verification code; a second way to prove it is you</td>
+              <td>Consent — withdrawn by removing the number, which deletes it</td>
+            </tr>
+            <tr>
+              <td>
+                Which of your comments were posted anonymously. Readers see &ldquo;Anonymous&rdquo;; the comment
+                stays linked to your account so moderators can act on abuse, replies reach you, and deletion
+                removes it.
+              </td>
+              <td>You tick &ldquo;Post anonymously&rdquo;</td>
+              <td>To withhold your name from readers while keeping the site accountable</td>
+              <td>Performance of a contract</td>
+            </tr>
+            <tr>
+              <td>
                 A push subscription: the address your browser&apos;s push service issued for this device, and
                 two encryption keys. Linked to your account only if you were signed in when you turned alerts on.
               </td>

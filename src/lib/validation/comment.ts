@@ -7,6 +7,8 @@ export const commentSchema = z.object({
   // way there is for article bodies.
   body: z.string().trim().min(2, "Say a little more than that.").max(5000, "That comment is too long."),
   parentId: z.string().min(1).optional(),
+  // Withholds the public byline only; the account is still recorded.
+  anonymous: z.boolean().optional(),
 });
 export type CommentInput = z.infer<typeof commentSchema>;
 

@@ -94,6 +94,7 @@ export async function CommentSection({
       userId: true,
       createdAt: true,
       editedAt: true,
+      anonymous: true,
       author: { select: { name: true } },
       _count: { select: { reactions: true } },
     },
@@ -123,7 +124,10 @@ export async function CommentSection({
       body: deleted ? "" : c.body,
       createdAt: c.createdAt.toISOString(),
       editedAt: c.editedAt?.toISOString() ?? null,
-      authorName: deleted ? "" : c.author.name,
+      // The public byline is withheld for an anonymous comment; the row
+      // still knows its author, so "You", edit and delete keep working.
+      authorName: deleted ? "" : c.anonymous ? t("comments.anonymous") : c.author.name,
+      anonymous: c.anonymous,
       likeCount: deleted ? 0 : c._count.reactions,
       likedByViewer: likedIds.has(c.id),
       isOwn: !deleted && c.userId === viewerId,
