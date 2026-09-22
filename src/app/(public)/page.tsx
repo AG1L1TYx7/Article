@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { followedSources, followingFeed } from "@/lib/followingFeed";
 import { ArticleCard } from "@/components/articles/ArticleCard";
+import { PushToggle } from "@/components/push/PushToggle";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { daysAgo } from "@/lib/timeWindow";
 import { ArrowRightIcon } from "@/components/icons";
@@ -20,6 +21,40 @@ const CARD_SELECT = {
   category: { select: { name: true, slug: true } },
   coverImage: { select: { url: true, altText: true } },
 } as const;
+
+/**
+ * The five most-read stories of the past week, by the per-day view
+ * counts analytics already keeps. Falls back to all-time views when the
+ * week has no rows yet (a fresh install), so the rail is never empty
+ * while there is anything to show.
+ */
+async function mostRead(excludeIds: string[]) {
+  const since = daysAgo(7);
+  since.setUTCHours(0, 0, 0, 0);
+  const week = await db.articleViewDaily.groupBy({
+    by: ["articleId"],
+    where: { day: { gte: since }, article: { status: "PUBLISHED" } },
+    _sum: { views: true },
+    orderBy: { _sum: { views: "desc" } },
+    take: 8,
+  });
+  const ids = week.map((w) => w.articleId).filter((id) => !excludeIds.includes(id)).slice(0, 5);
+  const rows =
+    ids.length > 0
+      ? await db.article.findMany({
+          where: { id: { in: ids }, status: "PUBLISHED" },
+          select: { id: true, slug: true, title: true, category: { select: { name: true } } },
+        })
+      : await db.article.findMany({
+          where: { status: "PUBLISHED", id: { notIn: excludeIds } },
+          orderBy: { viewCount: "desc" },
+          take: 5,
+          select: { id: true, slug: true, title: true, category: { select: { name: true } } },
+        });
+  // groupBy order is lost by findMany; restore it.
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return rows.sort((a, b) => (rank.get(a.id) ?? 99) - (rank.get(b.id) ?? 99));
+}
 
 export default async function Home() {
   const { t } = await getI18n();
@@ -58,28 +93,29 @@ export default async function Home() {
       : articles;
 
   const [lead, ...rest] = ordered;
-  const secondary = rest.slice(0, 3);
+  const secondary = rest.slice(0, 4);
+  const topIds = [lead, ...secondary].filter(Boolean).map((a) => a!.id);
 
   // The personalised strip. Only for someone signed in who follows
   // something; anonymous readers get exactly the page they always did.
-  // Stories already in the top block are left out so a follower of the
-  // lead's author is not shown the lead twice.
   const session = await auth();
-  const forYou = session?.user
-    ? await (async () => {
-        const sources = await followedSources(session.user.id);
-        if (sources.authors.length === 0 && sources.categories.length === 0) return null;
-        const topIds = [lead, ...secondary].filter(Boolean).map((a) => a!.id);
-        const items = await followingFeed(sources, { take: 6, excludeIds: topIds });
-        return { sources, items };
-      })()
-    : null;
+  const [forYou, popular] = await Promise.all([
+    session?.user
+      ? (async () => {
+          const sources = await followedSources(session.user.id);
+          if (sources.authors.length === 0 && sources.categories.length === 0) return null;
+          const items = await followingFeed(sources, { take: 6, excludeIds: topIds });
+          return { sources, items };
+        })()
+      : null,
+    withDatabaseFallback(() => mostRead(topIds), [], "homepage most read"),
+  ]);
 
-  // The image-led row takes the next three stories that have a cover, so
-  // the grid is three pictures rather than two pictures and a gap.
-  const remaining = rest.slice(3);
+  // After the top block: a stream of the latest, then an image-led row of
+  // the next three stories that have a cover, so the page changes pace.
+  const remaining = rest.slice(4);
   const featured = remaining.filter((a) => a.coverImage).slice(0, 3);
-  const latest = remaining.filter((a) => !featured.includes(a));
+  const latest = remaining.filter((a) => !featured.includes(a)).slice(0, 8);
 
   if (!lead) {
     return (
@@ -95,13 +131,13 @@ export default async function Home() {
     <main id="main-content" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6 sm:pt-10">
       <h1 className="sr-only">{t("common.latest")}</h1>
 
-      {/* Top of the page: the lead story and the three after it. */}
-      <section aria-label={t("home.topStories")} className="grid gap-10 lg:grid-cols-[1.55fr_1fr] lg:gap-14">
+      {/* Top of the page: the lead story and the four after it. */}
+      <section aria-label={t("home.topStories")} className="grid gap-10 lg:grid-cols-[1.6fr_1fr] lg:gap-12">
         <ul>
           <ArticleCard article={lead} variant="lead" />
         </ul>
         {secondary.length > 0 && (
-          <ul className="flex flex-col border-t border-line lg:border-t-0 lg:border-l lg:pl-14 [&>li]:border-b [&>li]:border-line [&>li]:py-5 [&>li:last-child]:border-b-0 lg:[&>li:first-child]:pt-0">
+          <ul className="flex flex-col border-t border-line lg:border-t-0 lg:border-l lg:pl-8 [&>li]:border-b [&>li]:border-line [&>li]:py-5 [&>li:last-child]:border-b-0 lg:[&>li:first-child]:pt-0">
             {secondary.map((article) => (
               <ArticleCard key={article.id} article={article} variant="compact" />
             ))}
@@ -131,24 +167,64 @@ export default async function Home() {
         </section>
       )}
 
+      {/* The stream, with the numbered Most Read rail beside it. */}
+      <div className="mt-14 grid gap-12 lg:grid-cols-[1fr_320px]">
+        <section aria-labelledby="latest-heading">
+          <h2 id="latest-heading" className="section-title">
+            {t("home.latest")}
+          </h2>
+          <ul className="mt-2 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
+            {latest.map((article) => (
+              <ArticleCard key={article.id} article={article} variant="row" />
+            ))}
+          </ul>
+        </section>
+
+        <aside className="lg:pt-0">
+          {popular.length > 0 && (
+            <section aria-labelledby="most-read-heading">
+              <h2 id="most-read-heading" className="section-title">
+                {t("home.mostRead")}
+              </h2>
+              <ol className="mt-2 [&>li]:border-b [&>li]:border-line [&>li]:py-4 [&>li:last-child]:border-b-0">
+                {popular.map((article, i) => (
+                  <li key={article.id} className="grid grid-cols-[36px_1fr] gap-3">
+                    <span className="figure text-[30px] leading-none text-ink-3" aria-hidden="true">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <Link
+                        href={`/article/${article.slug}`}
+                        className="headline text-[17px] leading-snug hover:underline decoration-line-strong underline-offset-4"
+                      >
+                        {article.title}
+                      </Link>
+                      {article.category && <p className="mt-1 text-xs text-ink-3">{article.category.name}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {/* Renders nothing unless push is configured and supported. */}
+          <div className="mt-8 rounded-[10px] bg-ink p-5 text-paper [&:has([data-push-toggle])]:block [&:not(:has([data-push-toggle]))]:hidden">
+            <p className="kicker" style={{ color: "color-mix(in srgb, var(--paper) 60%, transparent)" }}>
+              {t("push.off")}
+            </p>
+            <p className="font-serif mt-2 text-[17px] leading-snug">{t("push.offNote")}</p>
+            <div className="mt-4">
+              <PushToggle variant="button" />
+            </div>
+          </div>
+        </aside>
+      </div>
+
       {featured.length > 0 && (
         <section aria-label={t("home.featured")} className="mt-14 border-t border-line pt-10">
           <ul className="grid gap-10 md:grid-cols-3">
             {featured.map((article) => (
               <ArticleCard key={article.id} article={article} variant="featured" />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {latest.length > 0 && (
-        <section aria-labelledby="latest-heading" className="mt-16">
-          <h2 id="latest-heading" className="section-title">
-            {t("home.moreStories")}
-          </h2>
-          <ul className="mt-2 grid gap-x-12 md:grid-cols-2 [&>li]:border-b [&>li]:border-line [&>li]:py-6">
-            {latest.map((article) => (
-              <ArticleCard key={article.id} article={article} variant="row" />
             ))}
           </ul>
         </section>

@@ -89,6 +89,8 @@ export const ne: Messages = {
     topStories: "मुख्य समाचार",
     featured: "विशेष",
     moreStories: "थप समाचार",
+    latest: "ताजा",
+    mostRead: "धेरै पढिएका",
     forYou: "तपाईंले फलो गरेका लेखक र विभागबाट",
     everythingYouFollow: "तपाईंले फलो गरेका सबै",
     nothingNewFromFollows: "माथिका समाचारबाहेक उनीहरूबाट नयाँ केही छैन।",

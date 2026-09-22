@@ -116,7 +116,7 @@ test.describe("Public navigation", () => {
     // card in that section.
     await page.goto("/");
     await expect(
-      page.getByRole("navigation").getByRole("link", { name: "Technology" })
+      page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Technology" })
     ).toBeVisible();
   });
 

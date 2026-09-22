@@ -5,12 +5,20 @@ the site without copying class strings around.
 
 ## The idea
 
-A newspaper, not a web app. Headlines and article text are set in a
-serif (Newsreader) at reading sizes; controls, bylines and the newsroom
-are in a sans (Geist). Paper is warm off-white rather than pure white,
-ink is near-black rather than pure black, and the one accent is an
-editorial red used only for things that are genuinely urgent: the
-Breaking badge, section kickers, unread markers.
+A respected newspaper, reimagined for the screen it is read on. Three
+faces with three jobs: Fraunces for headlines (its optical axis goes
+from crisp at card size to expressive on the front page's lead), Source
+Serif 4 for reading at 19px on a 1.7 line height and a ~66-character
+measure, and Inter with tabular numerals for the interface and its
+data. Paper is a warm off-white (`#FAFAF7`), ink a cool near-black
+(`#111418`), hairlines `#E6E6E1`. One confident crimson (`#B3261E`) is
+spent only on breaking news and the primary action; links and anything
+informational are slate (`#2F5D8A`). Dark mode is designed, not
+inverted: the accent and slate are lifted so they keep contrast.
+
+The full set of screens this describes, at 1440 and 390, is the design
+artifact "Dispatch Design System"; this document is the code-facing
+half of it.
 
 Three shells, one root layout:
 
@@ -33,13 +41,25 @@ and adding one is the wrong fix.
 | `surface`, `surface-2` | Cards; hover and inset backgrounds |
 | `ink`, `ink-2`, `ink-3` | Text: primary, secondary, faint |
 | `line`, `line-strong` | Hairlines; borders that need to be seen |
-| `accent`, `accent-soft` | Editorial red and its tint |
+| `accent`, `accent-soft` | Crimson and its tint: breaking news, the primary action |
+| `info`, `info-soft` | Slate: links, scheduled, charts |
 | `ok`, `warn`, `danger` (+ `-soft`) | Status, each with a tinted background |
 
 So `text-ink-2`, `bg-surface`, `border-line`, `bg-accent` and so on.
 Never `text-neutral-600`: it is right in light mode and invisible in dark.
 
-Fonts: `font-sans` (Geist), `font-serif` (Newsreader), `font-mono`.
+Fonts: `font-sans` (Inter), `font-serif` (Source Serif 4, reading),
+`.headline` (Fraunces, with `.headline-lg` for the lead and article
+titles) and `.figure` (Fraunces numerals for KPIs and the Most Read
+rail). Status colours mean the same thing everywhere: draft grey,
+scheduled slate, published green, archived muted grey; comments held
+amber, hidden crimson.
+
+Mobile: the public site has a fixed bottom navigation (Home, Search,
+Saved, Account) with 44px targets — `components/MobileNav.tsx` — so
+the content wrapper carries `pb-20 md:pb-0`. The newsroom has a
+command palette on ⌘K / Ctrl+K (`components/dashboard/CommandPalette.tsx`)
+that lists destinations only, never actions.
 
 ## Component classes
 

@@ -84,6 +84,8 @@ export const en = {
     topStories: "Top stories",
     featured: "Featured",
     moreStories: "More stories",
+    latest: "Latest",
+    mostRead: "Most read",
     forYou: "From writers and sections you follow",
     everythingYouFollow: "Everything you follow",
     nothingNewFromFollows: "Nothing new from them beyond the stories above.",

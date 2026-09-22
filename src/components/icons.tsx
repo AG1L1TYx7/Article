@@ -221,6 +221,19 @@ export const LockIcon = (p: IconProps) => (
   </svg>
 );
 
+export const UserIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);
+
+export const CommandIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z" />
+  </svg>
+);
+
 export const KeyIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <circle cx="8" cy="15" r="4" />

@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { VerifyEmailNudge } from "@/components/VerifyEmailNudge";
+import { MobileNav } from "@/components/MobileNav";
 import { publishDueArticles } from "@/lib/scheduledPublishing";
 import { runRetention } from "@/lib/retention";
 
@@ -19,8 +20,11 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <SiteHeader />
       {/* Asks a signed-in reader to confirm their address; never blocks. */}
       <VerifyEmailNudge />
-      <div className="flex-1">{children}</div>
+      {/* Bottom padding on phones keeps the last line clear of the fixed
+          bottom navigation. */}
+      <div className="flex-1 pb-20 md:pb-0">{children}</div>
       <SiteFooter />
+      <MobileNav />
     </>
   );
 }

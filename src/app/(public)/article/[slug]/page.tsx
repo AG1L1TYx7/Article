@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { classifyReferrer, countryFrom, deviceFrom } from "@/lib/analyticsCapture";
 import { ReadingBeacon } from "@/components/articles/ReadingBeacon";
+import { ReadingProgress } from "@/components/articles/ReadingProgress";
 import { db } from "@/lib/db";
 import { sanitizedArticleHtml } from "@/lib/sanitizeCache";
 import { countArticleView } from "@/lib/viewCount";
@@ -219,6 +220,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
 
   return (
     <main id="main-content" className="pb-16">
+      <ReadingProgress />
       <ReadingBeacon articleId={article.id} />
       <article>
         <ArticleHeader

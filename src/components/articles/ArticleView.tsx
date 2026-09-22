@@ -56,7 +56,7 @@ export async function ArticleHeader({
           </Link>
         )}
       </div>
-      <h1 className="headline mt-4 text-[36px] leading-[1.06] sm:text-[52px]" lang={foreign ? storyLang : undefined}>
+      <h1 className="headline headline-lg mt-4 text-[36px] sm:text-[56px]" lang={foreign ? storyLang : undefined}>
         {title}
       </h1>
       {dek && (

@@ -4,6 +4,7 @@ import { auth, signOut } from "@/lib/auth/config";
 import { SITE_NAME } from "@/lib/siteUrl";
 import { initials } from "@/lib/format";
 import { DashboardNav } from "./DashboardNav";
+import { CommandPalette } from "@/components/dashboard/CommandPalette";
 import { ExternalIcon, LogoutIcon } from "@/components/icons";
 import { getI18n } from "@/i18n/server";
 
@@ -31,6 +32,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             {SITE_NAME}
           </Link>
           <span className="kicker hidden md:inline">{t("dashboard.newsroom")}</span>
+        </div>
+        <div className="hidden px-3 pb-2 md:block">
+          <CommandPalette isAdmin={role === "ADMIN"} />
         </div>
 
         {/* Every newsroom account must enrol in two-factor before the rest

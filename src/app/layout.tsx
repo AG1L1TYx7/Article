@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { Fraunces, Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/siteUrl";
@@ -8,22 +8,27 @@ import { LOCALE_DIR } from "@/i18n/config";
 import { MESSAGES } from "@/i18n/messages";
 import { getI18n, getLocale } from "@/i18n/server";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Three faces, three jobs. Inter for the interface and its numbers;
+// Source Serif 4 for reading, at optical sizes tuned for 19px; Fraunces
+// for headlines, where its optical axis goes from crisp at card size to
+// expressive at the front page's lead. All self-hosted at build time.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Headlines and article text. A serif with optical sizing, so it is
-// crisp at 16px in a byline and graceful at 48px in a headline.
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
   subsets: ["latin"],
   style: ["normal", "italic"],
+  axes: ["opsz"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
 });
 
 /**
@@ -49,8 +54,8 @@ export const dynamic = "force-dynamic";
 // active, so an installed site doesn't sit under a white or black bar.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#131210" },
+    { media: "(prefers-color-scheme: light)", color: "#fafaf7" },
+    { media: "(prefers-color-scheme: dark)", color: "#111418" },
   ],
 };
 
@@ -125,7 +130,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       // so it can switch it off for the instant during a route change
       // (otherwise a navigation visibly scrolls up from the old position).
       data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${inter.variable} ${sourceSerif.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <a

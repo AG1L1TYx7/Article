@@ -45,7 +45,7 @@ export async function SiteHeader() {
           <p className="hidden text-xs text-ink-3 sm:block">{formatLongDate(new Date())}</p>
           <Link
             href="/"
-            className="headline justify-self-center text-[26px] leading-none font-semibold tracking-[-0.02em] sm:text-[34px]"
+            className="headline justify-self-center whitespace-nowrap text-[26px] leading-none font-semibold tracking-[-0.02em] sm:text-[34px]"
           >
             {SITE_NAME}
           </Link>
