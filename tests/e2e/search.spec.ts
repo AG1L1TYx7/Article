@@ -61,6 +61,15 @@ async function publish(
   await page.waitForLoadState("networkidle");
   await page.context().clearCookies();
 
+  // Wait until search can actually see the story before handing it to a
+  // test. On a busy CI database the full-text index can trail the
+  // committed row by a few seconds, and three different tests have
+  // failed on exactly that gap; waiting once here covers all of them.
+  await expect(async () => {
+    await page.goto(`/search?q=${encodeURIComponent(opts.title)}`);
+    await expect(page.getByRole("link", { name: opts.title })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 30000 });
+
   return { handle, email };
 }
 
