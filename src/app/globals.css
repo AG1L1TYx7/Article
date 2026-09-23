@@ -423,6 +423,16 @@
 .audio-player {
   font-family: var(--font-sans);
 }
+/* A citation in the text, [3], linking to the References list. */
+.prose-article :where(a[href^="#ref-"]),
+.prose-editor :where(a[href^="#ref-"]) {
+  font-family: var(--font-sans);
+  font-size: 0.7em;
+  vertical-align: super;
+  line-height: 0;
+  text-decoration: none;
+  color: var(--info);
+}
 .audio-player input[type="range"] {
   height: 4px;
   cursor: pointer;

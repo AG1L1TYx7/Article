@@ -1,0 +1,157 @@
+
+> news-platform@0.1.0 start
+> next start
+
+▲ Next.js 16.3.5
+- Local:         http://localhost:3000
+- Network:       http://10.0.0.253:3000
+✓ Ready in 98ms
+✓ Running next.config.ts took 26ms
+⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+
+[email:dev] would send to nraudit+mudg0ozu231@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=XgDR3595BeBWyzPuHgyljkGNcCs1fJ2BnTQEahMVcNY&email=nraudit%2Bmudg0ozu231%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrvictim+mudg0pvb136@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=CjFTJH9WsO-z1vkyBKyRY9_Vc8zVtmlJCImIQkEEPpk&email=nrvictim%2Bmudg0pvb136%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+[31m[auth][error][0m CredentialsSignin: Read more at https://errors.authjs.dev#credentialssignin
+    at sF (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\_0hnaa3u._.js:853:41031)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async s0 (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\_0hnaa3u._.js:853:50629)
+    at async s2 (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\_0hnaa3u._.js:853:54879)
+    at async rV.do (C:\Users\bishw\OneDrive\Desktop\Article site\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:23405)
+    at async rV.handle (C:\Users\bishw\OneDrive\Desktop\Article site\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:28801)
+    at async Z (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\[root-of-the-server]__1oso87a._.js:1:6016)
+    at async rV.handleResponse (C:\Users\bishw\OneDrive\Desktop\Article site\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:1:130297)
+    at async J (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\[root-of-the-server]__1oso87a._.js:1:7094)
+    at async Module.w [as handler] (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\[root-of-the-server]__1oso87a._.js:1:9151)
+
+[email:dev] would send to nrauditfilter+mudg0qpt654@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=voFmshVcwHapFj3d7YM0wOrw0oXR0m5rH46XbwmX0RA&email=nrauditfilter%2Bmudg0qpt654%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrauditmod+mudg0rey892@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=G3vBeEtZpPyx_jY20Ta8sKWfaIYuK6IkWVcSen5ROI4&email=nrauditmod%2Bmudg0rey892%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrpromote+mudg0s5228@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=ZoTfazTiqaT6AoN_g2cC_JItGZQEG6ns2aB330dM7ro&email=nrpromote%2Bmudg0s5228%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrpromoter+mudg0sd2403@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=9vueiECW-fCvPbT5gM1UAaNbvZ1C9pxptlPbkcAvfoY&email=nrpromoter%2Bmudg0sd2403%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrself+mudg0t75447@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=IMR0zAXAMYBMkGvD61hbRMEcR7aKHJTTasK-nkFhpvU&email=nrself%2Bmudg0t75447%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrsuspend+mudg0tys950@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=K3ovIrTcj_fwsqYXTdghMij5Zv0HnH8KeOKTUI6wnQE&email=nrsuspend%2Bmudg0tys950%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrsuspender+mudg0u79222@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=YWz3AUkna0hgY7_G39PWZsttSWT7ekjaIU51enI72oI&email=nrsuspender%2Bmudg0u79222%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nradder+mudg0uza23@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=v-2O9Ib1vqgB3tnaKfnv9KtgOME9uteIzeu0xJEOXwo&email=nradder%2Bmudg0uza23%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nradded+1790128055280@example.com
+[email:dev] subject: Reset your password
+<p>Someone requested a password reset for this account.</p><p><a href="http://localhost:3000/reset-password?token=76aA_3c1lFYNTSms-jgeU4caYY0FtrMRE9-XyH-DLto&email=nradded%2B1790128055280%40example.com">Choose a new password</a></p><p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password will not change.</p>
+
+[31m[auth][error][0m CredentialsSignin: Read more at https://errors.authjs.dev#credentialssignin
+    at sF (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\_0hnaa3u._.js:853:41031)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async s0 (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\_0hnaa3u._.js:853:50629)
+    at async s2 (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\_0hnaa3u._.js:853:54879)
+    at async rV.do (C:\Users\bishw\OneDrive\Desktop\Article site\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:23405)
+    at async rV.handle (C:\Users\bishw\OneDrive\Desktop\Article site\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:5:28801)
+    at async Z (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\[root-of-the-server]__1oso87a._.js:1:6016)
+    at async rV.handleResponse (C:\Users\bishw\OneDrive\Desktop\Article site\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.prod.js:1:130297)
+    at async J (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\[root-of-the-server]__1oso87a._.js:1:7094)
+    at async Module.w [as handler] (C:\Users\bishw\OneDrive\Desktop\Article site\.next\server\chunks\[root-of-the-server]__1oso87a._.js:1:9151)
+
+[email:dev] would send to nrpeoplemod+mudg0wqh745@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=TsycwIqdCq955PbEOHFk97YOVAOmh6xsCM_o9s0nnHI&email=nrpeoplemod%2Bmudg0wqh745%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nranalytics+mudg0xey906@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=pNrtfv-FPBANZTpXHrJh73VWnueV31QtO2ZAJ_KGivU&email=nranalytics%2Bmudg0xey906%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrviews+mudg0y6r869@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=2irmibvwuMW_5RQYVz5QOdjRhEJ0lO4zxO36Zl9cR7M&email=nrviews%2Bmudg0y6r869%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nranalyticsreader+mudg0zux304@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=l0GagVGL2EpxoOyppm6nilB1EbxVxVsGS7IH8f4Wbx0&email=nranalyticsreader%2Bmudg0zux304%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrbreaking+mudg10gt368@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=Qmtdwgmy2aNJ1AroLGUMDM_kL2YvTa_3_6Iw46JhGqE&email=nrbreaking%2Bmudg10gt368%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrfollower+mudg111q303@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=J37-FSdFtWjKi7toMgf02OX8gvsHu0c-2RD0aNg3THk&email=nrfollower%2Bmudg111q303%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrordinary+mudg138z280@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=iNSJ4UNKKuKqPS91hAQhFwlI_IqALadAheYrGROxqyo&email=nrordinary%2Bmudg138z280%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrordinaryfollower+mudg13tz140@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=CFYSr90a1Ahr-g8WYNx_U4fIVrBbzsJEGdEXfryI5xE&email=nrordinaryfollower%2Bmudg13tz140%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to nrselfalert+mudg15oh638@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=5rAU8cwkFVzq_S5MzH9T5meH5KwAwSK6-tOnH6fbQyU&email=nrselfalert%2Bmudg15oh638%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to setwriter+1790128073265991@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=cHL8ABsPkeGKoHZcTv8bQJVSUE2_oC9A4KoZL6rEjqM&email=setwriter%2B1790128073265991%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to setwriter+1790128076295203@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=enuwBIVOnWw-PtBbPWduYUCCt1mLZXKCsHSPDLqE3AM&email=setwriter%2B1790128076295203%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to setadmin+1790128078306233@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=ILUtCY9bQ8RFuR3zXx5agotCIbPtwyIVathMos-gi5A&email=setadmin%2B1790128078306233%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to setlive+1790128079397954@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=egDIdpMxrpByrDobAZh2Tt6oN-Jr-uM-7MCXoW42Udk&email=setlive%2B1790128079397954%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+
+
+[email:dev] would send to setheld+1790128080664548@example.com
+[email:dev] subject: Verify your email
+<p>Confirm your email to finish setting up your account.</p><p><a href="http://localhost:3000/verify-email?token=JhN_84hXY-BPl_LfTio6Hbm1RbZj4ybAk1luVxK_w4M&email=setheld%2B1790128080664548%40example.com">Verify email</a></p><p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+

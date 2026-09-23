@@ -48,7 +48,9 @@ export default async function AuthorPage(props: PageProps<"/author/[handle]">) {
 
   const [articles, followerCount, following] = await Promise.all([
     db.article.findMany({
-      where: { authorId: author.id, status: "PUBLISHED" },
+      // Anonymous stories stay off the byline page; listing them here
+      // would name the author.
+      where: { authorId: author.id, status: "PUBLISHED", anonymous: false },
       orderBy: { publishedAt: "desc" },
       take: 50,
       select: {
@@ -59,6 +61,7 @@ export default async function AuthorPage(props: PageProps<"/author/[handle]">) {
         isBreaking: true,
         publishedAt: true,
         locale: true,
+        anonymous: true,
         author: { select: { name: true, handle: true } },
         category: { select: { name: true, slug: true } },
         coverImage: { select: { url: true, altText: true } },

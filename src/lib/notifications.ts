@@ -169,6 +169,7 @@ export async function notifyBreakingNews(articleId: string): Promise<void> {
       id: true,
       status: true,
       isBreaking: true,
+      anonymous: true,
       authorId: true,
       categoryId: true,
     },
@@ -181,7 +182,9 @@ export async function notifyBreakingNews(articleId: string): Promise<void> {
   const followers = await db.follow.findMany({
     where: {
       OR: [
-        { authorId: article.authorId },
+        // Not the author's followers for an anonymous story: the alert
+        // "new from <name>" would be the byline the author chose not to have.
+        ...(article.anonymous ? [] : [{ authorId: article.authorId }]),
         ...(article.categoryId ? [{ categoryId: article.categoryId }] : []),
       ],
       // Not the author's own alert about their own story.

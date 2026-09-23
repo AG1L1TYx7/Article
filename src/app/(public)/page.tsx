@@ -17,6 +17,7 @@ const CARD_SELECT = {
   isBreaking: true,
   publishedAt: true,
   locale: true,
+  anonymous: true,
   author: { select: { name: true, handle: true } },
   category: { select: { name: true, slug: true } },
   coverImage: { select: { url: true, altText: true } },

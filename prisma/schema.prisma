@@ -163,6 +163,10 @@ model Article {
   excerpt    String?
   status     ArticleStatus @default(DRAFT)
   isBreaking Boolean       @default(false)
+  // Published without a byline. Readers see "Anonymous"; the newsroom,
+  // the audit log and the author still know whose it is. Followers of
+  // the author are not alerted, since that would name them.
+  anonymous  Boolean       @default(false)
   locale     String        @default("en")
   viewCount  Int           @default(0)
 
@@ -193,6 +197,7 @@ model Article {
   tags           ArticleTag[]
   media          Media[]              @relation("ArticleMedia")
   links          ArticleLink[]
+  references     ArticleReference[]
   comments       Comment[]
   reactions      Reaction[]
   bookmarks      Bookmark[]
@@ -318,6 +323,26 @@ model Media {
   coverOf    Article[] @relation("ArticleCoverImage")
 
   @@index([scanStatus])
+}
+
+// A source the story cites, numbered in the order the author added it.
+// A citation in the text is a link to #ref-<position>. Plain text
+// throughout; the URL is checked to be http(s) before it is stored.
+model ArticleReference {
+  id          String   @id @default(cuid())
+  articleId   String
+  position    Int
+  title       String   @db.VarChar(300)
+  author      String?
+  publication String?
+  url         String?  @db.VarChar(2000)
+  publishedOn String?  @db.VarChar(40)
+  note        String?  @db.VarChar(500)
+  createdAt   DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, position])
 }
 
 // A link an author attached to an article, with whatever the linked page

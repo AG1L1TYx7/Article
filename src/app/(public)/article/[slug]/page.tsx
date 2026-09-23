@@ -15,6 +15,7 @@ import { ArticleCard } from "@/components/articles/ArticleCard";
 import { ArticleBody, ArticleCover, ArticleHeader, ArticleTags } from "@/components/articles/ArticleView";
 import { ArticleEngagement } from "@/components/engagement/ArticleEngagement";
 import { MediaCredits } from "@/components/articles/MediaCredits";
+import { ReferencesList } from "@/components/articles/ReferencesList";
 import { AudioPlayers } from "@/components/articles/AudioPlayers";
 import { MEDIA_RIGHTS_SELECT, type ArticleMedia } from "@/lib/articleMedia";
 import { allowsDownload, isoDuration, LICENSES } from "@/lib/mediaRights";
@@ -53,6 +54,7 @@ const getArticle = cache(async (slug: string) =>
       bodyHtml: true,
       excerpt: true,
       isBreaking: true,
+      anonymous: true,
       locale: true,
       publishedAt: true,
       updatedAt: true,
@@ -65,6 +67,10 @@ const getArticle = cache(async (slug: string) =>
       // Every file the story uses, with its credit and licence — see
       // lib/articleMedia.ts. Linked when the article is saved.
       media: { select: MEDIA_RIGHTS_SELECT },
+      references: {
+        orderBy: { position: "asc" },
+        select: { id: true, position: true, title: true, author: true, publication: true, url: true, publishedOn: true, note: true },
+      },
       tags: { select: { tag: { select: { slug: true, name: true } } } },
       links: {
         orderBy: { createdAt: "asc" },
@@ -123,7 +129,22 @@ function structuredData(article: Article, media: ArticleMedia[]) {
     dateModified: article.updatedAt.toISOString(),
     inLanguage: article.locale,
     mainEntityOfPage: absoluteUrl(`/article/${article.slug}`),
-    author: { "@type": "Person", name: article.author.name, url: absoluteUrl(`/author/${article.author.handle}`) },
+    // An anonymous story is credited to the publication, not to a person.
+    author: article.anonymous
+      ? { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") }
+      : { "@type": "Person", name: article.author.name, url: absoluteUrl(`/author/${article.author.handle}`) },
+    ...(article.references.length
+      ? {
+          citation: article.references.map((r) => ({
+            "@type": "CreativeWork",
+            name: r.title,
+            ...(r.url ? { url: r.url } : {}),
+            ...(r.author ? { author: { "@type": "Person", name: r.author } } : {}),
+            ...(r.publication ? { publisher: { "@type": "Organization", name: r.publication } } : {}),
+            ...(r.publishedOn ? { datePublished: r.publishedOn } : {}),
+          })),
+        }
+      : {}),
     publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
     ...(cover ? { image: mediaObject(cover) } : {}),
     ...(media.some((m) => m.type === "VIDEO") ? { video: media.filter((m) => m.type === "VIDEO").map(mediaObject) } : {}),
@@ -188,7 +209,7 @@ export async function generateMetadata(props: PageProps<"/article/[slug]">): Pro
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
       section: article.category?.name,
-      authors: [article.author.name],
+      authors: article.anonymous ? undefined : [article.author.name],
       // Share cards can carry the story's audio and video directly.
       audio: article.media.filter((m) => m.type === "AUDIO").map((m) => ({ url: toAbsolute(m.url), type: m.contentType })),
       videos: article.media
@@ -263,6 +284,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
         title: true,
         dek: true,
         isBreaking: true,
+        anonymous: true,
         publishedAt: true,
         locale: true,
         author: { select: { name: true, handle: true } },
@@ -295,6 +317,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
           isBreaking={article.isBreaking}
           category={article.category}
           author={article.author}
+          anonymous={article.anonymous}
           publishedAt={article.publishedAt}
           updatedAt={updatedAfterPublish}
           minutes={readingTime(article.bodyHtml)}
@@ -317,6 +340,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
               bookmarked={!!bookmarked}
               followingAuthor={!!followingAuthor}
               isOwnArticle={viewerId === article.author.id}
+              anonymous={article.anonymous}
             />
           </div>
 
@@ -324,6 +348,8 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
           {audioItems.length > 0 && <AudioPlayers items={audioItems} scope=".prose-article" />}
 
           <ArticleTags tags={article.tags.map((t) => t.tag)} />
+
+          <ReferencesList references={article.references} />
 
           <RelatedLinks links={article.links} />
 

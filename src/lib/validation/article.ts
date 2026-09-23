@@ -28,6 +28,9 @@ export const articleInputSchema = z.object({
   categoryId: z.string().min(1).optional(),
   tagSlugs: z.array(z.string().min(1).max(50)).max(10).optional(),
   isBreaking: z.boolean().optional(),
+  // Published without a byline: readers see "Anonymous". The newsroom
+  // and the audit log still know the author.
+  anonymous: z.boolean().optional(),
   coverImageId: z.string().min(1).optional(),
   // Describes the cover for readers who cannot see it; stored on the
   // Media row, so it is only meaningful alongside coverImageId.
@@ -84,6 +87,21 @@ function isWebUrl(value: string): boolean {
     return false;
   }
 }
+
+/** A source the story cites. Plain text, plus an optional http(s) link. */
+export const addArticleReferenceSchema = z.object({
+  articleId: z.string().min(1),
+  title: z.string().trim().min(1, "Give the reference a title.").max(300),
+  author: z.string().trim().max(200).optional(),
+  publication: z.string().trim().max(200).optional(),
+  url: z
+    .url("That doesn't look like a web address.")
+    .max(2000)
+    .refine(isWebUrl, "Links must start with http:// or https://")
+    .optional(),
+  publishedOn: z.string().trim().max(40).optional(),
+  note: z.string().trim().max(500).optional(),
+});
 
 export const addArticleLinkSchema = z.object({
   articleId: z.string().min(1),

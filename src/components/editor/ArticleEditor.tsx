@@ -274,6 +274,22 @@ function Toolbar({
         <LinkIcon size={16} />
       </ToolbarButton>
       <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+      <ToolbarButton
+        title="Cite a reference"
+        onClick={() => {
+          // The number of a source in the References list under the
+          // editor; the marker links to it on the published page.
+          const answer = window.prompt("Reference number (from the References list below)");
+          const n = Number(answer);
+          if (!answer || !Number.isInteger(n) || n < 1 || n > 50) return;
+          chain()
+            .insertContent({ type: "text", text: `[${n}]`, marks: [{ type: "link", attrs: { href: `#ref-${n}` } }] })
+            .insertContent(" ")
+            .run();
+        }}
+      >
+        <span className="text-xs">[1]</span>
+      </ToolbarButton>
       <ToolbarButton title="Insert image" onClick={() => onPick("image")} disabled={uploading !== null}>
         <ImageIcon size={16} />
         {uploading === "image" && <span className="ml-1 text-xs">Uploading…</span>}

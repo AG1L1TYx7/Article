@@ -32,6 +32,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
       select: {
         title: true,
         dek: true,
+        anonymous: true,
         author: { select: { name: true } },
         category: { select: { name: true } },
       },
@@ -42,7 +43,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const title = article?.title ?? SITE_NAME;
   const kicker = article?.category?.name?.toUpperCase() ?? "";
-  const byline = article?.author.name ? `By ${article.author.name}` : SITE_NAME;
+  const byline = article && !article.anonymous && article.author.name ? `By ${article.author.name}` : SITE_NAME;
 
   return new ImageResponse(
     (

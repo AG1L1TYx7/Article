@@ -43,6 +43,7 @@ export interface ArticleFormInitial {
   categoryId: string;
   tagSlugs: string;
   isBreaking: boolean;
+  anonymous?: boolean;
   bodyJson: object;
   bodyHtml: string;
   coverImage?: CoverImage | null;
@@ -93,6 +94,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [tagSlugs, setTagSlugs] = useState(initial?.tagSlugs ?? "");
   const [isBreaking, setIsBreaking] = useState(initial?.isBreaking ?? false);
+  const [anonymous, setAnonymous] = useState(initial?.anonymous ?? false);
   const [cover, setCover] = useState<CoverImage | null>(initial?.coverImage ?? null);
   const [coverAlt, setCoverAlt] = useState(initial?.coverImage?.altText ?? "");
   const [seoTitle, setSeoTitle] = useState(initial?.seoTitle ?? "");
@@ -138,6 +140,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
         .map((t) => t.trim())
         .filter(Boolean),
       isBreaking,
+      anonymous,
       coverImageId: cover?.id,
       coverAltText: cover ? coverAlt : undefined,
       seoTitle: seoTitle || undefined,
@@ -199,7 +202,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
     return () => clearTimeout(timer);
     // buildInput reads every field; the effect re-arms on any of them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, title, dek, slug, excerpt, categoryId, tagSlugs, isBreaking, cover, coverAlt, seoTitle, seoDescription, locale, translationOfSlug, scheduledFor, body, pending, actionPending, persist]);
+  }, [dirty, title, dek, slug, excerpt, categoryId, tagSlugs, isBreaking, anonymous, cover, coverAlt, seoTitle, seoDescription, locale, translationOfSlug, scheduledFor, body, pending, actionPending, persist]);
 
   // Leaving with unsaved changes asks first. Browsers show their own
   // wording; the string here just has to be non-empty.
@@ -504,6 +507,26 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
               <span className="font-medium">Mark as breaking news</span>
               <span className="mt-0.5 block text-xs text-ink-3">
                 Leads the front page for a day and notifies readers who follow the author.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2.5 border-t border-line pt-3 text-sm">
+            <input
+              type="checkbox"
+              checked={anonymous}
+              onChange={(e) => {
+                setAnonymous(e.target.checked);
+                touch();
+              }}
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+            />
+            <span>
+              <span className="font-medium">Publish anonymously</span>
+              <span className="mt-0.5 block text-xs text-ink-3">
+                Readers see &ldquo;Anonymous&rdquo; instead of your name, and the story is kept off your author page,
+                the feed of people who follow you, and their alerts. The newsroom and the audit log still know it is
+                yours.
               </span>
             </span>
           </label>

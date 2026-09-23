@@ -19,6 +19,7 @@ export async function ArticleHeader({
   isBreaking,
   category,
   author,
+  anonymous = false,
   publishedAt,
   updatedAt,
   minutes,
@@ -31,6 +32,8 @@ export async function ArticleHeader({
   isBreaking: boolean;
   category: { name: string; slug: string } | null;
   author: { name: string; handle: string };
+  /** Published without a byline: readers see "Anonymous", no link, no avatar initials. */
+  anonymous?: boolean;
   publishedAt: Date | null;
   /** Only pass when the article was meaningfully edited after publishing. */
   updatedAt?: Date | null;
@@ -92,13 +95,19 @@ export async function ArticleHeader({
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-y border-line py-4">
         <div className="flex items-center gap-3">
-          <span className="avatar h-10 w-10 text-sm">{initials(author.name)}</span>
+          <span className="avatar h-10 w-10 text-sm">{anonymous ? "?" : initials(author.name)}</span>
           <div className="text-sm">
             <p>
               <span className="text-ink-3">{t("common.by")} </span>
-              <Link href={`/author/${author.handle}`} className="font-medium text-ink hover:underline">
-                {author.name}
-              </Link>
+              {anonymous ? (
+                <span className="font-medium text-ink" data-anonymous-byline>
+                  {t("common.anonymous")}
+                </span>
+              ) : (
+                <Link href={`/author/${author.handle}`} className="font-medium text-ink hover:underline">
+                  {author.name}
+                </Link>
+              )}
             </p>
             <p className="text-xs text-ink-3">
               {publishedAt ? (

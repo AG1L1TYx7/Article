@@ -18,6 +18,7 @@ export const FEED_CARD_SELECT = {
   isBreaking: true,
   publishedAt: true,
   locale: true,
+  anonymous: true,
   author: { select: { name: true, handle: true } },
   category: { select: { name: true, slug: true } },
   coverImage: { select: { url: true, altText: true } },
@@ -54,7 +55,7 @@ export async function followingFeed(
       status: "PUBLISHED",
       id: excludeIds.length ? { notIn: excludeIds } : undefined,
       OR: [
-        { authorId: { in: sources.authors.map((a) => a.id) } },
+        { authorId: { in: sources.authors.map((a) => a.id) }, anonymous: false },
         { categoryId: { in: sources.categories.map((c) => c.id) } },
       ],
     },

@@ -5,6 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ArticleForm } from "../ArticleForm";
 import { ArticleLinks } from "@/components/articles/ArticleLinks";
+import { ArticleReferences } from "@/components/articles/ArticleReferences";
 import { PageBody, PageHeader } from "../../../PageHeader";
 import { StatusPill } from "../StatusPill";
 import { ExternalIcon } from "@/components/icons";
@@ -23,6 +24,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     include: {
       tags: { include: { tag: true } },
       links: { orderBy: { createdAt: "asc" } },
+      references: { orderBy: { position: "asc" } },
       coverImage: {
         select: {
           id: true,
@@ -98,6 +100,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             categoryId: article.categoryId ?? "",
             tagSlugs: article.tags.map((t) => t.tag.slug).join(", "),
             isBreaking: article.isBreaking,
+            anonymous: article.anonymous,
             bodyJson: article.bodyJson as object,
             bodyHtml: article.bodyHtml,
             coverImage: article.coverImage
@@ -116,6 +119,8 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             translationOfSlug: article.translationOf?.slug ?? "",
           }}
         />
+
+        <ArticleReferences articleId={article.id} references={article.references} />
 
         <ArticleLinks
           articleId={article.id}

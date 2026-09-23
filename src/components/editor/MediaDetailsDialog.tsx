@@ -154,6 +154,10 @@ export function MediaDetailsDialog({
         method="dialog"
         onSubmit={(e) => {
           e.preventDefault();
+          // The portal puts this form outside the article form in the DOM,
+          // but React bubbles events through the component tree, so without
+          // this the article form would also submit — and navigate away.
+          e.stopPropagation();
           submit();
         }}
         className="flex max-h-[calc(100vh-4rem)] flex-col"
