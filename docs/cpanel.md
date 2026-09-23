@@ -49,8 +49,8 @@ your own machine and upload the result.
 **The rate limiter is per-process.** Fine on cPanel, which runs one. If
 you ever scale out, it needs Upstash — see `docs/deployment.md`.
 
-If video matters to you, use the VPS or dedicated server instead. The
-Docker setup in `docs/deployment.md` handles all of the above.
+If you want a malware scanner as well, use the VPS or dedicated server:
+the Docker setup in `docs/deployment.md` runs ClamAV for you.
 
 ## Deploying
 
@@ -103,7 +103,17 @@ DATABASE_URL="mysql://acct_dbuser:password@localhost:3306/acct_news"
 # every enrolled authenticator.
 AUTH_SECRET="..."
 NEXTAUTH_URL="https://yourdomain.com"
+
+# Required: without an email provider nobody can verify an address or
+# reset a password, so the app refuses to start in production without it.
+RESEND_API_KEY="re_..."
+EMAIL_FROM="The Dispatch <no-reply@yourdomain.com>"
 ```
+
+Those five are the minimum: the app checks them at startup and will not
+serve until they are set (see [production-checklist.md](production-checklist.md)
+for the rest — object storage, CAPTCHA, push keys, legal details — which
+are warnings, not blockers).
 
 If the database password contains `@`, `:`, `/` or `%`, URL-encode it
 (`@` becomes `%40`, and so on).
@@ -195,10 +205,11 @@ if there is nothing new) and Restart. `git log --stat` shows whether
 
 ## Honestly, should you?
 
-Use cPanel if it is what you have and you can live without video.
+Use cPanel if it is what you have: articles, images, video and audio all
+work there.
 
-Use the VPS or dedicated server if you want video, want Docker to handle
-ClamAV and ffmpeg for you, and want `git pull && docker compose up -d
+Use the VPS or dedicated server if you want Docker to handle ClamAV and
+the database for you, and want `git pull && docker compose up -d
 --build` instead of a manual upload every time. That path is in
 [deployment.md](deployment.md) and it is the one this project was built
 around.
