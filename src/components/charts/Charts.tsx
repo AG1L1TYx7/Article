@@ -8,6 +8,8 @@
  * <title> elements — modest, but they work everywhere.
  */
 
+// Rows are keyed by position as well as label: two authors can share a
+// display name, and React needs the keys apart even then.
 export interface Point {
   label: string;
   value: number;
@@ -34,8 +36,8 @@ function DataTable({ caption, rows }: { caption: string; rows: Point[] }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr key={r.label}>
+        {rows.map((r, i) => (
+          <tr key={`${i}:${r.label}`}>
             <td>{r.label}</td>
             <td>{fmt(r.value)}</td>
           </tr>
@@ -101,7 +103,7 @@ export function AreaChart({
         {series.length > 1 && <path d={area} fill={`url(#${gradientId})`} />}
         <path d={path(series)} fill="none" stroke="var(--accent)" strokeWidth="2.25" strokeLinejoin="round" strokeLinecap="round" />
         {series.map((p, i) => (
-          <g key={p.label}>
+          <g key={`${i}:${p.label}`}>
             <circle cx={x(i)} cy={y(p.value)} r={n > 40 ? 2 : 3.5} fill="var(--surface)" stroke="var(--accent)" strokeWidth="2">
               <title>{`${p.label}: ${fmt(p.value)}${compare?.[i] ? ` (previous: ${fmt(compare[i]!.value)})` : ""}`}</title>
             </circle>
@@ -165,7 +167,7 @@ export function BarChart({
         {series.map((p, i) => {
           const cx = pad.left + slot * i + slot / 2;
           return (
-            <g key={p.label}>
+            <g key={`${i}:${p.label}`}>
               <rect x={cx - bar / 2} y={y(p.value)} width={bar} height={Math.max(0, pad.top + h - y(p.value))} rx="2" fill={color} opacity={p.value === 0 ? 0.25 : 0.9}>
                 <title>{`${p.label}: ${fmt(p.value)}`}</title>
               </rect>
@@ -199,8 +201,8 @@ export function HorizontalBars({
   return (
     <figure>
       <ul className="flex flex-col gap-2.5" aria-label={title}>
-        {series.map((p) => (
-          <li key={p.label} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm">
+        {series.map((p, i) => (
+          <li key={`${i}:${p.label}`} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm">
             <span className="truncate text-ink-2" title={p.label}>
               {p.label}
             </span>
@@ -240,12 +242,15 @@ export function Donut({
     return acc;
   }, []);
   return (
-    <figure className="flex items-center gap-6">
+    // The legend takes whatever width is left and wraps under the ring
+    // when a column is too narrow for both, rather than running past the
+    // card's edge.
+    <figure className="flex flex-wrap items-center gap-x-6 gap-y-4">
       <svg viewBox="0 0 120 120" className="h-32 w-32 shrink-0" role="img" aria-label={`${title}: ${fmt(total)} in total`}>
         <circle cx="60" cy="60" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="14" />
         {slices.map(({ point: p, len, offset }, i) => (
           <circle
-            key={p.label}
+            key={`${i}:${p.label}`}
             cx="60"
             cy="60"
             r={r}
@@ -270,13 +275,15 @@ export function Donut({
           </>
         )}
       </svg>
-      <ul className="flex flex-col gap-1.5 text-sm">
+      <ul className="flex min-w-0 flex-1 basis-40 flex-col gap-1.5 text-sm">
         {series.map((p, i) => (
-          <li key={p.label} className="flex items-center gap-2">
+          <li key={`${i}:${p.label}`} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[i % colors.length] }} />
-            <span className="text-ink-2">{p.label}</span>
-            <span className="ml-auto pl-4 tabular-nums">{fmt(p.value)}</span>
-            <span className="w-10 text-right text-xs text-ink-3 tabular-nums">{total ? Math.round((p.value / total) * 100) : 0}%</span>
+            <span className="truncate text-ink-2" title={p.label}>
+              {p.label}
+            </span>
+            <span className="tabular-nums">{fmt(p.value)}</span>
+            <span className="min-w-8 text-right text-xs text-ink-3 tabular-nums">{total ? Math.round((p.value / total) * 100) : 0}%</span>
           </li>
         ))}
       </ul>
