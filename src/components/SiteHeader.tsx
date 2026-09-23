@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
-import { SITE_NAME } from "@/lib/siteUrl";
+import { Wordmark } from "./Wordmark";
 import { getI18n } from "@/i18n/server";
 import { HeaderAccountLinks } from "./HeaderAccountLinks";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -54,11 +54,13 @@ export async function SiteHeader() {
             <ThemeToggle initial={theme} />
             <LanguageSwitcher variant="compact" />
           </div>
-          <Link
-            href="/"
-            className="headline justify-self-center whitespace-nowrap text-[26px] leading-none font-semibold tracking-[-0.02em] sm:text-[34px]"
-          >
-            {SITE_NAME}
+          <Link href="/" className="justify-self-center">
+            <span className="sm:hidden">
+              <Wordmark height={22} />
+            </span>
+            <span className="hidden sm:inline">
+              <Wordmark height={30} />
+            </span>
           </Link>
           <div className="justify-self-end">
             <HeaderAccountLinks />

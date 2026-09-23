@@ -138,7 +138,8 @@ get the same effect there.
 - `app/error.tsx` and `app/global-error.tsx` are the friendly faces of a
   crash; the 404 is `app/not-found.tsx`. All three match the site.
 - `app/manifest.ts` and `public/icons/` make the site installable; the
-  icons come from `scripts/make-icons.mjs`.
+  icons come from `scripts/make-brand.mjs`, which also lifts the logo
+  off its black background for the masthead (public/brand).
 
 ## Newsroom conventions
 

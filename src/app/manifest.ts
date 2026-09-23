@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * Most readers arrive on a phone, and an installed site is the cheapest
  * form of return visit there is.
  *
- * The icons are static PNGs in public/icons, generated from the
- * wordmark by scripts/make-icons.mjs.
+ * The icons are static PNGs in public/icons, generated from the logo
+ * by scripts/make-brand.mjs.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

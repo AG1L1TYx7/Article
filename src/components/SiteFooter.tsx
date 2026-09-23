@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/siteUrl";
+import { Wordmark } from "./Wordmark";
 import { getI18n } from "@/i18n/server";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -33,7 +34,7 @@ export async function SiteFooter() {
     <footer className="mt-20 border-t border-line bg-surface">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr]">
         <div>
-          <p className="headline text-2xl font-semibold">{SITE_NAME}</p>
+          <Wordmark height={26} />
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-2">{SITE_DESCRIPTION}</p>
           <a
             href="/feed.xml"

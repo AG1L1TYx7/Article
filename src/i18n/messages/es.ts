@@ -13,7 +13,7 @@ import type { Messages } from "../t";
  */
 export const es: Messages = {
   common: {
-    siteName: "The Dispatch",
+    siteName: "Dispatch Report",
     skipToContent: "Ir al contenido",
     latest: "Última hora",
     search: "Buscar",

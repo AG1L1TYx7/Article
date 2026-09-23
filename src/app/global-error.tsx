@@ -30,7 +30,7 @@ export default function GlobalError({
       >
         <div style={{ maxWidth: 480 }}>
           <p style={{ fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#b7271f", fontFamily: "system-ui, sans-serif" }}>
-            The Dispatch
+            Dispatch Report
           </p>
           <h1 style={{ fontSize: 34, lineHeight: 1.1, margin: "12px 0 0" }}>Something broke on our side.</h1>
           <p style={{ color: "#57524a", fontFamily: "system-ui, sans-serif", fontSize: 15, lineHeight: 1.6 }}>

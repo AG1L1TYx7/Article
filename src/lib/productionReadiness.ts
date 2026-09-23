@@ -94,7 +94,7 @@ export function assessReadiness(env: Env, extras: { ffmpegAvailable?: boolean } 
       fix: "Set RESEND_API_KEY and EMAIL_FROM (docs/deployment.md §7).",
     });
   } else if (!present(env.EMAIL_FROM) || /example\.com/i.test(env.EMAIL_FROM ?? "")) {
-    blockers.push({ area: "Email", problem: "EMAIL_FROM is missing or still the example address.", fix: 'Set it to a sender on your verified domain, e.g. "The Dispatch <no-reply@yourdomain.com>".' });
+    blockers.push({ area: "Email", problem: "EMAIL_FROM is missing or still the example address.", fix: 'Set it to a sender on your verified domain, e.g. "Dispatch Report <no-reply@yourdomain.com>".' });
   } else {
     ok.push("Email via Resend");
   }

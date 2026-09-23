@@ -9,7 +9,7 @@
  */
 export const en = {
   common: {
-    siteName: "The Dispatch",
+    siteName: "Dispatch Report",
     skipToContent: "Skip to content",
     latest: "Latest",
     search: "Search",

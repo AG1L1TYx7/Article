@@ -7,7 +7,7 @@ import { SITE_NAME } from "@/lib/siteUrl";
  * print these, and mark them loudly when they are missing, because a
  * privacy policy without a named controller is not a privacy policy.
  *
- *   LEGAL_ENTITY          e.g. "The Dispatch Media Ltd"
+ *   LEGAL_ENTITY          e.g. "Dispatch Report Media Ltd"
  *   LEGAL_ADDRESS         postal address (one line, commas)
  *   LEGAL_CONTACT_EMAIL   where privacy requests go, e.g. privacy@…
  *   LEGAL_JURISDICTION    governing law for the terms, e.g. "England and Wales"

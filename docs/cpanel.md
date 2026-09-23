@@ -107,7 +107,7 @@ NEXTAUTH_URL="https://yourdomain.com"
 # Required: without an email provider nobody can verify an address or
 # reset a password, so the app refuses to start in production without it.
 RESEND_API_KEY="re_..."
-EMAIL_FROM="The Dispatch <no-reply@yourdomain.com>"
+EMAIL_FROM="Dispatch Report <no-reply@yourdomain.com>"
 ```
 
 Those five are the minimum: the app checks them at startup and will not

@@ -1,4 +1,4 @@
-# The Dispatch — news & article platform
+# Dispatch Report — news & article platform
 
 A publishing platform for a news site: staff write and publish articles with
 photos, video and audio — each credited and licensed — and readers register,

@@ -10,7 +10,7 @@
  * Falls back to NEXTAUTH_URL, which every deployment already has to set to
  * the real public origin, so there is one fewer variable to get wrong.
  */
-export const SITE_NAME = "The Dispatch";
+export const SITE_NAME = "Dispatch Report";
 
 export const SITE_DESCRIPTION =
   "Reporting and analysis on politics, world affairs, business, technology, culture and sport.";

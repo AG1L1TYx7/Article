@@ -6,7 +6,7 @@ const complete = {
   AUTH_SECRET: "k8Jx2pQ9vL4mN7rT1wY6zB3cD5fG8hK0aS2dF4gH6jK9lM1nP3qR5tV7wX9yZ",
   NEXTAUTH_URL: "https://news.example.org",
   RESEND_API_KEY: "re_live_xxx",
-  EMAIL_FROM: "The Dispatch <no-reply@news.example.org>",
+  EMAIL_FROM: "Dispatch Report <no-reply@news.example.org>",
   S3_ENDPOINT: "https://acc.r2.cloudflarestorage.com",
   S3_BUCKET: "media",
   MEDIA_PUBLIC_BASE_URL: "https://media.news.example.org",
