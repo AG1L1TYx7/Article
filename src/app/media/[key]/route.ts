@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { readLocalObject, isS3Configured } from "@/lib/storage";
 import { contentRange, parseRange } from "@/lib/httpRange";
 import { parseImageWidth } from "@/lib/imageUrl";
+import { allowsDownload } from "@/lib/mediaRights";
 
 // Local-disk media serving — dev only. When S3 is configured, Media.url
 // already points at the bucket/CDN directly (see lib/storage.ts) and this
@@ -75,7 +76,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const width = parseImageWidth(new URL(request.url).searchParams.get("w"));
+  const query = new URL(request.url).searchParams;
+  const width = parseImageWidth(query.get("w"));
+  // "?download=1" offers the file as a download rather than playing it in
+  // the tab — and only for a licence that lets readers keep a copy. For
+  // anything else the parameter is ignored and the file streams as usual.
+  const asDownload = query.get("download") === "1" && allowsDownload(media.license);
+  const headers = asDownload
+    ? { ...MEDIA_HEADERS, "Content-Disposition": `attachment; filename="${key}"` }
+    : MEDIA_HEADERS;
 
   let buffer: Buffer;
   try {
@@ -93,7 +102,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
     return new NextResponse(null, {
       status: 416,
       headers: {
-        ...MEDIA_HEADERS,
+        ...headers,
         "Accept-Ranges": "bytes",
         "Content-Range": `bytes */${buffer.byteLength}`,
       },
@@ -105,7 +114,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
     return new NextResponse(new Uint8Array(slice), {
       status: 206,
       headers: {
-        ...MEDIA_HEADERS,
+        ...headers,
         "Content-Type": media.contentType,
         "Accept-Ranges": "bytes",
         "Content-Range": contentRange(range.start, range.end, buffer.byteLength),
@@ -116,7 +125,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ key:
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
-      ...MEDIA_HEADERS,
+      ...headers,
       "Content-Type": media.contentType,
       // Advertised even on a full response: it is how a player learns it
       // may seek at all.

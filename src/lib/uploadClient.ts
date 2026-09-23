@@ -14,8 +14,10 @@
 export interface UploadedMedia {
   id: string;
   url: string;
+  type: "IMAGE" | "VIDEO" | "AUDIO";
   width?: number;
   height?: number;
+  durationSecs?: number | null;
 }
 
 export type UploadOutcome =

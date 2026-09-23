@@ -110,6 +110,27 @@ export const es: Messages = {
     copyPrompt: "Copie este enlace:",
     readIn: "Leer esta noticia en",
     inLanguage: "Esta noticia está en {language}.",
+    credits: "Créditos y licencias",
+    creditsBlurb: "Quién hizo las imágenes, el audio y el vídeo de esta noticia, y en qué términos se publican.",
+    credit: "Crédito",
+    source: "Fuente",
+    licence: "Licencia",
+    allRightsReserved: "Todos los derechos reservados",
+    transcript: "Transcripción",
+    download: "Descargar",
+    kindImage: "Imagen",
+    kindVideo: "Vídeo",
+    kindAudio: "Audio",
+  },
+
+  player: {
+    play: "Reproducir",
+    pause: "Pausar",
+    back: "Retroceder 15 segundos",
+    forward: "Avanzar 15 segundos",
+    speed: "Velocidad de reproducción",
+    seek: "Posición",
+    listen: "Escuchar",
   },
 
   engagement: {

@@ -1,7 +1,8 @@
 # The Dispatch — news & article platform
 
 A publishing platform for a news site: staff write and publish articles with
-photo and video, readers register, comment, react, save, follow and share.
+photos, video and audio — each credited and licensed — and readers register,
+comment, react, save, follow and share.
 
 Built with Next.js 16 (App Router), MySQL via Prisma 7, and Auth.js.
 The full architecture and security plan this implements is in [`docs/`](docs/).
@@ -78,8 +79,8 @@ before you have signed up for a single third-party service:
 | `S3_*` | Uploads are stored in `./.local-uploads` |
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
-| `CLAMAV_HOST` | Uploads are not malware-scanned, so **video uploads are refused** (images are unaffected) |
-| `FFMPEG_PATH` | Video is stored as uploaded rather than re-encoded to H.264/AAC |
+| `CLAMAV_HOST` | Uploads are not malware-scanned; the re-encode is the control (see [docs/media.md](docs/media.md)) |
+| `FFMPEG_PATH` | The `ffmpeg-static` binary from `npm install` re-encodes video and audio; with neither, those uploads are refused |
 
 **Before deploying**, the Upstash one matters most: the in-process rate
 limiter gives each server process its own counters, so on more than one
@@ -267,8 +268,9 @@ Stated plainly so nobody assumes otherwise:
 - **Google OAuth** is not scaffolded — it needs a Google Cloud OAuth client.
 - **Email, object storage, Redis rate limiting and the CAPTCHA** all run on
   local fallbacks until their keys are in `.env` (see `.env.example`).
-- **Video uploads need ClamAV and ffmpeg on the server** — the Docker setup
-  provides both; shared cPanel hosting cannot.
+- **Malware scanning needs ClamAV running as a daemon** — the Docker setup
+  provides it; cPanel hosting cannot. Video and audio still work there
+  because the bundled ffmpeg re-encodes them ([docs/media.md](docs/media.md)).
 - **An outside penetration review** needs a person. The code-side hardening
   (CSP, headers, MFA, audit log, dependency gate) is in, and the load test
   and backup/restore drill are single commands ([docs/operations.md](docs/operations.md))

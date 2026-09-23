@@ -397,6 +397,36 @@
   font-size: 0.75rem;
   color: var(--ink-3);
 }
+/* A picture, video or audio clip with its credit — see
+   components/editor/MediaFigure.tsx for the markup. */
+.prose-article :where(figure.media-figure),
+.prose-editor :where(figure.media-figure) {
+  margin: 2em 0;
+}
+.prose-article :where(figure.media-figure video) {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+}
+.prose-article :where(figure.media-figure audio) {
+  width: 100%;
+}
+.prose-article :where(figure.media-figure[data-kind="audio"]) {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.prose-article :where(figure.media-figure figcaption) {
+  margin-top: 0.5rem;
+}
+.audio-player {
+  font-family: var(--font-sans);
+}
+.audio-player input[type="range"] {
+  height: 4px;
+  cursor: pointer;
+}
 
 /* The editor shares the article styles so what is written is what is read. */
 .prose-editor {

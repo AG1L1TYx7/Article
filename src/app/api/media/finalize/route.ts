@@ -4,7 +4,7 @@ import { requireVerifiedEmail, ForbiddenError, UnauthorizedError } from "@/lib/a
 import { deleteObject, isQuarantineKey, readObject } from "@/lib/storage";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
-import { processUpload, VIDEO_MAX_BYTES } from "@/lib/mediaPipeline";
+import { processUpload, UPLOAD_MAX_BYTES } from "@/lib/mediaPipeline";
 import { verifyUploadKey } from "@/lib/uploadToken";
 
 /**
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (raw.byteLength > VIDEO_MAX_BYTES) {
+    if (raw.byteLength > UPLOAD_MAX_BYTES) {
       return NextResponse.json({ error: "File is too large." }, { status: 413 });
     }
 

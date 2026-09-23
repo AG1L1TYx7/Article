@@ -53,6 +53,8 @@ describe("dictionaries", () => {
     const allowed = new Set([
       "common.siteName",
       "account.deletePhrase",
+      // "Audio" is the same word in Spanish.
+      "article.kindAudio",
     ]);
     const enFlat = flatten(en);
     const same = Object.entries(flatten(es))

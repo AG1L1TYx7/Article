@@ -232,6 +232,46 @@ for (const name of migrations) {
     fs.cpSync(src, path.join(OUT, "node_modules", "argon2", "prebuilds", platform), { recursive: true });
   }
 
+  // ffmpeg-static downloads one binary per platform at install time, so
+  // a Windows build has ffmpeg.exe and the server needs plain "ffmpeg".
+  // Fetched from the package's own release, cached like the sharp
+  // tarballs, and checked to be a real ELF file rather than an HTML
+  // error page. Without it video and audio uploads are refused on the
+  // server (images still work) — see docs/media.md.
+  {
+    const ffmpegDir = path.join("node_modules", "ffmpeg-static");
+    const ffmpegPkg = JSON.parse(fs.readFileSync(path.join(ffmpegDir, "package.json"), "utf8"));
+    const meta = ffmpegPkg["ffmpeg-static"] ?? {};
+    const tag = meta["binary-release-tag"];
+    const baseName = meta["executable-base-name"] ?? "ffmpeg";
+    const dest = path.join(OUT, "node_modules", "ffmpeg-static", baseName);
+    const installed = path.join(ffmpegDir, baseName);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    for (const f of ["package.json", "index.js", "LICENSE"]) {
+      if (fs.existsSync(path.join(ffmpegDir, f))) fs.copyFileSync(path.join(ffmpegDir, f), path.join(path.dirname(dest), f));
+    }
+    let source = null;
+    if (process.platform === "linux" && process.arch === "x64" && fs.existsSync(installed)) {
+      source = installed;
+    } else if (typeof tag === "string") {
+      const cached = path.join(CACHE, `ffmpeg-${tag}-linux-x64`);
+      if (!fs.existsSync(cached)) {
+        fs.mkdirSync(CACHE, { recursive: true });
+        const url = `https://github.com/eugeneware/ffmpeg-static/releases/download/${tag}/ffmpeg-linux-x64`;
+        console.log(`downloading ffmpeg ${tag} (Linux build for the server)`);
+        const res = await fetch(url, { redirect: "follow" });
+        if (!res.ok) fail(`Could not download ${url}: HTTP ${res.status}. Video and audio uploads need it on the server.`);
+        fs.writeFileSync(cached, Buffer.from(await res.arrayBuffer()));
+      }
+      source = cached;
+    }
+    if (!source) fail("Cannot work out which ffmpeg build to bundle; node_modules/ffmpeg-static/package.json has changed shape.");
+    const head = fs.readFileSync(source).subarray(0, 4);
+    if (head.toString("latin1") !== "\x7fELF") fail(`${source} is not a Linux executable (got ${JSON.stringify(head.toString("latin1"))}).`);
+    fs.copyFileSync(source, dest);
+    fs.chmodSync(dest, 0o755);
+  }
+
   const sharpPkg = JSON.parse(fs.readFileSync(path.join("node_modules", "sharp", "package.json"), "utf8"));
   const wanted = ["@img/sharp-linux-x64", "@img/sharp-libvips-linux-x64"];
   for (const name of wanted) {

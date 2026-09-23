@@ -32,14 +32,14 @@ If any of them is a no, stop — the rest will not save you.
 
 Stated plainly so it is not a surprise after you have deployed.
 
-**Video uploads are refused.** Not degraded — refused, with a 503
-explaining why. Video cannot be re-encoded the way images are, so malware
-scanning is its whole defence, and that needs ClamAV running as a daemon.
-Shared hosting will not give you one. Images are unaffected and work
-normally.
-
-**No ffmpeg**, so even if scanning were available, video would be stored
-in whatever container it arrived in rather than normalised.
+**No malware scanner.** ClamAV has to run as a daemon, and shared
+hosting will not give you one. Every upload is still re-encoded — images
+by sharp, video and audio by the Linux build of ffmpeg that
+`npm run build:cpanel` puts in the bundle — and that re-encode is what
+makes a file publishable; the scanner, where one exists, is a second
+opinion. See `docs/media.md`. If the bundled ffmpeg cannot run on the
+host (a very old glibc, say), video and audio uploads are refused with a
+503 that says so; images are unaffected.
 
 **You cannot build on the server.** `next build` wants roughly 2GB of
 RAM, and shared hosting usually kills the process well below that, with

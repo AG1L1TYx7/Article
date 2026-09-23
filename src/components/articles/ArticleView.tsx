@@ -4,6 +4,7 @@ import { initials } from "@/lib/format";
 import { imageSrcSet, imageVariantUrl } from "@/lib/imageUrl";
 import { getI18n } from "@/i18n/server";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";
+import { LICENSES, creditLine, type MediaLicenseCode } from "@/lib/mediaRights";
 
 /**
  * The pieces of a rendered article, shared by the public page and the
@@ -124,8 +125,22 @@ export async function ArticleHeader({
   );
 }
 
-export function ArticleCover({ image }: { image: { url: string; altText: string | null } | null }) {
+export function ArticleCover({
+  image,
+}: {
+  image: {
+    url: string;
+    altText: string | null;
+    credit?: string | null;
+    sourceName?: string | null;
+    license?: MediaLicenseCode | null;
+  } | null;
+}) {
   if (!image) return null;
+  // The credit sits with the picture as well as in the credits list at
+  // the end: a reader who only looks at the photo still sees who took it.
+  const credit = creditLine("IMAGE", { credit: image.credit ?? null, sourceName: image.sourceName ?? null, license: image.license ?? null });
+  const licence = image.license ? LICENSES[image.license] : null;
   return (
     <figure className="mx-auto mt-8 max-w-5xl px-4 sm:px-6">
       {/* eslint-disable-next-line @next/next/no-img-element -- served from this site's own media route or object storage */}
@@ -138,7 +153,22 @@ export function ArticleCover({ image }: { image: { url: string; altText: string 
         loading="eager"
         decoding="async"
       />
-      {image.altText && <figcaption className="mt-2 text-xs text-ink-3">{image.altText}</figcaption>}
+      {(image.altText || credit) && (
+        <figcaption className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-ink-3">
+          <span>{image.altText}</span>
+          {credit && (
+            <span data-cover-credit>
+              {licence?.url ? (
+                <a href={licence.url} rel="license noopener noreferrer" target="_blank" className="hover:text-ink hover:underline">
+                  {credit}
+                </a>
+              ) : (
+                credit
+              )}
+            </span>
+          )}
+        </figcaption>
+      )}
     </figure>
   );
 }

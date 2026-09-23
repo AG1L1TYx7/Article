@@ -12,6 +12,7 @@ import { linkPreviewLimiter } from "@/lib/rateLimit";
 import { fetchLinkPreview } from "@/lib/linkPreview";
 import { notifyBreakingNews } from "@/lib/notifications";
 import { pushBreakingNews } from "@/lib/push";
+import { linkArticleMedia, mediaReferencedBy, rightsBlockers, rightsBlockersMessage } from "@/lib/articleMedia";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import type { Article } from "@/generated/prisma/client";
@@ -170,6 +171,14 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
     const translationOf = await resolveTranslationOf(data.translationOfSlug || undefined, null);
     if ("error" in translationOf) return { ok: false, error: translationOf.error };
 
+    // Scheduling is publishing with a delay, so it meets the same bar:
+    // every file credited and licensed. A draft may hold anything.
+    const media = await mediaReferencedBy(bodyHtml, data.coverImageId ?? null);
+    if (schedule.data.status === "SCHEDULED") {
+      const blockers = rightsBlockers(media);
+      if (blockers.length) return { ok: false, error: rightsBlockersMessage(blockers) };
+    }
+
     const article = await db.article.create({
       data: {
         title: data.title,
@@ -200,6 +209,7 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
 
     await syncTags(article.id, data.tagSlugs);
     await applyCoverAlt(data);
+    await linkArticleMedia(article.id, media);
     await recordAudit({
       actorId: session.user.id,
       action: "article.create",
@@ -238,6 +248,14 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
     const translationOf = await resolveTranslationOf(data.translationOfSlug || undefined, articleId);
     if ("error" in translationOf) return { ok: false, error: translationOf.error };
 
+    // Scheduling, and editing a story that is already live, both mean
+    // the files reach readers: every one must be credited and licensed.
+    const media = await mediaReferencedBy(bodyHtml, data.coverImageId ?? null);
+    if (schedule.data.status === "SCHEDULED" || article.status === "PUBLISHED") {
+      const blockers = rightsBlockers(media);
+      if (blockers.length) return { ok: false, error: rightsBlockersMessage(blockers) };
+    }
+
     await db.article.update({
       where: { id: articleId },
       data: {
@@ -265,6 +283,7 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
 
     await syncTags(articleId, data.tagSlugs);
     await applyCoverAlt(data);
+    await linkArticleMedia(articleId, media);
     await recordAudit({
       actorId: session.user.id,
       action: "article.update",
@@ -294,6 +313,14 @@ export async function publishArticle(articleId: string): Promise<ArticleActionRe
     const article = await db.article.findUnique({ where: { id: articleId } });
     if (!article) return { ok: false, error: "Article not found." };
     assertCanEdit(session.user.role, session.user.id, article);
+
+    // The one rule every file must meet before it reaches readers: who
+    // made it and on what terms, confirmed by the person who added it.
+    // See lib/mediaRights.ts.
+    const media = await mediaReferencedBy(article.bodyHtml, article.coverImageId);
+    const blockers = rightsBlockers(media);
+    if (blockers.length) return { ok: false, error: rightsBlockersMessage(blockers) };
+    await linkArticleMedia(articleId, media);
 
     await db.article.update({
       where: { id: articleId },

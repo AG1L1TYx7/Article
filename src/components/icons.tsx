@@ -267,3 +267,51 @@ export const MonitorIcon = (p: IconProps) => (
     <path d="M8 20h8M12 16v4" />
   </svg>
 );
+
+export const VideoIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="6" width="13" height="12" rx="2" />
+    <path d="m16 10 5-3v10l-5-3Z" />
+  </svg>
+);
+
+export const AudioIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 18V6l11-2v12" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="17" cy="16" r="3" />
+  </svg>
+);
+
+export const PlayIcon = (p: IconProps) => (
+  <svg {...base(p)} fill="currentColor" stroke="none">
+    <path d="M7 5v14l12-7Z" />
+  </svg>
+);
+
+export const PauseIcon = (p: IconProps) => (
+  <svg {...base(p)} fill="currentColor" stroke="none">
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </svg>
+);
+
+export const DownloadIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v11M7 10l5 5 5-5M4 19h16" />
+  </svg>
+);
+
+export const RewindIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 12a8 8 0 1 0 2.3-5.6" />
+    <path d="M4 3v4h4" />
+  </svg>
+);
+
+export const ForwardIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20 12a8 8 0 1 1-2.3-5.6" />
+    <path d="M20 3v4h-4" />
+  </svg>
+);

@@ -7,6 +7,10 @@ import { sanitizeArticleHtml } from "@/lib/sanitize";
 import { readingTime } from "@/lib/format";
 import { ArticleBody, ArticleCover, ArticleHeader, ArticleTags } from "@/components/articles/ArticleView";
 import { RelatedLinks } from "@/components/articles/RelatedLinks";
+import { MediaCredits } from "@/components/articles/MediaCredits";
+import { AudioPlayers } from "@/components/articles/AudioPlayers";
+import { mediaReferencedBy } from "@/lib/articleMedia";
+import { allowsDownload } from "@/lib/mediaRights";
 import { StatusPill } from "../../StatusPill";
 
 export const metadata: Metadata = { title: "Preview", robots: { index: false, follow: false } };
@@ -37,7 +41,8 @@ export default async function ArticlePreviewPage({ params }: { params: Promise<{
       authorId: true,
       author: { select: { name: true, handle: true } },
       category: { select: { name: true, slug: true } },
-      coverImage: { select: { url: true, altText: true } },
+      coverImageId: true,
+      coverImage: { select: { url: true, altText: true, credit: true, sourceName: true, license: true } },
       tags: { select: { tag: { select: { slug: true, name: true } } } },
       links: {
         orderBy: { createdAt: "asc" },
@@ -47,6 +52,13 @@ export default async function ArticlePreviewPage({ params }: { params: Promise<{
   });
   if (!article) notFound();
   if (session.user.role !== "ADMIN" && article.authorId !== session.user.id) redirect("/dashboard/articles");
+
+  // Resolved from the body rather than the saved relation, so a file
+  // added a moment ago and not yet saved still shows its credit here.
+  const media = await mediaReferencedBy(article.bodyHtml, article.coverImageId);
+  const audioItems = media
+    .filter((m) => m.type === "AUDIO")
+    .map((m) => ({ id: m.id, title: m.title, downloadUrl: allowsDownload(m.license) ? `${m.url}?download=1` : null, durationSecs: m.durationSecs }));
 
   return (
     <main id="main-content" className="pb-16">
@@ -84,8 +96,11 @@ export default async function ArticlePreviewPage({ params }: { params: Promise<{
           {/* Sanitised here, directly: the per-revision cache is for the
               public page, and a preview must always show the latest save. */}
           <ArticleBody html={sanitizeArticleHtml(article.bodyHtml)} />
+          {audioItems.length > 0 && <AudioPlayers items={audioItems} scope=".prose-article" />}
           <ArticleTags tags={article.tags.map((t) => t.tag)} />
           <RelatedLinks links={article.links} />
+
+          <MediaCredits media={media} />
         </div>
       </article>
     </main>

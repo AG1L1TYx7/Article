@@ -9,6 +9,7 @@ import { PageBody, PageHeader } from "../../../PageHeader";
 import { StatusPill } from "../StatusPill";
 import { ExternalIcon } from "@/components/icons";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { creditLine, isRightsComplete } from "@/lib/mediaRights";
 
 export const metadata: Metadata = { title: "Edit article", robots: { index: false, follow: false } };
 
@@ -22,7 +23,19 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     include: {
       tags: { include: { tag: true } },
       links: { orderBy: { createdAt: "asc" } },
-      coverImage: { select: { id: true, url: true, altText: true } },
+      coverImage: {
+        select: {
+          id: true,
+          url: true,
+          altText: true,
+          credit: true,
+          sourceName: true,
+          sourceUrl: true,
+          license: true,
+          rightsNote: true,
+          rightsConfirmedAt: true,
+        },
+      },
       translationOf: { select: { slug: true } },
     },
   });
@@ -87,7 +100,15 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             isBreaking: article.isBreaking,
             bodyJson: article.bodyJson as object,
             bodyHtml: article.bodyHtml,
-            coverImage: article.coverImage,
+            coverImage: article.coverImage
+              ? {
+                  id: article.coverImage.id,
+                  url: article.coverImage.url,
+                  altText: article.coverImage.altText,
+                  creditLine: creditLine("IMAGE", article.coverImage),
+                  rightsOk: isRightsComplete(article.coverImage),
+                }
+              : null,
             seoTitle: article.seoTitle ?? "",
             seoDescription: article.seoDescription ?? "",
             scheduledFor: article.scheduledFor?.toISOString() ?? null,

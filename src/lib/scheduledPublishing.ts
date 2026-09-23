@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { notifyBreakingNews } from "@/lib/notifications";
 import { pushBreakingNews } from "@/lib/push";
+import { mediaReferencedBy, rightsBlockers } from "@/lib/articleMedia";
 
 /**
  * Publishes articles whose scheduled time has arrived.
@@ -28,9 +29,17 @@ export async function publishDueArticles(now: Date = new Date()): Promise<number
   running = (async () => {
     const due = await db.article.findMany({
       where: { status: "SCHEDULED", scheduledFor: { lte: now } },
-      select: { id: true, slug: true, scheduledFor: true, publishedAt: true, isBreaking: true },
+      select: { id: true, slug: true, scheduledFor: true, publishedAt: true, isBreaking: true, bodyHtml: true, coverImageId: true },
     });
     for (const article of due) {
+      // Scheduling already checked this, but a file's details can be
+      // edited afterwards. A story with an uncredited file stays
+      // scheduled and is reported, rather than going live incomplete.
+      const blockers = rightsBlockers(await mediaReferencedBy(article.bodyHtml, article.coverImageId));
+      if (blockers.length) {
+        console.error(`[scheduled publishing] ${article.slug} held back: ${blockers.join("; ")}`);
+        continue;
+      }
       await db.article.update({
         where: { id: article.id },
         data: {

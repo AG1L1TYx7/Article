@@ -14,6 +14,8 @@ export interface FeedItem {
   publishedAt: Date | null;
   authorName: string;
   categoryName: string | null;
+  /** The story's audio, offered as a podcast-style enclosure. */
+  enclosure?: { url: string; length: number; type: string } | null;
 }
 
 /**
@@ -63,6 +65,9 @@ export function buildRssFeed(items: FeedItem[], now = new Date()): string {
         `      <dc:creator>${escapeXml(item.authorName)}</dc:creator>`,
         item.categoryName ? `      <category>${escapeXml(item.categoryName)}</category>` : null,
         item.summary ? `      <description>${escapeXml(item.summary)}</description>` : null,
+        item.enclosure
+          ? `      <enclosure url="${escapeXml(item.enclosure.url)}" length="${item.enclosure.length}" type="${escapeXml(item.enclosure.type)}" />`
+          : null,
         "    </item>",
       ]
         .filter(Boolean)

@@ -27,73 +27,73 @@ enum UserStatus {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  emailVerifiedAt  DateTime?
-  passwordHash     String?
-  name             String
-  handle           String    @unique
-  avatarUrl        String?
-  role             Role      @default(READER)
-  status           UserStatus @default(ACTIVE)
-  mfaSecret        String?
-  mfaEnabled       Boolean   @default(false)
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  emailVerifiedAt    DateTime?
+  passwordHash       String?
+  name               String
+  handle             String     @unique
+  avatarUrl          String?
+  role               Role       @default(READER)
+  status             UserStatus @default(ACTIVE)
+  mfaSecret          String?
+  mfaEnabled         Boolean    @default(false)
   // One-time codes for a lost authenticator: a JSON array of keyed
   // hashes, each removed as it is used. Shown to the person once, at
   // enrolment. See lib/auth/recoveryCodes.ts.
-  mfaRecoveryCodes String?   @db.Text
+  mfaRecoveryCodes   String?    @db.Text
   // A verified phone number, for account recovery and alerts. Stored
   // encrypted (AES-256-GCM under AUTH_SECRET) so it can be shown back to
   // its owner, with a keyed hash beside it so uniqueness can be enforced
   // without the number itself being indexed. See lib/phone.ts.
-  phoneEncrypted   String?
-  phoneHash        String?   @unique @db.VarChar(64)
-  phoneVerifiedAt  DateTime?
+  phoneEncrypted     String?
+  phoneHash          String?    @unique @db.VarChar(64)
+  phoneVerifiedAt    DateTime?
   // The one-time code sent by SMS, as a keyed hash; single use, ten
   // minutes, five attempts.
-  phoneCodeHash    String?   @db.VarChar(64)
-  phoneCodeExpires DateTime?
-  phoneCodeAttempts Int      @default(0)
+  phoneCodeHash      String?    @db.VarChar(64)
+  phoneCodeExpires   DateTime?
+  phoneCodeAttempts  Int        @default(0)
   // A new address waiting for its confirmation link. The old address
   // stays in force until the link is used.
-  pendingEmail     String?
+  pendingEmail       String?
   // Set when an admin creates the account (or a temporary password is
   // issued): proxy.ts sends the person to /account/password before any
   // other page until they have chosen their own. See lib/auth/config.ts.
-  mustChangePassword Boolean @default(false)
+  mustChangePassword Boolean    @default(false)
   // When they ticked "I agree to the terms and privacy policy" at
   // registration — the record of consent GDPR Art. 7(1) asks for.
-  termsAcceptedAt  DateTime?
+  termsAcceptedAt    DateTime?
   // Set by "Delete my account". The row stays so comments and audit
   // entries keep their foreign keys, but every personal field on it is
   // blanked and it can never sign in again. See lib/accountDeletion.ts.
-  anonymisedAt     DateTime?
-  failedLoginCount Int       @default(0)
-  lockedUntil      DateTime?
+  anonymisedAt       DateTime?
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?
   // Bumped to instantly invalidate every outstanding JWT for this user —
   // "log out everywhere" and forced-logout-on-ban, without database sessions.
   // See src/lib/auth/config.ts for why Credentials + JWT forced this design.
-  sessionVersion   Int       @default(0)
-  lastLoginAt      DateTime?
-  lastLoginIp      String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  sessionVersion     Int        @default(0)
+  lastLoginAt        DateTime?
+  lastLoginIp        String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  articles      Article[]      @relation("ArticleAuthor")
-  comments      Comment[]
-  reactions     Reaction[]
-  bookmarks     Bookmark[]
-  follows       Follow[]       @relation("FollowFollower")
-  followedBy    Follow[]       @relation("FollowTarget")
-  reports       Report[]       @relation("ReportReporter")
-  handledReports Report[]      @relation("ReportHandler")
-  auditLogs     AuditLog[]
-  media         Media[]
-  notifications Notification[] @relation("NotificationRecipient")
-  causedNotifications Notification[] @relation("NotificationActor")
-  pushSubscriptions PushSubscription[]
+  accounts            Account[]
+  sessions            Session[]
+  articles            Article[]          @relation("ArticleAuthor")
+  comments            Comment[]
+  reactions           Reaction[]
+  bookmarks           Bookmark[]
+  follows             Follow[]           @relation("FollowFollower")
+  followedBy          Follow[]           @relation("FollowTarget")
+  reports             Report[]           @relation("ReportReporter")
+  handledReports      Report[]           @relation("ReportHandler")
+  auditLogs           AuditLog[]
+  media               Media[]
+  notifications       Notification[]     @relation("NotificationRecipient")
+  causedNotifications Notification[]     @relation("NotificationActor")
+  pushSubscriptions   PushSubscription[]
 
   @@index([role])
   @@index([status])
@@ -150,21 +150,21 @@ enum ArticleStatus {
 }
 
 model Article {
-  id          String        @id @default(cuid())
-  slug        String        @unique
-  title       String
-  dek         String?
-  bodyJson    Json
-  bodyHtml    String        @db.Text
+  id         String        @id @default(cuid())
+  slug       String        @unique
+  title      String
+  dek        String?
+  bodyJson   Json
+  bodyHtml   String        @db.Text
   // Plain text extracted from bodyHtml at write time, purely so search
   // can match article bodies. Indexing bodyHtml directly would match on
   // markup ("div", "href") rather than words a reader typed.
-  searchText  String?       @db.Text
-  excerpt     String?
-  status      ArticleStatus @default(DRAFT)
-  isBreaking  Boolean       @default(false)
-  locale      String        @default("en")
-  viewCount   Int           @default(0)
+  searchText String?       @db.Text
+  excerpt    String?
+  status     ArticleStatus @default(DRAFT)
+  isBreaking Boolean       @default(false)
+  locale     String        @default("en")
+  viewCount  Int           @default(0)
 
   seoTitle       String?
   seoDescription String?
@@ -179,29 +179,32 @@ model Article {
   // "Read this in …" and emit hreflang alternates. See docs/i18n.md.
   translationOfId String?
 
-  publishedAt   DateTime?
-  scheduledFor  DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  author   User      @relation("ArticleAuthor", fields: [authorId], references: [id])
-  category Category? @relation(fields: [categoryId], references: [id])
-  coverImage Media?  @relation("ArticleCoverImage", fields: [coverImageId], references: [id])
+  author        User      @relation("ArticleAuthor", fields: [authorId], references: [id])
+  category      Category? @relation(fields: [categoryId], references: [id])
+  coverImage    Media?    @relation("ArticleCoverImage", fields: [coverImageId], references: [id])
   translationOf Article?  @relation("ArticleTranslations", fields: [translationOfId], references: [id], onDelete: SetNull)
   translations  Article[] @relation("ArticleTranslations")
 
-  tags     ArticleTag[]
-  media    Media[]      @relation("ArticleMedia")
-  links    ArticleLink[]
-  comments Comment[]
-  reactions Reaction[]
-  bookmarks Bookmark[]
-  reports  Report[]
-  notifications Notification[]
-  viewDays ArticleViewDaily[]
+  tags           ArticleTag[]
+  media          Media[]              @relation("ArticleMedia")
+  links          ArticleLink[]
+  comments       Comment[]
+  reactions      Reaction[]
+  bookmarks      Bookmark[]
+  reports        Report[]
+  notifications  Notification[]
+  viewDays       ArticleViewDaily[]
   viewDimensions ViewDimensionDaily[]
-  readDays ArticleReadDaily[]
+  readDays       ArticleReadDaily[]
 
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
   // MATCH ... AGAINST requires a real FULLTEXT index — unlike Postgres,
   // MySQL cannot compute one per row at query time. MATCH must also name
   // exactly the columns some index was built over, which is why there are
@@ -216,9 +219,6 @@ model Article {
   @@fulltext([title])
   @@fulltext([dek])
   @@fulltext([searchText])
-  @@index([status, publishedAt])
-  @@index([categoryId])
-  @@index([authorId])
 }
 
 model Category {
@@ -250,6 +250,24 @@ model ArticleTag {
 enum MediaType {
   IMAGE
   VIDEO
+  AUDIO
+}
+
+// The terms a file is published under. See src/lib/mediaRights.ts for the
+// human names, the licence deed URLs and what each one requires (a
+// creator's name for CC BY, a note explaining the permission for OTHER).
+enum MediaLicense {
+  OWN_WORK
+  PERMISSION
+  CC0
+  CC_BY
+  CC_BY_SA
+  CC_BY_ND
+  CC_BY_NC
+  CC_BY_NC_SA
+  CC_BY_NC_ND
+  PUBLIC_DOMAIN
+  OTHER
 }
 
 enum ScanStatus {
@@ -262,19 +280,38 @@ enum ScanStatus {
 // See security blueprint: files go client -> pre-signed URL -> object storage,
 // then are re-encoded and malware-scanned before this row is marked clean.
 model Media {
-  id            String     @id @default(cuid())
-  type          MediaType
-  storageKey    String     @unique
-  url           String
-  contentType   String
-  altText       String?
-  width         Int?
-  height        Int?
-  durationSecs  Int?
-  checksum      String
-  scanStatus    ScanStatus @default(PENDING)
-  uploadedById  String
-  createdAt     DateTime   @default(now())
+  id           String     @id @default(cuid())
+  type         MediaType
+  storageKey   String     @unique
+  url          String
+  contentType  String
+  altText      String?
+  width        Int?
+  height       Int?
+  durationSecs Int?
+  sizeBytes    Int?
+  checksum     String
+  scanStatus   ScanStatus @default(PENDING)
+  uploadedById String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+
+  // Attribution and rights. Nothing here is personal data about a reader;
+  // it is the record of who made the file and under what terms it is
+  // published, shown under the file and in the article's credits. An
+  // article cannot be published while any of its files lacks a licence
+  // and a confirmation (rightsConfirmedAt) from the person who added it.
+  title             String?
+  caption           String?       @db.Text
+  credit            String?
+  sourceName        String?
+  sourceUrl         String?       @db.VarChar(2000)
+  license           MediaLicense?
+  rightsNote        String?       @db.Text
+  rightsConfirmedAt DateTime?
+  // A written version of audio or video, for readers who cannot hear it
+  // and for search engines. Optional but strongly encouraged.
+  transcript        String?       @db.Text
 
   uploadedBy User      @relation(fields: [uploadedById], references: [id])
   articles   Article[] @relation("ArticleMedia")
@@ -334,13 +371,13 @@ model Comment {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  article  Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  author   User      @relation(fields: [userId], references: [id])
-  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies  Comment[] @relation("CommentReplies")
+  article Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author  User      @relation(fields: [userId], references: [id])
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
 
-  reactions Reaction[]
-  reports   Report[]
+  reactions     Reaction[]
+  reports       Report[]
   notifications Notification[]
 
   @@index([articleId, status])
@@ -437,8 +474,8 @@ model ArticleViewDaily {
 model ViewDimensionDaily {
   articleId String
   day       DateTime @db.Date
-  dimension String   // "country" | "referrer" | "device"
-  value     String   // "FR", "search", "mobile", ...
+  dimension String // "country" | "referrer" | "device"
+  value     String // "FR", "search", "mobile", ...
   views     Int      @default(0)
 
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
@@ -502,20 +539,20 @@ model Notification {
 // person unless they were signed in when they subscribed, in which case
 // the row is theirs and goes with their account. See lib/push.ts.
 model PushSubscription {
-  id         String    @id @default(cuid())
+  id           String    @id @default(cuid())
   // 2KB is generous; real endpoints are a few hundred characters. Unique
   // on the hash rather than the column: a utf8mb4 index cannot cover a
   // key this wide.
   endpoint     String    @db.VarChar(2048)
   endpointHash String    @unique @db.VarChar(64)
-  p256dh     String    @db.VarChar(255)
-  auth       String    @db.VarChar(255)
-  userId     String?
-  createdAt  DateTime  @default(now())
-  lastUsedAt DateTime?
+  p256dh       String    @db.VarChar(255)
+  auth         String    @db.VarChar(255)
+  userId       String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
   // Set when the push service rejected a delivery for a reason other than
   // "gone"; the retention purge removes rows that have stayed failed.
-  failedAt   DateTime?
+  failedAt     DateTime?
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -106,6 +106,27 @@ export const en = {
     copyPrompt: "Copy this link:",
     readIn: "Read this story in",
     inLanguage: "This story is in {language}.",
+    credits: "Credits and licences",
+    creditsBlurb: "Who made the pictures, audio and video in this story, and the terms they are published under.",
+    credit: "Credit",
+    source: "Source",
+    licence: "Licence",
+    allRightsReserved: "All rights reserved",
+    transcript: "Transcript",
+    download: "Download",
+    kindImage: "Image",
+    kindVideo: "Video",
+    kindAudio: "Audio",
+  },
+
+  player: {
+    play: "Play",
+    pause: "Pause",
+    back: "Back 15 seconds",
+    forward: "Forward 15 seconds",
+    speed: "Playback speed",
+    seek: "Seek",
+    listen: "Listen",
   },
 
   engagement: {

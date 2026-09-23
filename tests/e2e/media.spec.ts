@@ -138,20 +138,20 @@ test.describe("Serving uploaded media", () => {
 });
 
 test.describe("Uploading", () => {
-  test("video is refused outright when no scanner is configured", async ({ page }) => {
-    // It used to be stored and marked PENDING. That was safe only on
-    // local disk: with S3 configured, Media.url points straight at the
-    // bucket and this app's media route is not in the path at all, so an
-    // unscanned video was publicly readable. Refusing is the only
-    // behaviour that is true on both backends.
+  test("a video ffmpeg cannot decode is refused, and nothing is stored", async ({ page }) => {
+    // The file is a real MP4 header with nothing behind it. It is
+    // identified as video, handed to the bundled ffmpeg, and refused when
+    // that fails — never stored "pending" for later. Storing and hiding
+    // was only ever safe on local disk: with S3 configured, Media.url
+    // points straight at the bucket and this route is not in the path.
     await signInAsModerator(page);
 
     const response = await page.request.post("/api/media/upload", {
       multipart: { file: { name: "clip.mp4", mimeType: "video/mp4", buffer: TINY_MP4 } },
     });
 
-    expect(response.status()).toBe(503);
-    expect((await response.json()).error).toContain("no malware scanner is configured");
+    expect(response.status()).toBe(400);
+    expect((await response.json()).error).toContain("Could not process that video");
 
     // And nothing was written: no row, so nothing to serve or clean up.
     expect(count(`SELECT count(*) FROM \`Media\` WHERE type = 'VIDEO';`)).toBe(0);
