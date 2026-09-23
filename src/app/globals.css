@@ -36,10 +36,17 @@
   color-scheme: light;
 }
 
+/*
+ * Dark mode is designed, not inverted: the accent and slate are lifted so
+ * they keep contrast on the dark ground; the greys carry the same cool
+ * bias. The same values are declared twice on purpose — once for readers
+ * whose system is dark and who have not chosen otherwise, once for a
+ * reader who chose dark in the toggle (src/components/ThemeToggle.tsx),
+ * which the root layout stamps on <html data-theme> from a cookie. An
+ * explicit "light" beats a dark system for the same reason.
+ */
 @media (prefers-color-scheme: dark) {
-  /* Designed, not inverted: the accent and slate are lifted so they keep
-     contrast on the dark ground; the greys carry the same cool bias. */
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #111418;
     --surface: #181c21;
     --surface-2: #22272e;
@@ -61,6 +68,29 @@
     --focus: #7fa6d1;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --paper: #111418;
+  --surface: #181c21;
+  --surface-2: #22272e;
+  --ink: #e9e7e2;
+  --ink-2: #b5b3ad;
+  --ink-3: #8b8f96;
+  --line: #2a2f36;
+  --line-strong: #363c45;
+  --accent: #e2574f;
+  --accent-soft: #3a1d1b;
+  --info: #7fa6d1;
+  --info-soft: #1c2a3a;
+  --ok: #6fcb94;
+  --ok-soft: #173225;
+  --warn: #e0b44c;
+  --warn-soft: #3a2e10;
+  --danger: #e2574f;
+  --danger-soft: #3a1d1b;
+  --focus: #7fa6d1;
+  color-scheme: dark;
 }
 
 @theme inline {

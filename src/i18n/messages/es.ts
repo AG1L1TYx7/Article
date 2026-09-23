@@ -278,6 +278,8 @@ export const es: Messages = {
     alertsNeedJs: "Las alertas necesitan JavaScript activado.",
     language: "Idioma",
     languageBlurb: "El idioma de los menús, botones y mensajes. Las noticias se mantienen en el idioma en que se escribieron.",
+    appearance: "Apariencia",
+    appearanceBlurb: "Claro u oscuro, o según la configuración de este dispositivo. Se recuerda en este navegador.",
     contact: "Datos de contacto",
     contactBlurb: "Cómo le localizamos y cómo recupera el acceso si se queda fuera. Los enlaces de inicio de sesión van a su correo; un número de teléfono verificado es una segunda forma de demostrar que es usted.",
     emailLabel: "Correo electrónico",
@@ -442,5 +444,12 @@ export const es: Messages = {
   language: {
     label: "Idioma",
     switchTo: "Cambiar a {language}",
+  },
+
+  theme: {
+    label: "Tema",
+    system: "Sistema",
+    light: "Claro",
+    dark: "Oscuro",
   },
 };

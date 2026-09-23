@@ -16,6 +16,17 @@ spent only on breaking news and the primary action; links and anything
 informational are slate (`#2F5D8A`). Dark mode is designed, not
 inverted: the accent and slate are lifted so they keep contrast.
 
+Dark mode has three states. By default it follows the operating system
+(`prefers-color-scheme`). A reader can force light or dark from the
+toggle in the masthead, footer, account page or newsroom sidebar
+(`src/components/ThemeToggle.tsx`); the choice is a `theme` cookie that
+the root layout stamps on `<html data-theme>`, so the first paint is
+already right with no script. The dark token block in `globals.css` is
+declared twice — under the media query (guarded by
+`:not([data-theme="light"])`) and under `[data-theme="dark"]` — which
+is what lets an explicit choice win in both directions. Add a token to
+`:root` and to both dark blocks, or it will only exist in one state.
+
 The full set of screens this describes, at 1440 and 390, is the design
 artifact "Dispatch Design System"; this document is the code-facing
 half of it.

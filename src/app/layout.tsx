@@ -7,6 +7,8 @@ import { I18nProvider } from "@/i18n/client";
 import { LOCALE_DIR } from "@/i18n/config";
 import { MESSAGES } from "@/i18n/messages";
 import { getI18n, getLocale } from "@/i18n/server";
+import { getTheme } from "@/theme/server";
+import { THEME_COLOR, themeAttribute } from "@/theme/config";
 
 // Three faces, three jobs. Inter for the interface and its numbers;
 // Source Serif 4 for reading, at optical sizes tuned for 19px; Fraunces
@@ -52,12 +54,17 @@ export const dynamic = "force-dynamic";
 
 // The browser chrome takes the paper colour of whichever scheme is
 // active, so an installed site doesn't sit under a white or black bar.
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafaf7" },
-    { media: "(prefers-color-scheme: dark)", color: "#111418" },
-  ],
-};
+// A reader who forced a theme gets that theme's paper under both media
+// queries; the toggle keeps these tags in step when the choice changes.
+export async function generateViewport(): Promise<Viewport> {
+  const forced = themeAttribute(await getTheme());
+  return {
+    themeColor: [
+      { media: "(prefers-color-scheme: light)", color: THEME_COLOR[forced ?? "light"] },
+      { media: "(prefers-color-scheme: dark)", color: THEME_COLOR[forced ?? "dark"] },
+    ],
+  };
+}
 
 export const metadata: Metadata = {
   // Without metadataBase every Open Graph and Twitter URL is emitted
@@ -121,11 +128,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // sides of hydration.
   const locale = await getLocale();
   const { t } = await getI18n();
+  // Light or dark, when the reader has chosen one (src/theme). Absent
+  // means "follow the system", which the stylesheet handles on its own.
+  const theme = themeAttribute(await getTheme());
 
   return (
     <html
       lang={locale}
       dir={LOCALE_DIR[locale]}
+      data-theme={theme}
       // Tells Next.js the smooth scrolling in globals.css is deliberate,
       // so it can switch it off for the instant during a route change
       // (otherwise a navigation visibly scrolls up from the old position).

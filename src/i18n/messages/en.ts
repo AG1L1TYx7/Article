@@ -274,6 +274,8 @@ export const en = {
     alertsNeedJs: "Alerts need JavaScript turned on.",
     language: "Language",
     languageBlurb: "The language of menus, buttons and messages. Stories stay in the language they were written in.",
+    appearance: "Appearance",
+    appearanceBlurb: "Light or dark, or follow this device's setting. Remembered on this browser.",
     contact: "Contact details",
     contactBlurb: "How we reach you, and how you get back in if you are locked out. Your email address is where sign-in links go; a verified phone number is a second way to prove it is you.",
     emailLabel: "Email address",
@@ -438,5 +440,12 @@ export const en = {
   language: {
     label: "Language",
     switchTo: "Switch to {language}",
+  },
+
+  theme: {
+    label: "Theme",
+    system: "System",
+    light: "Light",
+    dark: "Dark",
   },
 } as const;

@@ -16,6 +16,8 @@ import { BellIcon, BookmarkIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/compo
 import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { getTheme } from "@/theme/server";
 import { ContactDetails } from "./ContactDetails";
 import { decryptPhone } from "@/lib/phone";
 import { maskPhone } from "@/lib/phoneFormat";
@@ -241,6 +243,17 @@ export default async function AccountPage() {
         <p className="mt-1 text-sm text-ink-2">{t("account.languageBlurb")}</p>
         <div className="mt-5 border-t border-line pt-5">
           <LanguageSwitcher variant="row" />
+        </div>
+      </section>
+
+      {/* Appearance */}
+      <section className="card mt-4 p-6" aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className="text-lg font-medium">
+          {t("account.appearance")}
+        </h2>
+        <p className="mt-1 text-sm text-ink-2">{t("account.appearanceBlurb")}</p>
+        <div className="mt-5 border-t border-line pt-5">
+          <ThemeToggle initial={await getTheme()} variant="row" />
         </div>
       </section>
 

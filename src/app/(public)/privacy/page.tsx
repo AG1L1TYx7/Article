@@ -191,6 +191,13 @@ export default function PrivacyPage() {
             </tr>
             <tr>
               <td>
+                <code>theme</code>
+              </td>
+              <td>Only if you choose light or dark rather than following your device: remembers it. Holds that one word.</td>
+              <td>1 year</td>
+            </tr>
+            <tr>
+              <td>
                 <code>mfa_trust</code>
               </td>
               <td>Only if you tick &ldquo;don&apos;t ask for a code on this device&rdquo;: remembers that this browser passed

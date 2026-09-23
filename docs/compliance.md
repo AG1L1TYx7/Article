@@ -52,6 +52,7 @@ activity, not on this software.
 | Push subscription (endpoint URL issued by the browser's push service, two encryption keys, optional userId) | `PushSubscription` | Breaking-news and reply alerts the reader turned on | Consent (the toggle); withdrawn by turning it off, which deletes the row | Until turned off or account deleted; rows the push service keeps rejecting purged after 30 days |
 | Rate-limit counters | memory or Upstash | Abuse prevention | Legitimate interest | Minutes |
 | Interface language (`locale` cookie, two letters) | browser cookie | Remembering a language chosen from the switcher; strictly necessary, so no consent banner | Legitimate interest | 1 year |
+| Light or dark theme (`theme` cookie, one word; absent when following the device) | browser cookie | Remembering a theme chosen from the toggle; strictly necessary, so no consent banner | Legitimate interest | 1 year |
 | Verification / reset tokens | `VerificationToken` | One-time links | Contract | 1 hour; rows purged daily |
 | Article view counts | `Article.viewCount`, `ArticleViewDaily` | Editorial analytics | Not personal data (no identifier) | Indefinite |
 | Views by country code / referrer class / device class, per article per day | `ViewDimensionDaily` | Editorial analytics (where readers are, how they arrive) | Not personal data: coarse buckets and counts; the IP and user agent are classified in memory and discarded. Country comes from a CDN/host header (`CF-IPCountry` etc.), never from a lookup we store | Indefinite |

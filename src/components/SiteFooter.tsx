@@ -4,6 +4,8 @@ import { withDatabaseFallback } from "@/lib/buildSafe";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/siteUrl";
 import { getI18n } from "@/i18n/server";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
+import { getTheme } from "@/theme/server";
 import { RssIcon } from "./icons";
 import { PushToggle } from "./push/PushToggle";
 
@@ -105,7 +107,10 @@ export async function SiteFooter() {
           <p>
             © {new Date().getUTCFullYear()} {SITE_NAME}
           </p>
-          <LanguageSwitcher />
+          <div className="flex flex-wrap items-center gap-3">
+            <ThemeToggle initial={await getTheme()} />
+            <LanguageSwitcher />
+          </div>
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             <li>
               <Link href="/privacy" className="hover:text-ink">

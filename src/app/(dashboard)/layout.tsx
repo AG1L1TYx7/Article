@@ -7,6 +7,9 @@ import { DashboardNav } from "./DashboardNav";
 import { CommandPalette } from "@/components/dashboard/CommandPalette";
 import { ExternalIcon, LogoutIcon } from "@/components/icons";
 import { getI18n } from "@/i18n/server";
+import { getTheme } from "@/theme/server";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /**
  * The newsroom shell: a sidebar of tools on the left, the page on the
@@ -22,6 +25,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session?.user) redirect("/login?from=/dashboard");
 
   const { t } = await getI18n();
+  const theme = await getTheme();
   const { name, email, role, mfaEnabled } = session.user;
 
   return (
@@ -50,6 +54,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <p className="truncate text-sm font-medium">{name}</p>
               <p className="truncate text-xs text-ink-3">{email}</p>
             </div>
+          </div>
+          <div className="hidden items-center justify-between gap-2 md:mt-3 md:flex">
+            <ThemeToggle initial={theme} />
+            <LanguageSwitcher variant="compact" />
           </div>
           <div className="flex items-center gap-2 md:mt-3">
             <Link href="/" className="btn btn-ghost btn-sm flex-1 justify-start gap-1.5">
