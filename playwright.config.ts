@@ -47,5 +47,9 @@ export default defineConfig({
     url: BASE_URL,
     reuseExistingServer: true,
     timeout: 180_000,
+    // The production build refuses to start on local fallbacks (no email
+    // provider, localhost address) — see src/instrumentation.ts. The test
+    // suite runs on exactly those fallbacks, so it says so.
+    env: { ALLOW_PRODUCTION_FALLBACKS: "1" },
   },
 });

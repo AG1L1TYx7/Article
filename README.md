@@ -104,6 +104,7 @@ comment at the top of `src/lib/rateLimit.ts`.
 | `npm run bootstrap:staff` | Create or promote a staff account |
 | `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
 | `npm run audit` | Dependency audit, failing on anything unreviewed |
+| `npm run check:production` | Reports what is still on a local fallback; exit 1 on a blocker. `-- --strict` fails on warnings too |
 | `npm run build:cpanel` | Assemble an upload-ready bundle for cPanel Node.js hosting |
 | `npm run push:keys` | Generate the VAPID key pair that turns on push notifications (paste into `.env`) |
 | `npm run db:backup` | Gzipped SQL dump of the database `DATABASE_URL` points at (`-- --keep 14` prunes old ones) |
@@ -283,6 +284,14 @@ Stated plainly so nobody assumes otherwise:
 
 ## Deploying
 
+**Start with [docs/production-checklist.md](docs/production-checklist.md).**
+`npm run check:production` reports what is still on a local fallback; in
+production the server refuses to start until the essentials (a real
+`AUTH_SECRET`, the public https address, an email provider) are set, so a
+misconfigured deploy fails at startup rather than at the first password
+reset. `/api/health` returns 200 while the database answers, for an
+uptime monitor.
+
 See [docs/deployment.md](docs/deployment.md) — a step-by-step guide for a
 fresh Ubuntu VPS or dedicated server, covering server hardening, Docker,
 nginx, HTTPS, backups and the three services that must replace their local
@@ -295,9 +304,9 @@ see [docs/ci-cd.md](docs/ci-cd.md) for what runs and the six secrets that
 turn on automatic deployment to cPanel.
 
 **cPanel works too**, if it offers "Setup Node.js App" with Node 20.9+ — see
-[docs/cpanel.md](docs/cpanel.md) and `npm run build:cpanel`. Video uploads are
-refused on that path, because malware scanning needs a ClamAV daemon shared
-hosting will not give you; everything else works.
+[docs/cpanel.md](docs/cpanel.md) and `npm run build:cpanel`. There is no
+malware scanner on shared hosting; uploads are still re-encoded, which is
+the main control, so images, video and audio all work.
 
 ## Known local hazard
 

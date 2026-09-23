@@ -19,6 +19,7 @@
     "cleanup:test-data": "tsx --env-file-if-exists=.env scripts/cleanup-test-data.ts",
     "e2e:fixture": "tsx --env-file-if-exists=.env scripts/e2e-fixture.ts",
     "audit": "node scripts/audit-dependencies.mjs",
+    "check:production": "tsx --env-file-if-exists=.env scripts/check-production.ts",
     "build:cpanel": "node scripts/build-cpanel.mjs",
     "push:keys": "node scripts/generate-vapid-keys.mjs",
     "db:backup": "node --env-file-if-exists=.env scripts/backup-db.mjs",

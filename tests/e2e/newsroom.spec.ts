@@ -175,7 +175,9 @@ test.describe("People", () => {
     // The one way to lock yourself out of the page you are standing on.
     const admin = await signInAsAdmin(page, "nrself");
 
-    await page.goto("/dashboard/users");
+    // Searched for by email: the full suite creates hundreds of accounts
+    // in parallel, and the list shows one page at a time.
+    await page.goto(`/dashboard/users?q=${encodeURIComponent(admin)}`);
     const row = page.locator("tr", { hasText: admin });
     await expect(row.getByRole("combobox")).toBeDisabled();
     // And no suspend button either.

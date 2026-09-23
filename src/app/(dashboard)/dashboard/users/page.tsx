@@ -40,7 +40,10 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
   const [users, total, activeAdmins, counts] = await Promise.all([
     db.user.findMany({
       where,
-      orderBy: [{ role: "asc" }, { createdAt: "desc" }],
+      // Staff first: the enum is READER < MODERATOR < ADMIN, so descending
+      // puts admins at the top and the long tail of readers after. With a
+      // page of 100, ascending buried every staff account behind readers.
+      orderBy: [{ role: "desc" }, { createdAt: "desc" }],
       take: PAGE_SIZE,
       select: {
         id: true,

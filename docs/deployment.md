@@ -237,11 +237,14 @@ MEDIA_PUBLIC_BASE_URL=https://media.yourdomain.com
 > a day is worth adding too — the app deletes them after processing, but
 > an abandoned upload leaves one behind.
 
-### Malware scanning — otherwise video is refused
+### Malware scanning — a second opinion on every upload
 
-Video cannot be re-encoded the way sharp re-encodes an image, so scanning
-is the whole of its defence. Without it, video uploads are **rejected**
-with a 503 explaining why. Images are unaffected.
+Every upload is re-encoded before it is stored — images by sharp, video
+and audio by ffmpeg — and that re-encode is the main control: the bytes
+served are never the bytes uploaded. A scanner is a second opinion on the
+re-encoded file, and where one is configured its verdict is final (an
+unreachable daemon refuses uploads rather than letting them through).
+Without one, uploads still work. See [media.md](media.md).
 
 `docker-compose.yml` already ships a ClamAV service. Point the app at it:
 
@@ -355,14 +358,17 @@ not working until this is fixed.
 
 ---
 
+## Before the first public link
+
+[production-checklist.md](production-checklist.md) is the go-live list.
+`npm run check:production` on the server's `.env` shows what is still on
+a fallback; the server itself refuses to start in production until the
+blockers there are fixed.
+
 ## What is still not production-ready
 
 Honest list, so nothing here is a surprise later:
 
-- **Video uploads are accepted but never served.** There is no transcoding
-  or malware scanning, so video stays `scanStatus: PENDING` forever and the
-  media route refuses to serve it. Wiring up a real pipeline is a
-  prerequisite for enabling video, not a nicety.
 - **Google OAuth is not scaffolded.** Email and password only.
 - **Search has no GIN index.** Fine into the low tens of thousands of
   articles; [`search.md`](search.md) has the migration for when it isn't.

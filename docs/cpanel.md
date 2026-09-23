@@ -138,6 +138,8 @@ page, `cd` to the application root, then:
 
 ```bash
 node setup.js check
+# and, from your own machine with the server's .env values:
+# npm run check:production
 ```
 
 It connects with your `.env`, and tells you what is wrong in plain
