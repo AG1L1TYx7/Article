@@ -212,12 +212,20 @@ jobs:
         # server from accumulating old chunks. .env and the upload folder
         # are the server's own and are never touched.
         run: |
-          rsync -az --delete \
-            --exclude '.env' --exclude '.env.*' \
-            --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
-            --exclude 'setup-all.js' \
-            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
-            cpanel-dist/ "$SSH_USER@$SSH_HOST:$APP_ROOT/"
+          ssh_cmd="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
+          for attempt in 1 2 3; do
+            rsync -az --delete \
+              --exclude '.env' --exclude '.env.*' \
+              --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
+              --exclude 'setup-all.js' \
+              -e "$ssh_cmd" \
+              cpanel-dist/ "$SSH_USER@$SSH_HOST:$APP_ROOT/" && break
+            if [ "$attempt" -eq 3 ]; then
+              echo "Upload failed after $attempt attempts"; exit 1
+            fi
+            echo "Upload attempt $attempt failed; retrying in 10s..."
+            sleep 10
+          done
 
       - name: Migrate and restart
         env:
