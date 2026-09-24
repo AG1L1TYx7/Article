@@ -1,5 +1,19 @@
-import { mkdirSync, statSync, unwatchFile, watchFile, writeFileSync } from "node:fs";
+import type * as NodeFs from "node:fs";
 import { dirname, join } from "node:path";
+
+/**
+ * `fs` is fetched at runtime rather than imported, on purpose.
+ *
+ * Next's file tracer decides what goes into the deploy bundle by reading
+ * the source. A `statSync()` on a path built from `process.cwd()` is a
+ * file it cannot identify, so it plays safe and traces the entire
+ * project: src/, tests/, docs/ and more landed in the standalone output
+ * and went to the server. The build says so ("Dynamic filesystem access
+ * causes tracing of the whole project"). Through getBuiltinModule the
+ * tracer sees no filesystem call to follow, and the one file this needs,
+ * tmp/restart.txt, is created at runtime and never belonged in a bundle.
+ */
+const { mkdirSync, statSync, unwatchFile, watchFile, writeFileSync } = process.getBuiltinModule("node:fs") as typeof NodeFs;
 
 /**
  * Restarts the server when a deploy says so, by exiting.

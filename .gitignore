@@ -90,3 +90,6 @@ next-env.d.ts
 # The upload archive and its in-progress file (scripts/pack-cpanel.mjs).
 cpanel-dist.zip
 *.zip.building
+
+# Runtime state: the deploy restart marker (src/lib/restartOnDeploy.ts).
+/tmp/
