@@ -149,6 +149,12 @@ jobs:
         with:
           name: cpanel-dist
           path: cpanel-dist/
+          # upload-artifact skips names starting with a dot unless told
+          # otherwise, and the built site is .next/. Without this the
+          # artifact had everything except the application itself, and the
+          # deploy's rsync --delete then removed .next from the server:
+          # "Could not find a production build in the './.next' directory".
+          include-hidden-files: true
           retention-days: 14
           # The bundle is ~160MB of already-compressed node_modules; the
           # default level spends minutes for almost nothing.
@@ -190,6 +196,26 @@ jobs:
         with:
           name: cpanel-dist
           path: cpanel-dist
+
+      # The upload below syncs the server to exactly this bundle, deleting
+      # whatever the bundle lacks. So check the bundle is a working site
+      # before anything touches the server. An artifact that silently lost
+      # .next/ once got as far as the server and took the site down; with
+      # this check it stops here, and the server keeps what it had.
+      - name: Check the bundle is complete
+        run: |
+          missing=0
+          for f in server.js package.json setup.js .next/BUILD_ID .next/required-server-files.json \
+                   node_modules/next/package.json node_modules/mariadb/dist/promise.cjs; do
+            if [ ! -e "cpanel-dist/$f" ]; then echo "missing from the bundle: $f"; missing=1; fi
+          done
+          [ -d cpanel-dist/.next/server ] || { echo "missing from the bundle: .next/server/"; missing=1; }
+          [ -d cpanel-dist/.next/static ] || { echo "missing from the bundle: .next/static/"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            echo "Refusing to deploy an incomplete bundle. Nothing on the server was changed."
+            exit 1
+          fi
+          echo "Bundle complete: build $(cat cpanel-dist/.next/BUILD_ID), $(du -sh cpanel-dist | cut -f1)"
 
       # One SSH connection for the whole deploy.
       #
