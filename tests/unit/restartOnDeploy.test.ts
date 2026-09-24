@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -10,8 +10,12 @@ const stops: (() => void)[] = [];
 function setup(withFile: boolean) {
   const dir = mkdtempSync(join(tmpdir(), "restart-"));
   dirs.push(dir);
-  const file = join(dir, "restart.txt");
-  if (withFile) writeFileSync(file, "");
+  // A subfolder, as on the server: tmp/ may not exist before the first deploy.
+  const file = join(dir, "tmp", "restart.txt");
+  if (withFile) {
+    mkdirSync(join(dir, "tmp"));
+    writeFileSync(file, "");
+  }
   const exit = vi.fn();
   const log = vi.fn();
   stops.push(restartOnDeploy({ file, intervalMs: 20, exit, log }));
@@ -38,8 +42,14 @@ describe("restartOnDeploy", () => {
     expect(log.mock.calls[0]![0]).toMatch(/new version/);
   });
 
-  test("also exits when the file is created for the first time", async () => {
+  test("creates a missing file, and folder, at startup, then exits when the deploy touches it", async () => {
+    // The first deploy to a fresh server: no tmp/ and no restart.txt yet.
+    // Noticing a missing file appear is unreliable on Linux, so the file
+    // is made to exist before the deploy ever touches it.
     const { file, exit } = setup(false);
+    expect(existsSync(file)).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(exit).not.toHaveBeenCalled();
     touch(file, 5);
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0), { timeout: 3000 });
   });

@@ -1,5 +1,5 @@
-import { statSync, unwatchFile, watchFile } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, statSync, unwatchFile, watchFile, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 /**
  * Restarts the server when a deploy says so, by exiting.
@@ -21,6 +21,14 @@ import { join } from "node:path";
  * The file's time at startup is remembered and ignored: the new process
  * starts with the file the deploy just touched, and must not take that as
  * a request to restart again.
+ *
+ * If the file does not exist yet, it is created here, at startup. Polling
+ * a missing file and noticing when it appears is where platforms differ:
+ * on Linux it went unreported within the test's window while Windows
+ * reported it at once. A file that always exists turns every deploy into
+ * a plain change of modification time, which behaves the same everywhere,
+ * and the very first deploy to a fresh server is exactly the case where
+ * the file would otherwise be missing.
  */
 export function restartOnDeploy({
   file = join(process.cwd(), "tmp", "restart.txt"),
@@ -40,6 +48,14 @@ export function restartOnDeploy({
       return 0;
     }
   };
+  if (mtimeAt() === 0) {
+    try {
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, "", { flag: "a" });
+    } catch {
+      // A read-only disk: watch anyway, and the host's own restart still works.
+    }
+  }
   const startedWith = mtimeAt();
   let exiting = false;
 
