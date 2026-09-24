@@ -191,22 +191,65 @@ jobs:
           name: cpanel-dist
           path: cpanel-dist
 
-      - name: Prepare SSH
+      # One SSH connection for the whole deploy.
+      #
+      # Some hosts (Enhance, at least) throttle new SSH connections: after
+      # a couple in quick succession they accept the TCP connection and
+      # then reset it before the SSH banner, which reads as
+      # "kex_exchange_identification: Connection reset by peer" and looks
+      # exactly like SSH being switched off. This job used to open about
+      # seven in a few seconds (ssh-keyscan alone opens one per key type),
+      # so it tripped the limit before it had copied a file.
+      #
+      # Instead a single master connection is opened here, retried with
+      # growing pauses in case the host is still counting an earlier burst,
+      # and every later ssh and rsync rides on it through ControlPath.
+      #
+      # The host key: if CPANEL_SSH_KNOWN_HOSTS is set (the server's line
+      # from a known_hosts file), only that key is accepted. Otherwise the
+      # first key seen is trusted, which is what ssh-keyscan did before.
+      - name: Open the SSH connection
         env:
           SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
           SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
           SSH_PORT: ${{ secrets.CPANEL_SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
+          KNOWN_HOSTS: ${{ secrets.CPANEL_SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+            checking=yes
+          else
+            checking=accept-new
+          fi
+          cat > ~/.ssh/config <<CFG
+          Host deploy-target
+            HostName $SSH_HOST
+            Port $SSH_PORT
+            User $SSH_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking $checking
+            ConnectTimeout 20
+            ServerAliveInterval 15
+            ControlPath ~/.ssh/cm-%C
+          CFG
+          chmod 600 ~/.ssh/config
+          for wait in 0 30 60 90 120; do
+            [ "$wait" -gt 0 ] && { echo "Refused; trying again in ${wait}s"; sleep "$wait"; }
+            if ssh -fN -o ControlMaster=yes -o ControlPersist=20m deploy-target; then
+              ssh -O check deploy-target && exit 0
+            fi
+          done
+          echo "Could not open an SSH connection to the server after five attempts."
+          exit 1
 
       - name: Upload the bundle
         env:
-          SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
-          SSH_PORT: ${{ secrets.CPANEL_SSH_PORT || '22' }}
-          SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
           APP_ROOT: ${{ secrets.CPANEL_APP_ROOT }}
         # rsync over SSH: only changed files travel, and --delete keeps the
         # server from accumulating old chunks. .env and the upload folder
@@ -216,14 +259,11 @@ jobs:
             --exclude '.env' --exclude '.env.*' \
             --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
             --exclude 'setup-all.js' \
-            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
-            cpanel-dist/ "$SSH_USER@$SSH_HOST:$APP_ROOT/"
+            -e ssh \
+            cpanel-dist/ "deploy-target:$APP_ROOT/"
 
       - name: Migrate and restart
         env:
-          SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
-          SSH_PORT: ${{ secrets.CPANEL_SSH_PORT || '22' }}
-          SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
           APP_ROOT: ${{ secrets.CPANEL_APP_ROOT }}
           NODE_ACTIVATE: ${{ secrets.CPANEL_NODE_ACTIVATE }}
         # setup.js check/migrate use the server's own .env.
@@ -241,13 +281,15 @@ jobs:
         #   so its exit status is ignored. `migrate` is the one that must
         #   succeed, and still stops the deploy if it does not.
         #
-        # - How the app is restarted. Passenger (cPanel) watches
-        #   tmp/restart.txt. Enhance runs `node server.js` as a persistent
-        #   app in Automatic mode, which starts it again whenever it exits,
-        #   so stopping the process is the restart. Both are done; each is
-        #   a no-op on the other host.
+        # - How the app is restarted. Touching tmp/restart.txt is the
+        #   signal on both hosts: Passenger (cPanel) watches it, and on
+        #   Enhance the app watches it itself and exits
+        #   (src/lib/restartOnDeploy.ts), after which Automatic mode starts
+        #   the new version. The pkill is a second, direct attempt; from an
+        #   Enhance SSH session it may not see the app's process at all,
+        #   which is why the file is the part that matters.
         run: |
-          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" bash -s <<EOF
+          ssh deploy-target bash -s <<EOF
             set -e
             cd "$APP_ROOT"
             ${NODE_ACTIVATE:+eval "$NODE_ACTIVATE"}

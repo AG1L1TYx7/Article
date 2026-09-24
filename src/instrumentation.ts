@@ -17,6 +17,11 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NODE_ENV !== "production") return;
 
+  // A deploy signals "new version in place" by touching tmp/restart.txt;
+  // see lib/restartOnDeploy.ts for why the app, not the deploy, restarts it.
+  const { restartOnDeploy } = await import("./lib/restartOnDeploy");
+  restartOnDeploy();
+
   const { assessReadiness, formatReadiness } = await import("./lib/productionReadiness");
   const { isTranscodingConfigured } = await import("./lib/transcode");
   const report = assessReadiness(process.env, { ffmpegAvailable: isTranscodingConfigured() });
