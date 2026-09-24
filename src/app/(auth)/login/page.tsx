@@ -7,6 +7,7 @@ import { getSession, signIn } from "next-auth/react";
 import { checkMfaRequired, rememberThisDevice } from "./actions";
 import { safeRedirectPath } from "@/lib/safeRedirect";
 import { AuthCard } from "@/components/AuthCard";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useI18n } from "@/i18n/client";
 
 export default function LoginPage() {
@@ -210,13 +211,7 @@ function LoginForm() {
               {t("auth.forgotPassword")}
             </a>
           </span>
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="input"
-          />
+          <PasswordInput name="password" autoComplete="current-password" required />
         </label>
         {error && (
           <p className="text-sm text-danger" role="alert">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteMyAccount, updateProfile } from "./actions";
 import { PenIcon, TrashIcon } from "@/components/icons";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useI18n } from "@/i18n/client";
 
 /**
@@ -157,13 +158,11 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
               </label>
               <label className="field">
                 <span className="text-sm">{t("account.yourPassword")}</span>
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="input"
                 />
               </label>
               {deleteError && (

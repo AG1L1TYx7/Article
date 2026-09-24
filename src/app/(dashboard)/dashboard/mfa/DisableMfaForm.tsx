@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { disableMfa } from "./actions";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export function DisableMfaForm() {
   const router = useRouter();
@@ -27,13 +28,7 @@ export function DisableMfaForm() {
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <label className="field">
         <span className="label">Confirm your password to disable MFA</span>
-        <input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="input sm:max-w-xs"
-        />
+        <PasswordInput name="password" autoComplete="current-password" required wrapperClassName="sm:max-w-xs" />
       </label>
       {error && (
         <p className="text-sm text-danger" role="alert">

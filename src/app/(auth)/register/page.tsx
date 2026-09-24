@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { registerUser } from "./actions";
 import { TurnstileWidget } from "@/components/security/TurnstileWidget";
 import { AuthCard } from "@/components/AuthCard";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useI18n } from "@/i18n/client";
 
 export default function RegisterPage() {
@@ -118,11 +119,11 @@ function Field(props: {
   pattern?: string;
   helper?: string;
 }) {
-  const { label, helper, ...rest } = props;
+  const { label, helper, type, ...rest } = props;
   return (
     <label className="field">
       <span className="label">{label}</span>
-      <input {...rest} className="input" />
+      {type === "password" ? <PasswordInput {...rest} /> : <input {...rest} type={type} className="input" />}
       {helper && <span className="hint">{helper}</span>}
     </label>
   );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { regenerateRecoveryCodes } from "./actions";
 import { KeyIcon } from "@/components/icons";
+import { PasswordInput } from "@/components/PasswordInput";
 
 /**
  * The one-time recovery codes, shown exactly once.
@@ -130,7 +131,7 @@ export function RecoveryCodesPanel({ remaining }: { remaining: number }) {
           </p>
           <label className="field">
             <span className="label">Your password</span>
-            <input name="password" type="password" autoComplete="current-password" required className="input sm:max-w-xs" />
+            <PasswordInput name="password" autoComplete="current-password" required wrapperClassName="sm:max-w-xs" />
           </label>
           {error && (
             <p className="text-sm text-danger" role="alert">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { confirmPhone, removePhone, requestEmailChange, startPhoneVerification } from "./actions";
 import { resendVerificationEmail } from "@/app/(auth)/verify-email/actions";
 import { useI18n } from "@/i18n/client";
+import { PasswordInput } from "@/components/PasswordInput";
 
 /**
  * Email and phone, each with its verification state and the one action
@@ -169,13 +170,11 @@ export function ContactDetails({
               </label>
               <label className="field">
                 <span className="label">{t("account.confirmWithPassword")}</span>
-                <input
-                  type="password"
+                <PasswordInput
                   value={emailPassword}
                   onChange={(e) => setEmailPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="input"
                 />
               </label>
               {emailError && (

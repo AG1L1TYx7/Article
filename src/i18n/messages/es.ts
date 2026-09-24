@@ -43,6 +43,8 @@ export const es: Messages = {
     yourAccount: "Su cuenta",
     email: "Correo electrónico",
     password: "Contraseña",
+    showPassword: "Mostrar contraseña",
+    hidePassword: "Ocultar contraseña",
     name: "Nombre",
     optional: "(opcional)",
     loading: "Cargando…",

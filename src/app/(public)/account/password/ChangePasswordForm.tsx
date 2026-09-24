@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { changePassword } from "./actions";
 import { useI18n } from "@/i18n/client";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export function ChangePasswordForm({ required, next }: { required: boolean; next: string }) {
   const { t } = useI18n();
@@ -33,42 +34,36 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className="field">
         <span className="label">{required ? t("password.temporary") : t("password.current")}</span>
-        <input
+        <PasswordInput
           name="current"
-          type="password"
           autoComplete="current-password"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
           required
           autoFocus
-          className="input"
         />
       </label>
       <label className="field">
         <span className="label">{t("password.new")}</span>
-        <input
+        <PasswordInput
           name="next"
-          type="password"
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={12}
           maxLength={256}
-          className="input"
         />
         <span className={`hint ${password && !strong ? "text-warn" : ""}`}>{t("password.hint")}</span>
       </label>
       <label className="field">
         <span className="label">{t("password.newAgain")}</span>
-        <input
+        <PasswordInput
           name="confirm"
-          type="password"
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           required
-          className="input"
         />
         {confirm && confirm !== password && <span className="hint text-warn">{t("password.mismatch")}</span>}
       </label>
