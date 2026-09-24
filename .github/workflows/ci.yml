@@ -215,6 +215,7 @@ jobs:
           rsync -az --delete \
             --exclude '.env' --exclude '.env.*' \
             --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
+            --exclude 'setup-all.js' \
             -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
             cpanel-dist/ "$SSH_USER@$SSH_HOST:$APP_ROOT/"
 
@@ -225,25 +226,65 @@ jobs:
           SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
           APP_ROOT: ${{ secrets.CPANEL_APP_ROOT }}
           NODE_ACTIVATE: ${{ secrets.CPANEL_NODE_ACTIVATE }}
-        # setup.js check/migrate use the server's own .env. Touching
-        # tmp/restart.txt is how Passenger is told to restart the app.
+        # setup.js check/migrate use the server's own .env.
+        #
+        # Three things differ between hosts, and each is handled for both:
+        #
+        # - Where node comes from. cPanel's Node selector puts it on the
+        #   PATH through an activate script (CPANEL_NODE_ACTIVATE). Enhance
+        #   installs it through NVM, which a non-interactive SSH session
+        #   does not load, so nvm.sh is sourced when it is there.
+        #
+        # - `check` reports conditions only the host can change, such as
+        #   innodb_ft_min_token_size, and exits non-zero for them. That is
+        #   worth reading in the log and not worth refusing a deploy over,
+        #   so its exit status is ignored. `migrate` is the one that must
+        #   succeed, and still stops the deploy if it does not.
+        #
+        # - How the app is restarted. Passenger (cPanel) watches
+        #   tmp/restart.txt. Enhance runs `node server.js` as a persistent
+        #   app in Automatic mode, which starts it again whenever it exits,
+        #   so stopping the process is the restart. Both are done; each is
+        #   a no-op on the other host.
         run: |
           ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" bash -s <<EOF
             set -e
             cd "$APP_ROOT"
             ${NODE_ACTIVATE:+eval "$NODE_ACTIVATE"}
-            node setup.js check
+            if [ -s "\$HOME/.nvm/nvm.sh" ]; then
+              export NVM_DIR="\$HOME/.nvm"
+              . "\$NVM_DIR/nvm.sh" >/dev/null
+            fi
+            echo "node \$(node --version)"
+            node setup.js check || echo "(check reported the above; not blocking the deploy)"
             node setup.js migrate
             mkdir -p tmp && touch tmp/restart.txt
+            pkill -u "\$(id -u)" -f "node server.js" && echo "Stopped the running app; the host restarts it" || echo "No running node server.js to stop"
             echo "Deployed \$(tr '\n' ' ' < BUILD_INFO)"
           EOF
 
+      # "Answers 200" is not enough on its own: the old process answers
+      # 200 too, so a restart that silently failed would pass. The health
+      # endpoint reports the process's uptime, so wait until it is a fresh
+      # process with a working database.
+      #
+      # The request goes to the server that was just deployed to, not to
+      # wherever DNS happens to point. This checks the deploy; whether the
+      # domain resolves correctly is a separate question, and a DNS fault
+      # at the host once made every deploy look failed when none were.
       - name: Smoke test
         if: vars.SITE_URL != ''
+        env:
+          SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+          SITE_URL: ${{ vars.SITE_URL }}
         run: |
-          for i in 1 2 3 4 5 6; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${{ vars.SITE_URL }}/")
-            if [ "$code" = "200" ]; then echo "Site answers 200"; exit 0; fi
-            echo "Attempt $i: $code — waiting for Passenger to restart"; sleep 10
+          site_host=$(printf '%s' "$SITE_URL" | sed -E 's#^[a-z]+://##; s#[/:].*$##')
+          for i in $(seq 1 18); do
+            body=$(curl -s --max-time 20 --resolve "$site_host:443:$SSH_HOST" "$SITE_URL/api/health" || true)
+            uptime=$(printf '%s' "$body" | sed -n 's/.*"uptimeSeconds":\([0-9]*\).*/\1/p')
+            if printf '%s' "$body" | grep -q '"database":"ok"' && [ -n "$uptime" ] && [ "$uptime" -lt 300 ]; then
+              echo "New process is up (uptime ${uptime}s) and the database answers"; exit 0
+            fi
+            echo "Attempt $i: ${body:-no answer} — waiting for the restart"; sleep 10
           done
-          echo "Site did not answer 200 after deploy"; exit 1
+          echo "The site did not come back as a fresh process with a working database"; exit 1

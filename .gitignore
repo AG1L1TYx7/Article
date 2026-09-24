@@ -82,3 +82,11 @@ next-env.d.ts
 # Database dumps from npm run db:backup. Keep them off the repository and off this disk.
 /backups/
 *.sql.gz
+
+# SSH deploy key for GitHub Actions. The private half goes into a GitHub
+# secret and must never be committed.
+.deploy-key-tmp/
+
+# The upload archive and its in-progress file (scripts/pack-cpanel.mjs).
+cpanel-dist.zip
+*.zip.building

@@ -26,6 +26,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 
 const OUT = "cpanel-dist";
 const STANDALONE = path.join(".next", "standalone");
@@ -120,7 +121,22 @@ fs.rmSync(path.join(OUT, "node_modules", ".bin"), { recursive: true, force: true
  * The database driver has to be a real package in the bundle, because
  * setup.js require()s it. next.config.ts lists it in serverExternalPackages
  * for exactly this reason; if someone removes that, this is where it shows.
+ *
+ * Present is not the same as working. Next traces which FILES a package
+ * needs and copies only those, following one entry point. mariadb
+ * publishes two — "./promise.js" for import and "./dist/promise.cjs" for
+ * require — so a trace that took the ESM path ships a package whose own
+ * package.json still points require() at a dist/ directory that is not
+ * there. The server chunks use require(), so every query fails as "pool
+ * failed to retrieve a connection from pool (active=0 idle=0 limit=10)",
+ * a message that names the pool and never mentions the missing file.
+ *
+ * So resolve each package the way the server will, and when that fails,
+ * copy the whole package over the traced one. They are small; being sure
+ * is worth the megabytes.
  */
+const requireFromBundle = createRequire(path.join(path.resolve(OUT), "noop.cjs"));
+
 for (const pkg of ["mariadb", "argon2", "@next/env"]) {
   if (!fs.existsSync(path.join(OUT, "node_modules", pkg, "package.json"))) {
     fail(
@@ -129,6 +145,32 @@ for (const pkg of ["mariadb", "argon2", "@next/env"]) {
           ? "Check that next.config.ts still has serverExternalPackages: [\"mariadb\"], then rebuild."
           : "Rebuild with `npm run build` and try again.")
     );
+  }
+
+  let resolved = null;
+  try {
+    resolved = requireFromBundle.resolve(pkg);
+  } catch {
+    resolved = null;
+  }
+  if (resolved && fs.existsSync(resolved)) continue;
+
+  const source = path.join("node_modules", pkg);
+  if (!fs.existsSync(source)) {
+    fail(`node_modules/${pkg} cannot be require()d from the bundle, and is not installed here to repair it. Run npm install and rebuild.`);
+  }
+  // The Linux prebuilds are copied in further down; this machine's are
+  // the wrong platform and only make the upload bigger.
+  fs.cpSync(source, path.join(OUT, "node_modules", pkg), {
+    recursive: true,
+    filter: (src) => !src.split(path.sep).includes("prebuilds"),
+  });
+  console.log(`repaired in bundle: ${pkg} (the traced copy could not be require()d)`);
+
+  try {
+    requireFromBundle.resolve(pkg);
+  } catch (e) {
+    fail(`node_modules/${pkg} still cannot be require()d after copying the whole package: ${e.message}`);
   }
 }
 
@@ -270,6 +312,44 @@ for (const name of migrations) {
     if (head.toString("latin1") !== "\x7fELF") fail(`${source} is not a Linux executable (got ${JSON.stringify(head.toString("latin1"))}).`);
     fs.copyFileSync(source, dest);
     fs.chmodSync(dest, 0o755);
+
+    /**
+     * Two things the copy above does not settle.
+     *
+     * The traced copy brought this machine's own binary along, so a
+     * Windows build ships a 79MB ffmpeg.exe the server can never run —
+     * twice over, because Next keeps a second copy of the package under
+     * .next/node_modules. That was 158MB of a 290MB upload.
+     *
+     * And at runtime require("ffmpeg-static") resolves to whichever copy
+     * Next made, not the one in node_modules. ffmpeg-static returns the
+     * path of the binary sitting next to its own index.js, so a copy
+     * without the Linux binary reports that ffmpeg is unavailable and
+     * every video and audio upload is refused, with images still working
+     * — exactly the startup warning this bundle was showing.
+     */
+    const ffmpegCopies = [path.join(OUT, "node_modules", "ffmpeg-static")];
+    const nextModules = path.join(OUT, ".next", "node_modules");
+    if (fs.existsSync(nextModules)) {
+      for (const entry of fs.readdirSync(nextModules)) {
+        if (entry.startsWith("ffmpeg-static")) ffmpegCopies.push(path.join(nextModules, entry));
+      }
+    }
+    for (const dir of ffmpegCopies) {
+      if (!fs.existsSync(dir)) continue;
+      for (const entry of fs.readdirSync(dir)) {
+        if (entry.toLowerCase().endsWith(".exe")) {
+          fs.rmSync(path.join(dir, entry), { force: true });
+          console.log(`removed from bundle: ${path.relative(OUT, path.join(dir, entry))} (Windows binary; the server is Linux)`);
+        }
+      }
+      const target = path.join(dir, baseName);
+      if (!fs.existsSync(target)) {
+        fs.copyFileSync(source, target);
+        fs.chmodSync(target, 0o755);
+        console.log(`placed the Linux ffmpeg in ${path.relative(OUT, dir)}`);
+      }
+    }
   }
 
   const sharpPkg = JSON.parse(fs.readFileSync(path.join("node_modules", "sharp", "package.json"), "utf8"));

@@ -21,6 +21,7 @@
     "audit": "node scripts/audit-dependencies.mjs",
     "check:production": "tsx --env-file-if-exists=.env scripts/check-production.ts",
     "build:cpanel": "node scripts/build-cpanel.mjs",
+    "pack:cpanel": "node scripts/pack-cpanel.mjs",
     "push:keys": "node scripts/generate-vapid-keys.mjs",
     "db:backup": "node --env-file-if-exists=.env scripts/backup-db.mjs",
     "db:restore": "node --env-file-if-exists=.env scripts/restore-db.mjs",
