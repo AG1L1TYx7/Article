@@ -15,7 +15,7 @@ const getAuthor = cache(async (handle: string) =>
     // Suspended and banned accounts have no public page. Readers don't
     // either: this is an author page, and a reader has nothing to show.
     where: { handle, status: "ACTIVE", role: { in: ["MODERATOR", "ADMIN"] } },
-    select: { id: true, name: true, handle: true, createdAt: true },
+    select: { id: true, name: true, handle: true, bio: true, createdAt: true },
   })
 );
 
@@ -23,7 +23,8 @@ export async function generateMetadata(props: PageProps<"/author/[handle]">): Pr
   const { handle } = await props.params;
   const author = await getAuthor(handle);
   if (!author) return {};
-  const description = `Articles written by ${author.name}.`;
+  // Their own words make a better search snippet than a stock sentence.
+  const description = author.bio ? author.bio.replace(/\s+/g, " ").trim().slice(0, 160) : `Articles written by ${author.name}.`;
   return {
     title: `${author.name} — articles`,
     description,
@@ -83,6 +84,11 @@ export default async function AuthorPage(props: PageProps<"/author/[handle]">) {
           <p className="mt-2 text-sm text-ink-3">
             {n(articles.length, "common.articles")} · {n(followerCount, "common.followers")} · @{author.handle}
           </p>
+          {/* Plain text rendered as text: React escapes it, and line
+              breaks the author typed are kept by whitespace-pre-line. */}
+          {author.bio && (
+            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed whitespace-pre-line text-ink-2">{author.bio}</p>
+          )}
         </div>
         {/* Following yourself is meaningless, so the control isn't offered. */}
         {viewerId !== author.id && (

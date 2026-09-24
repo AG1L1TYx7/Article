@@ -221,6 +221,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const current = await db.user.findUnique({
           where: { id: token.sub },
           select: {
+            name: true,
             role: true,
             status: true,
             sessionVersion: true,
@@ -232,6 +233,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!current || current.status !== "ACTIVE" || current.sessionVersion !== token.sessionVersion) {
           return null;
         }
+        // The row is already being read on every request; taking the name
+        // from it means a changed name reaches the header at once rather
+        // than at the next sign-in.
+        token.name = current.name;
         token.role = current.role;
         token.mfaEnabled = current.mfaEnabled;
         token.emailConfirmed = current.emailVerifiedAt !== null;

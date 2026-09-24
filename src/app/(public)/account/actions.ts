@@ -26,6 +26,7 @@ import {
   phoneHash,
 } from "@/lib/phone";
 import { phoneCodeMessage, sendSms } from "@/lib/sms";
+import { displayName, profileSchema } from "@/lib/profile";
 
 /**
  * Clears the "remember this device" cookie for two-factor authentication,
@@ -41,13 +42,31 @@ export async function forgetThisDevice(): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-/** Rectification (GDPR Art. 16): the one profile field a reader shows. */
-export async function updateProfile(input: { name: string }): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Rectification (GDPR Art. 16): first, last and preferred name, and the
+ * "about you" text. Every signed-in person can edit their own, whatever
+ * their role; nobody can edit anyone else's here.
+ *
+ * `name`, the one the site shows, is recomputed from these on every save
+ * (lib/profile.ts), so a byline can never disagree with the profile.
+ * Returns the saved display name so the page can show it without waiting
+ * for a refetch.
+ */
+export async function updateProfile(input: {
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  bio: string;
+}): Promise<{ ok: boolean; error?: string; field?: string; name?: string }> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "You are not signed in." };
-  const parsed = z.string().trim().min(1, "Enter a name.").max(120).safeParse(input.name);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid name" };
-  await db.user.update({ where: { id: session.user.id }, data: { name: parsed.data } });
+  const parsed = profileSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { ok: false, error: issue?.message ?? "Check the details and try again.", field: issue?.path[0]?.toString() };
+  }
+  const name = displayName(parsed.data);
+  await db.user.update({ where: { id: session.user.id }, data: { ...parsed.data, name } });
   await recordAudit({
     actorId: session.user.id,
     action: "user.profile.update",
@@ -55,7 +74,8 @@ export async function updateProfile(input: { name: string }): Promise<{ ok: bool
     targetId: session.user.id,
     ip: await getClientIp(),
   });
-  return { ok: true };
+  revalidatePath("/account");
+  return { ok: true, name };
 }
 
 /**

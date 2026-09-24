@@ -78,6 +78,10 @@ export async function anonymiseAccount(
       where: { id: userId },
       data: {
         name: "Deleted user",
+        firstName: null,
+        lastName: null,
+        preferredName: null,
+        bio: null,
         email: `${stub}@anonymised.invalid`,
         handle: stub,
         passwordHash: null,

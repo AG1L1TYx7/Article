@@ -31,7 +31,20 @@ model User {
   email              String     @unique
   emailVerifiedAt    DateTime?
   passwordHash       String?
+  // The name shown on bylines, comments and the header. Derived from the
+  // fields below whenever the person edits them (preferred name if set,
+  // otherwise first + last) and kept as its own column so every place
+  // that shows a name reads one field. See lib/profile.ts.
   name               String
+  // The person's own account of who they are, all optional. Accounts
+  // created before these existed have them empty; the account page
+  // offers a split of `name` as a starting point.
+  firstName          String?    @db.VarChar(80)
+  lastName           String?    @db.VarChar(80)
+  preferredName      String?    @db.VarChar(80)
+  // "About you": plain text, shown on a staff author page. Rendered as
+  // text, never HTML.
+  bio                String?    @db.Text
   handle             String     @unique
   avatarUrl          String?
   role               Role       @default(READER)

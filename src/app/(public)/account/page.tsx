@@ -19,6 +19,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getTheme } from "@/theme/server";
 import { ContactDetails } from "./ContactDetails";
+import { ProfileDetails } from "./ProfileDetails";
 import { decryptPhone } from "@/lib/phone";
 import { maskPhone } from "@/lib/phoneFormat";
 import { getI18n } from "@/i18n/server";
@@ -51,6 +52,10 @@ export default async function AccountPage() {
     select: {
       id: true,
       name: true,
+      firstName: true,
+      lastName: true,
+      preferredName: true,
+      bio: true,
       handle: true,
       email: true,
       role: true,
@@ -114,6 +119,12 @@ export default async function AccountPage() {
         <p className="mt-4 text-sm text-ink-2">{t(role.blurb)}</p>
         <p className="mt-1 text-xs text-ink-3">{t("account.memberSince", { date: formatDate(user.createdAt) })}</p>
       </section>
+
+      <ProfileDetails
+        name={user.name}
+        isStaff={isStaff}
+        details={{ firstName: user.firstName, lastName: user.lastName, preferredName: user.preferredName, bio: user.bio }}
+      />
 
       {/* Where your things are */}
       <section className="mt-4 grid gap-3 sm:grid-cols-3" aria-label={t("account.activity")}>
@@ -257,7 +268,7 @@ export default async function AccountPage() {
         </div>
       </section>
 
-      <AccountPrivacy name={user.name} canDelete={user._count.articles === 0} />
+      <AccountPrivacy canDelete={user._count.articles === 0} />
 
       <section className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1" aria-label={t("account.session")}>
         <p className="text-sm text-ink-3">

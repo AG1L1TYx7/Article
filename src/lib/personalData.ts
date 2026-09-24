@@ -18,6 +18,10 @@ export async function exportPersonalData(userId: string) {
     select: {
       id: true,
       name: true,
+      firstName: true,
+      lastName: true,
+      preferredName: true,
+      bio: true,
       handle: true,
       email: true,
       emailVerifiedAt: true,
@@ -78,6 +82,10 @@ export async function exportPersonalData(userId: string) {
     account: {
       id: user.id,
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      preferredName: user.preferredName,
+      about: user.bio,
       handle: user.handle,
       email: user.email,
       emailVerifiedAt: user.emailVerifiedAt,
