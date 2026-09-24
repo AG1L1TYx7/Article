@@ -285,9 +285,15 @@ jobs:
         #   signal on both hosts: Passenger (cPanel) watches it, and on
         #   Enhance the app watches it itself and exits
         #   (src/lib/restartOnDeploy.ts), after which Automatic mode starts
-        #   the new version. The pkill is a second, direct attempt; from an
-        #   Enhance SSH session it may not see the app's process at all,
-        #   which is why the file is the part that matters.
+        #   the new version.
+        #
+        #   There is deliberately no `pkill -f "node server.js"` here. It
+        #   was, and on Enhance it took the site down: the panel's own
+        #   supervisor carries the startup command in its command line, so
+        #   the pattern matched and killed it along with the app, leaving
+        #   nothing to start the new version (503 until someone pressed
+        #   Restart). The app exiting by itself leaves the supervisor
+        #   alive, which is the whole point of doing it that way.
         run: |
           ssh deploy-target bash -s <<EOF
             set -e
@@ -300,9 +306,7 @@ jobs:
             echo "node \$(node --version)"
             node setup.js check || echo "(check reported the above; not blocking the deploy)"
             node setup.js migrate
-            mkdir -p tmp && touch tmp/restart.txt
-            pkill -u "\$(id -u)" -f "node server.js" && echo "Stopped the running app; the host restarts it" || echo "No running node server.js to stop"
-            echo "Deployed \$(tr '\n' ' ' < BUILD_INFO)"
+            mkdir -p tmp && touch tmp/restart.txt            echo "Deployed \$(tr '\n' ' ' < BUILD_INFO)"
           EOF
 
       # "Answers 200" is not enough on its own: the old process answers
