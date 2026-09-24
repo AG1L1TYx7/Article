@@ -253,14 +253,25 @@ jobs:
           APP_ROOT: ${{ secrets.CPANEL_APP_ROOT }}
         # rsync over SSH: only changed files travel, and --delete keeps the
         # server from accumulating old chunks. .env and the upload folder
-        # are the server's own and are never touched.
+        # are the server's own and are never touched. If the host drops the
+        # SSH transport mid-copy, retry a few times before failing.
         run: |
-          rsync -az --delete \
-            --exclude '.env' --exclude '.env.*' \
-            --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
-            --exclude 'setup-all.js' \
-            -e ssh \
-            cpanel-dist/ "deploy-target:$APP_ROOT/"
+          for attempt in 1 2 3; do
+            if rsync -az --delete \
+              --exclude '.env' --exclude '.env.*' \
+              --exclude '.local-uploads/' --exclude 'tmp/' --exclude 'logs/' \
+              --exclude 'setup-all.js' \
+              -e ssh \
+              cpanel-dist/ "deploy-target:$APP_ROOT/"; then
+              exit 0
+            fi
+            [ "$attempt" -lt 3 ] || break
+            wait=$((attempt * 20))
+            echo "Upload failed on attempt $attempt; retrying in ${wait}s"
+            sleep "$wait"
+          done
+          echo "Upload failed after 3 attempts."
+          exit 1
 
       - name: Migrate and restart
         env:
