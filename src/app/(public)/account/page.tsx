@@ -11,6 +11,7 @@ import { googleEnabled } from "@/lib/auth/config";
 import { AccountPrivacy } from "./AccountPrivacy";
 import { EmailOtpToggle } from "./EmailOtpToggle";
 import { HomeDistrict } from "./HomeDistrict";
+import { SignOutEverywhere } from "./SignOutEverywhere";
 import { EmailVerifyBanner } from "@/app/(dashboard)/dashboard/EmailVerifyBanner";
 import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
@@ -299,6 +300,7 @@ export default async function AccountPage() {
           <Link href="/account/password" className="text-link">
             {t("account.changePassword")}
           </Link>
+          <SignOutEverywhere />
           {" · "}
           <Link href="/forgot-password" className="text-link">
             {t("account.forgotReset")}

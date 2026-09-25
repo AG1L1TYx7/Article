@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { auth, signIn, signOut } from "@/lib/auth/config";
+import { auth, revokeAllSessions, signIn, signOut } from "@/lib/auth/config";
 import { CONNECT_COOKIE, issueConnectToken } from "@/lib/auth/oauthFlow";
 import { verifyPassword } from "@/lib/auth/password";
 import { TRUST_COOKIE } from "@/lib/auth/trustedDevice";
@@ -144,5 +144,37 @@ export async function disconnectGoogle(): Promise<{ ok: boolean; error?: string 
   });
 
   revalidatePath("/account");
+  return { ok: true };
+}
+
+/**
+ * Ends every session for this account, including this one.
+ *
+ * The control `revokeAllSessions()` was written for, which until now had
+ * no caller anywhere. It matters most right after a password change: the
+ * password stops an attacker signing in again, but it does nothing about
+ * the session they already hold, which renews on activity and so never
+ * expires while they keep using it.
+ *
+ * This signs the current browser out too, and says so on the button. That
+ * is a consequence of how sessionVersion works — it is one number per
+ * account, not per device — and pretending otherwise would mean claiming
+ * to end sessions this cannot distinguish.
+ */
+export async function signOutEverywhere(): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "You are not signed in." };
+
+  await revokeAllSessions(session.user.id);
+  await recordAuthEvent({
+    userId: session.user.id,
+    action: "auth.sessions.revoked",
+    ip: await getClientIp(),
+  });
+
+  // The trusted-device cookie is bound to sessionVersion, so it is already
+  // void; clearing it saves the browser presenting something dead.
+  (await cookies()).delete(TRUST_COOKIE);
+  await signOut({ redirect: false });
   return { ok: true };
 }

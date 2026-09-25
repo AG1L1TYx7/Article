@@ -52,7 +52,8 @@ export async function recordAuthEvent(entry: {
     | "auth.mfa.device_trusted"
     | "auth.mfa.device_forgotten"
     | "auth.mfa.enabled"
-    | "auth.mfa.disabled";
+    | "auth.mfa.disabled"
+    | "auth.sessions.revoked";
   metadata?: Prisma.InputJsonValue;
   ip?: string | null;
 }): Promise<void> {

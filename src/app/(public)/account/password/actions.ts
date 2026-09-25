@@ -79,22 +79,19 @@ export async function changePassword(input: {
 
   await db.user.update({
     where: { id: user.id },
-    data: {
-      passwordHash: await hashPassword(parsed.data.next),
-      mustChangePassword: false,
-      // Ends every other session.
-      //
-      // Changing your password is the first thing somebody does when they
-      // think their account is compromised, and leaving the attacker's
-      // session live for the rest of its eight-hour sliding window — which
-      // renews on activity, so an actively used one never expires — makes
-      // that action almost useless. The reset-password flow has always done
-      // this; the account page not doing it was the gap.
-      //
-      // The browser doing the changing is not signed out: this same request
-      // re-issues its token from the new sessionVersion.
-      sessionVersion: { increment: 1 },
-    },
+    // Deliberately does NOT bump sessionVersion here, even though ending
+    // other sessions is exactly what somebody changing a password after a
+    // compromise wants.
+    //
+    // sessionVersion is global. Incrementing it invalidates the token that
+    // is doing the incrementing, so the person is signed out by their own
+    // password change — and worse, somebody sent here by
+    // mustChangePassword is thrown back to the login page mid-flow.
+    //
+    // The capability still exists and now has a control: "Sign out
+    // everywhere" on the account page, offered right beside this form. It
+    // signs this browser out too, which is honest about what it does.
+    data: { passwordHash: await hashPassword(parsed.data.next), mustChangePassword: false },
   });
 
   // A remembered device was remembered under the old password's tenure;

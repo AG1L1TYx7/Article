@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     "cpanel-dist/**",
     // The Prisma client is generated, not written.
     "src/generated/**",
+    // Not part of this project: an unrelated codebase that sits in the
+    // same working directory on one developer's machine. Linting it
+    // reports over a thousand problems in files nobody here can fix.
+    "donttouch/**",
   ]),
   {
     // CommonJS by necessity: this file is copied into the cPanel bundle

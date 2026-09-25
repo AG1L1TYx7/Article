@@ -85,13 +85,14 @@ export async function confirmMfaSetup(code: string): Promise<ConfirmMfaResult> {
     // bounced back to this page forever, having done everything right.
     await db.user.update({
       where: { id: session.user.id },
-      data: {
-        mfaEnabled: true,
-        mfaMethod: "TOTP",
-        // Consistent with enableEmailOtp: turning a second factor on ends
-        // sessions that were established without one.
-        sessionVersion: { increment: 1 },
-      },
+      // Deliberately does NOT bump sessionVersion.
+      //
+      // sessionVersion is global: incrementing it invalidates the token
+      // doing the incrementing, so the person is signed out in the middle
+      // of enrolling and never sees that it worked. Ending other sessions
+      // is a separate, deliberate act — see "Sign out everywhere" on the
+      // account page, which is what revokeAllSessions() is for.
+      data: { mfaEnabled: true, mfaMethod: "TOTP" },
     });
     await recordAudit({
       actorId: session.user.id,
