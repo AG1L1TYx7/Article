@@ -35,11 +35,16 @@ export const loginSchema = z.object({
   // (A real bug: this rejected every login, MFA or not, until both this
   // schema and the caller were fixed to agree on what "no code" looks
   // like on the wire.)
+  // Either the six-digit authenticator code, or one of the eight-character
+  // recovery codes (dash optional) — see lib/auth/recoveryCodes.ts.
   totp: z
     .string()
     .optional()
-    .transform((v) => (v === "undefined" || v === "" ? undefined : v))
-    .refine((v) => v === undefined || /^\d{6}$/.test(v), "Enter the 6-digit code"),
+    .transform((v) => (v === undefined || v === "undefined" || v === "" ? undefined : v.trim()))
+    .refine(
+      (v) => v === undefined || /^\d{6}$/.test(v) || /^[a-z0-9]{4}-?[a-z0-9]{4}$/i.test(v),
+      "Enter the 6-digit code or a recovery code"
+    ),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { Fraunces, Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/siteUrl";
@@ -7,23 +7,30 @@ import { I18nProvider } from "@/i18n/client";
 import { LOCALE_DIR } from "@/i18n/config";
 import { MESSAGES } from "@/i18n/messages";
 import { getI18n, getLocale } from "@/i18n/server";
+import { getTheme } from "@/theme/server";
+import { THEME_COLOR, themeAttribute } from "@/theme/config";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Three faces, three jobs. Inter for the interface and its numbers;
+// Source Serif 4 for reading, at optical sizes tuned for 19px; Fraunces
+// for headlines, where its optical axis goes from crisp at card size to
+// expressive at the front page's lead. All self-hosted at build time.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Headlines and article text. A serif with optical sizing, so it is
-// crisp at 16px in a byline and graceful at 48px in a headline.
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
   subsets: ["latin"],
   style: ["normal", "italic"],
+  axes: ["opsz"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
 });
 
 /**
@@ -47,12 +54,17 @@ export const dynamic = "force-dynamic";
 
 // The browser chrome takes the paper colour of whichever scheme is
 // active, so an installed site doesn't sit under a white or black bar.
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#131210" },
-  ],
-};
+// A reader who forced a theme gets that theme's paper under both media
+// queries; the toggle keeps these tags in step when the choice changes.
+export async function generateViewport(): Promise<Viewport> {
+  const forced = themeAttribute(await getTheme());
+  return {
+    themeColor: [
+      { media: "(prefers-color-scheme: light)", color: THEME_COLOR[forced ?? "light"] },
+      { media: "(prefers-color-scheme: dark)", color: THEME_COLOR[forced ?? "dark"] },
+    ],
+  };
+}
 
 export const metadata: Metadata = {
   // Without metadataBase every Open Graph and Twitter URL is emitted
@@ -116,16 +128,20 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // sides of hydration.
   const locale = await getLocale();
   const { t } = await getI18n();
+  // Light or dark, when the reader has chosen one (src/theme). Absent
+  // means "follow the system", which the stylesheet handles on its own.
+  const theme = themeAttribute(await getTheme());
 
   return (
     <html
       lang={locale}
       dir={LOCALE_DIR[locale]}
+      data-theme={theme}
       // Tells Next.js the smooth scrolling in globals.css is deliberate,
       // so it can switch it off for the instant during a route change
       // (otherwise a navigation visibly scrolls up from the old position).
       data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${inter.variable} ${sourceSerif.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <a

@@ -3,11 +3,12 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { uniqueTestIp } from "./support/testIp";
 import { sql } from "./support/db";
+import { answerMfaIfPrompted, mfaColumnsSql } from "./support/staff";
 
 // The dashboard (where the verification banner lives) is staff-only — see
 // proxy.ts — so exercising it needs a MODERATOR, not a plain reader.
 function promoteToModerator(email: string) {
-  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('MODERATOR') SET u.role = 'MODERATOR', u.roleId = r.id WHERE u.email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('MODERATOR') SET u.role = 'MODERATOR', u.roleId = r.id, ${mfaColumnsSql()} WHERE u.email = '${email}';`);
 }
 
 // Exercises verify-email and password-reset end to end against the dev
@@ -64,6 +65,7 @@ async function login(page: Page, email: string, password = PASSWORD) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
   await page.click('button[type="submit"]');
+  await answerMfaIfPrompted(page);
 }
 
 test.describe("Email verification", () => {

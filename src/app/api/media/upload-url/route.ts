@@ -4,7 +4,7 @@ import { requireVerifiedEmail, ForbiddenError, UnauthorizedError } from "@/lib/a
 import { presignUpload } from "@/lib/storage";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
-import { VIDEO_MAX_BYTES } from "@/lib/mediaPipeline";
+import { UPLOAD_MAX_BYTES } from "@/lib/mediaPipeline";
 import { signUploadKey } from "@/lib/uploadToken";
 
 /**
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   // Refuse obviously oversized uploads before issuing a URL, rather than
   // after the browser has spent ten minutes sending them.
-  if (typeof body.size === "number" && body.size > VIDEO_MAX_BYTES) {
+  if (typeof body.size === "number" && body.size > UPLOAD_MAX_BYTES) {
     return NextResponse.json({ error: "File is too large." }, { status: 413 });
   }
 

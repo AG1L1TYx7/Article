@@ -20,6 +20,28 @@ export async function verifyEmail(email: string, token: string): Promise<boolean
   return true;
 }
 
+/**
+ * Completes a change of address: the link proved the person controls the
+ * new mailbox, so the account moves to it. Single use, one hour, and it
+ * is refused if someone else registered the address in the meantime.
+ */
+export async function verifyEmailChange(newEmail: string, token: string): Promise<boolean> {
+  const email = newEmail.toLowerCase();
+  const valid = await consumeToken("email-change", email, token);
+  if (!valid) return false;
+
+  const user = await db.user.findFirst({ where: { pendingEmail: email }, select: { id: true } });
+  if (!user) return false;
+  const taken = await db.user.findUnique({ where: { email }, select: { id: true } });
+  if (taken) return false;
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { email, emailVerifiedAt: new Date(), pendingEmail: null },
+  });
+  return true;
+}
+
 export interface ResendResult {
   ok: boolean;
   error?: string;

@@ -2,11 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { waitForHydration } from "./support/hydration";
 import { scalar, sql } from "./support/db";
+import { finishLogin, mfaColumnsSql } from "./support/staff";
 
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id WHERE u.email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE u.email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 
@@ -69,7 +70,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 async function publishArticle(page: Page, title: string): Promise<string> {

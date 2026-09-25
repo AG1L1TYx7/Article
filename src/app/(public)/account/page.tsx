@@ -15,10 +15,18 @@ import { SignOutEverywhere } from "./SignOutEverywhere";
 import { EmailVerifyBanner } from "@/app/(dashboard)/dashboard/EmailVerifyBanner";
 import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
+import { RecoveryCodesPanel } from "@/app/(dashboard)/dashboard/mfa/RecoveryCodesPanel";
+import { parseStoredCodes } from "@/lib/auth/recoveryCodes";
 import { BellIcon, BookmarkIcon, FlagIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/components/icons";
 import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { getTheme } from "@/theme/server";
+import { ContactDetails } from "./ContactDetails";
+import { ProfileDetails } from "./ProfileDetails";
+import { decryptPhone } from "@/lib/phone";
+import { maskPhone } from "@/lib/phoneFormat";
 import { getI18n } from "@/i18n/server";
 import type { MessageKey } from "@/i18n/t";
 
@@ -49,12 +57,20 @@ export default async function AccountPage() {
     select: {
       id: true,
       name: true,
+      firstName: true,
+      lastName: true,
+      preferredName: true,
+      bio: true,
       handle: true,
       email: true,
       role: true,
       mfaEnabled: true,
       mfaMethod: true,
       mfaSecret: true,
+      mfaRecoveryCodes: true,
+      phoneEncrypted: true,
+      phoneVerifiedAt: true,
+      pendingEmail: true,
       sessionVersion: true,
       emailVerifiedAt: true,
       createdAt: true,
@@ -124,6 +140,12 @@ export default async function AccountPage() {
         <p className="mt-1 text-xs text-ink-3">{t("account.memberSince", { date: formatDate(user.createdAt) })}</p>
       </section>
 
+      <ProfileDetails
+        name={user.name}
+        isStaff={isStaff}
+        details={{ firstName: user.firstName, lastName: user.lastName, preferredName: user.preferredName, bio: user.bio }}
+      />
+
       {/* Where your things are */}
       <section className="mt-4 grid gap-3 sm:grid-cols-3" aria-label={t("account.activity")}>
         <Link href="/saved" className="card card-hover flex items-center gap-3 px-4 py-3">
@@ -169,6 +191,15 @@ export default async function AccountPage() {
         )}
       </section>
 
+      {/* Email and phone: the number is decrypted only to be masked. */}
+      <ContactDetails
+        email={user.email}
+        emailVerified={!!user.emailVerifiedAt}
+        pendingEmail={user.pendingEmail}
+        phoneMasked={user.phoneEncrypted ? maskPhone(decryptPhone(user.phoneEncrypted)) : null}
+        phoneVerified={!!user.phoneVerifiedAt}
+      />
+
       {/* Security */}
       <section className="card mt-4 p-6" aria-labelledby="security-heading">
         <h2 id="security-heading" className="flex items-center gap-2 text-lg font-medium">
@@ -190,7 +221,14 @@ export default async function AccountPage() {
                 <p className="alert alert-ok mb-4" role="status">
                   {t("account.twoFactorIsOn")}
                 </p>
-                <DisableMfaForm />
+                {/* Recovery codes belong to the authenticator app: they are
+                    what gets you back in when the phone is gone. The emailed
+                    method needs no such fallback, because the mailbox is
+                    already the factor. */}
+                <RecoveryCodesPanel remaining={parseStoredCodes(user.mfaRecoveryCodes).length} />
+                <div className="mt-5 border-t border-line pt-5">
+                  <DisableMfaForm />
+                </div>
               </>
             ) : user.mfaEnabled ? (
               // Using the emailed code: enrolling an app would mean two
@@ -293,7 +331,18 @@ export default async function AccountPage() {
         </div>
       </section>
 
-      <AccountPrivacy name={user.name} canDelete={user._count.articles === 0} />
+      {/* Appearance */}
+      <section className="card mt-4 p-6" aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className="text-lg font-medium">
+          {t("account.appearance")}
+        </h2>
+        <p className="mt-1 text-sm text-ink-2">{t("account.appearanceBlurb")}</p>
+        <div className="mt-5 border-t border-line pt-5">
+          <ThemeToggle initial={await getTheme()} variant="row" />
+        </div>
+      </section>
+
+      <AccountPrivacy canDelete={user._count.articles === 0} />
 
       <section className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1" aria-label={t("account.session")}>
         <p className="text-sm text-ink-3">

@@ -11,49 +11,86 @@
  * easier on the eyes for long articles.
  */
 :root {
-  --paper: #faf8f4;
+  --paper: #fafaf7;
   --surface: #ffffff;
-  --surface-2: #f2efe9;
-  --ink: #17140f;
-  --ink-2: #57524a;
-  /* 5.2:1 on paper. The lighter #8b857c read better as "faint" but was
-     3.4:1, under WCAG AA for the 12px bylines and dates it is used on. */
-  --ink-3: #6e685f;
-  --line: #e7e2da;
-  --line-strong: #cbc4b9;
-  --accent: #b7271f;
-  --accent-soft: #fbe9e7;
-  --ok: #1e6f46;
-  --ok-soft: #e4f3ea;
-  --warn: #8a5a00;
-  --warn-soft: #fdf3dc;
+  --surface-2: #efefeb;
+  --ink: #111418;
+  --ink-2: #4a4f57;
+  /* 5.0:1 on paper — the floor for the 12px bylines and dates it is used on. */
+  --ink-3: #6e737b;
+  --line: #e6e6e1;
+  --line-strong: #d6d6cf;
+  /* One confident crimson, spent on breaking news and the primary action. */
+  --accent: #b3261e;
+  --accent-soft: #f8e7e5;
+  /* Slate for links and anything "informational": scheduled, charts. */
+  --info: #2f5d8a;
+  --info-soft: #e7eef5;
+  --ok: #2e7d4f;
+  --ok-soft: #e4f2ea;
+  --warn: #9a6b00;
+  --warn-soft: #fbf1d8;
   --danger: #b3261e;
-  --danger-soft: #fbe9e7;
-  --focus: #17140f;
+  --danger-soft: #f8e7e5;
+  --focus: #2f5d8a;
   color-scheme: light;
 }
 
+/*
+ * Dark mode is designed, not inverted: the accent and slate are lifted so
+ * they keep contrast on the dark ground; the greys carry the same cool
+ * bias. The same values are declared twice on purpose — once for readers
+ * whose system is dark and who have not chosen otherwise, once for a
+ * reader who chose dark in the toggle (src/components/ThemeToggle.tsx),
+ * which the root layout stamps on <html data-theme> from a cookie. An
+ * explicit "light" beats a dark system for the same reason.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #131210;
-    --surface: #1b1917;
-    --surface-2: #232019;
-    --ink: #f1ede6;
-    --ink-2: #b8b1a6;
-    --ink-3: #948c80;
-    --line: #2b2825;
-    --line-strong: #403c37;
-    --accent: #f06a60;
-    --accent-soft: #3a1c1a;
-    --ok: #5fc48f;
-    --ok-soft: #16301f;
-    --warn: #e0b04a;
-    --warn-soft: #332a12;
-    --danger: #f06a60;
-    --danger-soft: #3a1c1a;
-    --focus: #f1ede6;
+  :root:not([data-theme="light"]) {
+    --paper: #111418;
+    --surface: #181c21;
+    --surface-2: #22272e;
+    --ink: #e9e7e2;
+    --ink-2: #b5b3ad;
+    --ink-3: #8b8f96;
+    --line: #2a2f36;
+    --line-strong: #363c45;
+    --accent: #e2574f;
+    --accent-soft: #3a1d1b;
+    --info: #7fa6d1;
+    --info-soft: #1c2a3a;
+    --ok: #6fcb94;
+    --ok-soft: #173225;
+    --warn: #e0b44c;
+    --warn-soft: #3a2e10;
+    --danger: #e2574f;
+    --danger-soft: #3a1d1b;
+    --focus: #7fa6d1;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --paper: #111418;
+  --surface: #181c21;
+  --surface-2: #22272e;
+  --ink: #e9e7e2;
+  --ink-2: #b5b3ad;
+  --ink-3: #8b8f96;
+  --line: #2a2f36;
+  --line-strong: #363c45;
+  --accent: #e2574f;
+  --accent-soft: #3a1d1b;
+  --info: #7fa6d1;
+  --info-soft: #1c2a3a;
+  --ok: #6fcb94;
+  --ok-soft: #173225;
+  --warn: #e0b44c;
+  --warn-soft: #3a2e10;
+  --danger: #e2574f;
+  --danger-soft: #3a1d1b;
+  --focus: #7fa6d1;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -73,10 +110,15 @@
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  /* Three faces, three jobs: Fraunces for headlines, Source Serif 4 for
+     reading, Inter for the interface and its numbers. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 32px -16px rgb(0 0 0 / 0.18);
   --shadow-pop: 0 2px 4px rgb(0 0 0 / 0.06), 0 20px 48px -20px rgb(0 0 0 / 0.3);
@@ -180,8 +222,30 @@
   .kicker {
     @apply text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase;
   }
+  /* Fraunces at optical size for headlines; tracking tightens with size. */
   .headline {
-    @apply font-serif font-medium tracking-[-0.01em] text-ink;
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    color: var(--ink);
+    font-variation-settings: "opsz" 72;
+    text-wrap: balance;
+  }
+  .headline-lg {
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    font-variation-settings: "opsz" 144;
+  }
+  .pill-info {
+    @apply border-info/30 bg-info-soft text-info;
+  }
+  /* Numerals for the Most Read rail and KPI figures. */
+  .figure {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
   }
   .section-title {
     @apply flex items-center gap-4 text-[13px] font-semibold tracking-[0.12em] text-ink uppercase after:h-px after:flex-1 after:bg-line-strong;
@@ -189,7 +253,7 @@
 
   /* Inline links inside running text */
   .text-link {
-    @apply text-ink underline decoration-line-strong underline-offset-[3px] transition-colors hover:decoration-accent;
+    @apply text-info underline decoration-info/40 underline-offset-[3px] transition-colors hover:decoration-info;
   }
   .nav-link {
     @apply rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink;
@@ -275,42 +339,103 @@
   --tw-prose-td-borders: var(--line);
 }
 
+/*
+ * Reading: 19px Source Serif at 1.7 on a ~66-character measure, a drop
+ * cap on the opening paragraph only, and pull quotes in the display face.
+ */
 .prose-article {
   font-family: var(--font-serif);
   font-size: 1.1875rem;
   line-height: 1.7;
+  max-width: 66ch;
+  font-variation-settings: "opsz" 18;
 }
 .prose-article :where(h2, h3, h4) {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 .prose-article :where(a) {
-  text-decoration-color: var(--line-strong);
+  color: var(--info);
+  text-decoration-color: color-mix(in srgb, var(--info) 40%, transparent);
   text-underline-offset: 3px;
 }
 .prose-article :where(a):hover {
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--info);
+}
+.prose-article > :where(p:first-of-type)::first-letter {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 3.4em;
+  line-height: 0.82;
+  float: left;
+  padding: 0.08em 0.12em 0 0;
+  color: var(--ink);
 }
 .prose-article :where(blockquote) {
+  font-family: var(--font-display);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.25em;
-  line-height: 1.5;
-  border-left-width: 3px;
-  padding-left: 1.25rem;
+  font-size: 1.55em;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  border-left: 3px solid var(--accent);
+  padding: 0.25em 0 0.25em 1.25rem;
+  margin: 2em 0;
+  font-variation-settings: "opsz" 60;
 }
 .prose-article :where(blockquote p:first-of-type)::before,
 .prose-article :where(blockquote p:last-of-type)::after {
   content: none;
 }
 .prose-article :where(img) {
-  border-radius: 0.5rem;
+  border-radius: 10px;
 }
-@media (min-width: 640px) {
-  .prose-article {
-    font-size: 1.25rem;
-  }
+.prose-article :where(figcaption) {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+/* A picture, video or audio clip with its credit — see
+   components/editor/MediaFigure.tsx for the markup. */
+.prose-article :where(figure.media-figure),
+.prose-editor :where(figure.media-figure) {
+  margin: 2em 0;
+}
+.prose-article :where(figure.media-figure video) {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+}
+.prose-article :where(figure.media-figure audio) {
+  width: 100%;
+}
+.prose-article :where(figure.media-figure[data-kind="audio"]) {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.prose-article :where(figure.media-figure figcaption) {
+  margin-top: 0.5rem;
+}
+.audio-player {
+  font-family: var(--font-sans);
+}
+/* A citation in the text, [3], linking to the References list. */
+.prose-article :where(a[href^="#ref-"]),
+.prose-editor :where(a[href^="#ref-"]) {
+  font-family: var(--font-sans);
+  font-size: 0.7em;
+  vertical-align: super;
+  line-height: 0;
+  text-decoration: none;
+  color: var(--info);
+}
+.audio-player input[type="range"] {
+  height: 4px;
+  cursor: pointer;
 }
 
 /* The editor shares the article styles so what is written is what is read. */

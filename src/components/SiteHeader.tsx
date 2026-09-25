@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
-import { SITE_NAME } from "@/lib/siteUrl";
+import { Wordmark } from "./Wordmark";
 import { getI18n } from "@/i18n/server";
 import { HeaderAccountLinks } from "./HeaderAccountLinks";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 import { SearchIcon } from "./icons";
+import { getTheme } from "@/theme/server";
 
 /**
  * The masthead: a wordmark row with the date and account links, and a
@@ -20,6 +23,7 @@ import { SearchIcon } from "./icons";
  */
 export async function SiteHeader() {
   const { t, formatLongDate } = await getI18n();
+  const theme = await getTheme();
 
   // Wrapped because this header is in every public page's layout: an
   // unreachable database would otherwise 500 every page rather than just
@@ -42,12 +46,21 @@ export async function SiteHeader() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Wordmark row */}
         <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-4 sm:h-20">
-          <p className="hidden text-xs text-ink-3 sm:block">{formatLongDate(new Date())}</p>
-          <Link
-            href="/"
-            className="headline justify-self-center text-[26px] leading-none font-semibold tracking-[-0.02em] sm:text-[34px]"
-          >
-            {SITE_NAME}
+          <div className="hidden items-center gap-3 sm:flex">
+            <p className="text-xs text-ink-3">{formatLongDate(new Date())}</p>
+            {/* Theme and language live here as well as in the footer and
+                on the account page: a reader who wants them should not
+                have to scroll past the front page to find them. */}
+            <ThemeToggle initial={theme} />
+            <LanguageSwitcher variant="compact" />
+          </div>
+          <Link href="/" className="justify-self-center">
+            <span className="sm:hidden">
+              <Wordmark height={22} />
+            </span>
+            <span className="hidden sm:inline">
+              <Wordmark height={30} />
+            </span>
           </Link>
           <div className="justify-self-end">
             <HeaderAccountLinks />

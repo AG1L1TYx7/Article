@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
-import { SITE_NAME } from "@/lib/siteUrl";
+import { SITE_NAME, absoluteUrl } from "@/lib/siteUrl";
 
 /**
  * The image that appears when an article is shared.
@@ -32,6 +32,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
       select: {
         title: true,
         dek: true,
+        anonymous: true,
         author: { select: { name: true } },
         category: { select: { name: true } },
       },
@@ -42,7 +43,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const title = article?.title ?? SITE_NAME;
   const kicker = article?.category?.name?.toUpperCase() ?? "";
-  const byline = article?.author.name ? `By ${article.author.name}` : SITE_NAME;
+  const byline = article && !article.anonymous && article.author.name ? `By ${article.author.name}` : SITE_NAME;
 
   return new ImageResponse(
     (
@@ -104,7 +105,11 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           }}
         >
           <div style={{ display: "flex" }}>{byline}</div>
-          <div style={{ display: "flex", color: "#17140f", fontWeight: 700 }}>{SITE_NAME}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, color: "#17140f", fontWeight: 700 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- rendered into the share image by ImageResponse */}
+            <img src={absoluteUrl("/brand/mark.png")} width={56} height={56} alt="" style={{ borderRadius: 10 }} />
+            {SITE_NAME}
+          </div>
         </div>
       </div>
     ),

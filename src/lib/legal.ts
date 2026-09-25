@@ -7,7 +7,7 @@ import { SITE_NAME } from "@/lib/siteUrl";
  * print these, and mark them loudly when they are missing, because a
  * privacy policy without a named controller is not a privacy policy.
  *
- *   LEGAL_ENTITY          e.g. "The Dispatch Media Ltd"
+ *   LEGAL_ENTITY          e.g. "Dispatch Report Media Ltd"
  *   LEGAL_ADDRESS         postal address (one line, commas)
  *   LEGAL_CONTACT_EMAIL   where privacy requests go, e.g. privacy@…
  *   LEGAL_JURISDICTION    governing law for the terms, e.g. "England and Wales"
@@ -73,6 +73,9 @@ export function activeProcessors(
         "Google tells us your name, email address, whether Google has verified that address, and your profile picture. We ask for nothing else. The picture is copied here once and then served from this site, so viewing a page never contacts Google.",
       region: "United States (Google acts as its own controller for what it does with your Google account)",
     });
+  }
+  if (process.env.TWILIO_ACCOUNT_SID) {
+    list.push({ name: "Twilio", purpose: "Sending the text message that verifies a phone number", data: "Phone number, the six-digit code", region: "United States" });
   }
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     list.push({ name: "Your browser's push service (Google, Apple or Mozilla)", purpose: "Delivering the breaking-news alerts you asked for to your device", data: "An encrypted message it cannot read, and the device address its own browser issued", region: "Set by the browser vendor" });

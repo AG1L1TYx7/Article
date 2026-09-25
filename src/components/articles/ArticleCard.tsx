@@ -13,6 +13,8 @@ export interface ArticleCardData {
   /** The language the story is written in; shown when it differs from the reader's. */
   locale?: string;
   author: { name: string; handle?: string };
+  /** Published without a byline: shown as "Anonymous", never linked. */
+  anonymous?: boolean;
   category?: { name: string; slug?: string } | null;
   coverImage?: { url: string; altText: string | null } | null;
 }
@@ -74,7 +76,9 @@ export async function ArticleCard({
 
   const byline = (
     <p className="text-xs text-ink-3">
-      {article.author.handle ? (
+      {article.anonymous ? (
+        <span className="font-medium text-ink-2">{t("common.anonymous")}</span>
+      ) : article.author.handle ? (
         <Link href={`/author/${article.author.handle}`} className="font-medium text-ink-2 hover:text-ink">
           {article.author.name}
         </Link>
@@ -127,7 +131,7 @@ export async function ArticleCard({
         {picture("aspect-[16/9] w-full", "(min-width: 1024px) 720px, 100vw")}
         <div className="flex flex-col gap-3">
           {kicker}
-          <h2 className="headline text-[34px] leading-[1.08] sm:text-[44px]">
+          <h2 className="headline headline-lg text-[34px] sm:text-[48px]">
             {headline("hover:underline decoration-line-strong underline-offset-4")}
           </h2>
           {dek("font-serif text-lg leading-snug text-ink-2 sm:text-xl")}

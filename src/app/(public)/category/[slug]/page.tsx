@@ -52,6 +52,7 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
         isBreaking: true,
         publishedAt: true,
         locale: true,
+        anonymous: true,
         author: { select: { name: true, handle: true } },
         coverImage: { select: { url: true, altText: true } },
       },

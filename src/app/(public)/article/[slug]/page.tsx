@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { classifyReferrer, countryFrom, deviceFrom } from "@/lib/analyticsCapture";
 import { ReadingBeacon } from "@/components/articles/ReadingBeacon";
+import { ReadingProgress } from "@/components/articles/ReadingProgress";
 import { db } from "@/lib/db";
 import { sanitizedArticleHtml } from "@/lib/sanitizeCache";
 import { countArticleView } from "@/lib/viewCount";
@@ -13,11 +14,18 @@ import { RelatedLinks } from "@/components/articles/RelatedLinks";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { ArticleBody, ArticleCover, ArticleHeader, ArticleTags } from "@/components/articles/ArticleView";
 import { ArticleEngagement } from "@/components/engagement/ArticleEngagement";
+import { MediaCredits } from "@/components/articles/MediaCredits";
+import { ReferencesList } from "@/components/articles/ReferencesList";
+import { AudioPlayers } from "@/components/articles/AudioPlayers";
+import { MEDIA_RIGHTS_SELECT, type ArticleMedia } from "@/lib/articleMedia";
+import { allowsDownload, isoDuration, LICENSES } from "@/lib/mediaRights";
+import { absoluteUrl } from "@/lib/siteUrl";
 import { auth } from "@/lib/auth/config";
 import { getBaseUrl } from "@/lib/url";
 import { readingTime } from "@/lib/format";
 import { getI18n } from "@/i18n/server";
 import { OG_LOCALE, isLocale } from "@/i18n/config";
+import { SITE_NAME } from "@/lib/siteUrl";
 
 /**
  * An article counts as updated when it was edited a meaningful time after
@@ -46,6 +54,7 @@ const getArticle = cache(async (slug: string) =>
       bodyHtml: true,
       excerpt: true,
       isBreaking: true,
+      anonymous: true,
       locale: true,
       publishedAt: true,
       updatedAt: true,
@@ -54,7 +63,14 @@ const getArticle = cache(async (slug: string) =>
       categoryId: true,
       author: { select: { id: true, name: true, handle: true } },
       category: { select: { name: true, slug: true } },
-      coverImage: { select: { url: true, altText: true } },
+      coverImage: { select: { url: true, altText: true, credit: true, sourceName: true, license: true } },
+      // Every file the story uses, with its credit and licence — see
+      // lib/articleMedia.ts. Linked when the article is saved.
+      media: { select: MEDIA_RIGHTS_SELECT },
+      references: {
+        orderBy: { position: "asc" },
+        select: { id: true, position: true, title: true, author: true, publication: true, url: true, publishedOn: true, note: true },
+      },
       tags: { select: { tag: { select: { slug: true, name: true } } } },
       links: {
         orderBy: { createdAt: "asc" },
@@ -79,6 +95,63 @@ const getArticle = cache(async (slug: string) =>
 );
 
 type Article = NonNullable<Awaited<ReturnType<typeof getArticle>>>;
+
+const toAbsolute = (url: string) => (url.startsWith("http") ? url : absoluteUrl(url));
+
+/**
+ * schema.org for the story and each of its files, with the licence and
+ * credit on every one. This is how a search engine's image and video
+ * results show "Licensable" and who to credit, and how a rights holder
+ * finds the terms we claim without reading the page.
+ */
+function structuredData(article: Article, media: ArticleMedia[]) {
+  const mediaObject = (m: ArticleMedia) => ({
+    "@type": m.type === "IMAGE" ? "ImageObject" : m.type === "VIDEO" ? "VideoObject" : "AudioObject",
+    contentUrl: toAbsolute(m.url),
+    ...(m.type !== "IMAGE" ? { name: m.title ?? m.caption ?? article.title, uploadDate: article.publishedAt?.toISOString() } : {}),
+    ...(m.caption ? { caption: m.caption, description: m.caption } : {}),
+    ...(m.credit ? { creditText: m.credit, creator: { "@type": "Person", name: m.credit } } : {}),
+    ...(m.sourceName ? { copyrightHolder: { "@type": "Organization", name: m.sourceName, ...(m.sourceUrl ? { url: m.sourceUrl } : {}) } } : {}),
+    ...(m.license && LICENSES[m.license].url ? { license: LICENSES[m.license].url } : {}),
+    ...(m.license === "OWN_WORK" ? { copyrightNotice: `© ${new Date().getUTCFullYear()} ${SITE_NAME}` } : {}),
+    ...(m.durationSecs ? { duration: isoDuration(m.durationSecs) } : {}),
+    ...(m.transcript ? { transcript: m.transcript } : {}),
+    ...(m.width && m.height ? { width: m.width, height: m.height } : {}),
+    encodingFormat: m.contentType,
+  });
+  const cover = media.find((m) => m.type === "IMAGE");
+  return {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: article.title,
+    ...(article.dek ? { description: article.dek } : {}),
+    datePublished: article.publishedAt?.toISOString(),
+    dateModified: article.updatedAt.toISOString(),
+    inLanguage: article.locale,
+    mainEntityOfPage: absoluteUrl(`/article/${article.slug}`),
+    // An anonymous story is credited to the publication, not to a person.
+    author: article.anonymous
+      ? { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") }
+      : { "@type": "Person", name: article.author.name, url: absoluteUrl(`/author/${article.author.handle}`) },
+    ...(article.references.length
+      ? {
+          citation: article.references.map((r) => ({
+            "@type": "CreativeWork",
+            name: r.title,
+            ...(r.url ? { url: r.url } : {}),
+            ...(r.author ? { author: { "@type": "Person", name: r.author } } : {}),
+            ...(r.publication ? { publisher: { "@type": "Organization", name: r.publication } } : {}),
+            ...(r.publishedOn ? { datePublished: r.publishedOn } : {}),
+          })),
+        }
+      : {}),
+    publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
+    ...(cover ? { image: mediaObject(cover) } : {}),
+    ...(media.some((m) => m.type === "VIDEO") ? { video: media.filter((m) => m.type === "VIDEO").map(mediaObject) } : {}),
+    ...(media.some((m) => m.type === "AUDIO") ? { audio: media.filter((m) => m.type === "AUDIO").map(mediaObject) } : {}),
+    associatedMedia: media.map(mediaObject),
+  };
+}
 
 /** Every published version of the story other than this one, one per language. */
 function otherVersions(article: Article): { slug: string; locale: string }[] {
@@ -136,7 +209,12 @@ export async function generateMetadata(props: PageProps<"/article/[slug]">): Pro
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
       section: article.category?.name,
-      authors: [article.author.name],
+      authors: article.anonymous ? undefined : [article.author.name],
+      // Share cards can carry the story's audio and video directly.
+      audio: article.media.filter((m) => m.type === "AUDIO").map((m) => ({ url: toAbsolute(m.url), type: m.contentType })),
+      videos: article.media
+        .filter((m) => m.type === "VIDEO")
+        .map((m) => ({ url: toAbsolute(m.url), type: m.contentType, width: m.width ?? undefined, height: m.height ?? undefined })),
     },
     twitter: { card: "summary_large_image", title, description },
   };
@@ -206,6 +284,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
         title: true,
         dek: true,
         isBreaking: true,
+        anonymous: true,
         publishedAt: true,
         locale: true,
         author: { select: { name: true, handle: true } },
@@ -216,9 +295,20 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   ]);
 
   const shareUrl = `${await getBaseUrl()}/article/${article.slug}`;
+  const media = article.media as ArticleMedia[];
+  const audioItems = media
+    .filter((m) => m.type === "AUDIO")
+    .map((m) => ({
+      id: m.id,
+      title: m.title,
+      downloadUrl: allowsDownload(m.license) ? `${m.url}?download=1` : null,
+      durationSecs: m.durationSecs,
+    }));
 
   return (
     <main id="main-content" className="pb-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(article, media)) }} />
+      <ReadingProgress />
       <ReadingBeacon articleId={article.id} />
       <article>
         <ArticleHeader
@@ -227,6 +317,7 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
           isBreaking={article.isBreaking}
           category={article.category}
           author={article.author}
+          anonymous={article.anonymous}
           publishedAt={article.publishedAt}
           updatedAt={updatedAfterPublish}
           minutes={readingTime(article.bodyHtml)}
@@ -249,14 +340,20 @@ export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
               bookmarked={!!bookmarked}
               followingAuthor={!!followingAuthor}
               isOwnArticle={viewerId === article.author.id}
+              anonymous={article.anonymous}
             />
           </div>
 
           <ArticleBody html={safeHtml} lang={article.locale} />
+          {audioItems.length > 0 && <AudioPlayers items={audioItems} scope=".prose-article" />}
 
           <ArticleTags tags={article.tags.map((t) => t.tag)} />
 
+          <ReferencesList references={article.references} />
+
           <RelatedLinks links={article.links} />
+
+          <MediaCredits media={media} />
 
           <CommentSection
             articleId={article.id}

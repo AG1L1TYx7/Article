@@ -4,6 +4,7 @@ import { initials } from "@/lib/format";
 import { imageSrcSet, imageVariantUrl } from "@/lib/imageUrl";
 import { getI18n } from "@/i18n/server";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";
+import { LICENSES, creditLine, type MediaLicenseCode } from "@/lib/mediaRights";
 
 /**
  * The pieces of a rendered article, shared by the public page and the
@@ -18,6 +19,7 @@ export async function ArticleHeader({
   isBreaking,
   category,
   author,
+  anonymous = false,
   publishedAt,
   updatedAt,
   minutes,
@@ -30,6 +32,8 @@ export async function ArticleHeader({
   isBreaking: boolean;
   category: { name: string; slug: string } | null;
   author: { name: string; handle: string };
+  /** Published without a byline: readers see "Anonymous", no link, no avatar initials. */
+  anonymous?: boolean;
   publishedAt: Date | null;
   /** Only pass when the article was meaningfully edited after publishing. */
   updatedAt?: Date | null;
@@ -56,7 +60,7 @@ export async function ArticleHeader({
           </Link>
         )}
       </div>
-      <h1 className="headline mt-4 text-[36px] leading-[1.06] sm:text-[52px]" lang={foreign ? storyLang : undefined}>
+      <h1 className="headline headline-lg mt-4 text-[36px] sm:text-[56px]" lang={foreign ? storyLang : undefined}>
         {title}
       </h1>
       {dek && (
@@ -91,13 +95,19 @@ export async function ArticleHeader({
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-y border-line py-4">
         <div className="flex items-center gap-3">
-          <span className="avatar h-10 w-10 text-sm">{initials(author.name)}</span>
+          <span className="avatar h-10 w-10 text-sm">{anonymous ? "?" : initials(author.name)}</span>
           <div className="text-sm">
             <p>
               <span className="text-ink-3">{t("common.by")} </span>
-              <Link href={`/author/${author.handle}`} className="font-medium text-ink hover:underline">
-                {author.name}
-              </Link>
+              {anonymous ? (
+                <span className="font-medium text-ink" data-anonymous-byline>
+                  {t("common.anonymous")}
+                </span>
+              ) : (
+                <Link href={`/author/${author.handle}`} className="font-medium text-ink hover:underline">
+                  {author.name}
+                </Link>
+              )}
             </p>
             <p className="text-xs text-ink-3">
               {publishedAt ? (
@@ -124,8 +134,22 @@ export async function ArticleHeader({
   );
 }
 
-export function ArticleCover({ image }: { image: { url: string; altText: string | null } | null }) {
+export function ArticleCover({
+  image,
+}: {
+  image: {
+    url: string;
+    altText: string | null;
+    credit?: string | null;
+    sourceName?: string | null;
+    license?: MediaLicenseCode | null;
+  } | null;
+}) {
   if (!image) return null;
+  // The credit sits with the picture as well as in the credits list at
+  // the end: a reader who only looks at the photo still sees who took it.
+  const credit = creditLine("IMAGE", { credit: image.credit ?? null, sourceName: image.sourceName ?? null, license: image.license ?? null });
+  const licence = image.license ? LICENSES[image.license] : null;
   return (
     <figure className="mx-auto mt-8 max-w-5xl px-4 sm:px-6">
       {/* eslint-disable-next-line @next/next/no-img-element -- served from this site's own media route or object storage */}
@@ -138,7 +162,22 @@ export function ArticleCover({ image }: { image: { url: string; altText: string 
         loading="eager"
         decoding="async"
       />
-      {image.altText && <figcaption className="mt-2 text-xs text-ink-3">{image.altText}</figcaption>}
+      {(image.altText || credit) && (
+        <figcaption className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-ink-3">
+          <span>{image.altText}</span>
+          {credit && (
+            <span data-cover-credit>
+              {licence?.url ? (
+                <a href={licence.url} rel="license noopener noreferrer" target="_blank" className="hover:text-ink hover:underline">
+                  {credit}
+                </a>
+              ) : (
+                credit
+              )}
+            </span>
+          )}
+        </figcaption>
+      )}
     </figure>
   );
 }

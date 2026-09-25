@@ -2,25 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { deleteMyAccount, updateProfile } from "./actions";
-import { PenIcon, TrashIcon } from "@/components/icons";
+import { deleteMyAccount } from "./actions";
+import { TrashIcon } from "@/components/icons";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useI18n } from "@/i18n/client";
 
 /**
- * The rights a person can exercise without asking anyone: correct their
- * name, download everything, delete the account. Kept on the account
+ * The rights a person can exercise without asking anyone: download
+ * everything, delete the account. (Correcting their details is the
+ * Personal information section, ProfileDetails.tsx.) Kept on the account
  * page rather than behind a support address because a right you have to
  * write in for is a right most people never use.
  */
-export function AccountPrivacy({ name: initialName, canDelete }: { name: string; canDelete: boolean }) {
-  const router = useRouter();
+export function AccountPrivacy({ canDelete }: { canDelete: boolean }) {
   const { t } = useI18n();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(initialName);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [savingName, setSavingName] = useState(false);
-
   const [confirming, setConfirming] = useState(false);
   const [password, setPassword] = useState("");
   const [typed, setTyped] = useState("");
@@ -31,20 +26,6 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
   // documented once and checked once.
   const phrase = t("account.deletePhrase");
   const [blurbBefore, blurbAfter] = t("account.yourDataBlurb").split("{privacyPolicy}");
-
-  async function saveName(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSavingName(true);
-    setNameError(null);
-    const result = await updateProfile({ name });
-    setSavingName(false);
-    if (!result.ok) {
-      setNameError(result.error ?? t("account.couldntSaveThat"));
-      return;
-    }
-    setEditing(false);
-    router.refresh();
-  }
 
   async function remove(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,51 +56,6 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
       </p>
 
       <dl className="mt-5 divide-y divide-line border-t border-line">
-        <div className="flex flex-wrap items-center justify-between gap-3 py-4">
-          <div className="min-w-0">
-            <dt className="text-sm font-medium">{t("common.name")}</dt>
-            {editing ? (
-              <form onSubmit={saveName} className="mt-2 flex flex-wrap items-center gap-2">
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  maxLength={120}
-                  autoFocus
-                  aria-label={t("common.name")}
-                  className="input w-64"
-                />
-                <button type="submit" disabled={savingName || !name.trim()} className="btn btn-primary btn-sm">
-                  {savingName ? t("common.saving") : t("common.save")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setName(initialName);
-                    setEditing(false);
-                    setNameError(null);
-                  }}
-                  className="btn btn-ghost btn-sm"
-                >
-                  {t("common.cancel")}
-                </button>
-                {nameError && (
-                  <span className="text-xs text-danger" role="alert">
-                    {nameError}
-                  </span>
-                )}
-              </form>
-            ) : (
-              <dd className="text-sm text-ink-2">{initialName}</dd>
-            )}
-          </div>
-          {!editing && (
-            <button type="button" onClick={() => setEditing(true)} className="btn btn-secondary btn-sm gap-1">
-              <PenIcon size={14} /> {t("common.edit")}
-            </button>
-          )}
-        </div>
-
         <div className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div>
             <dt className="text-sm font-medium">{t("account.downloadData")}</dt>
@@ -157,13 +93,11 @@ export function AccountPrivacy({ name: initialName, canDelete }: { name: string;
               </label>
               <label className="field">
                 <span className="text-sm">{t("account.yourPassword")}</span>
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="input"
                 />
               </label>
               {deleteError && (

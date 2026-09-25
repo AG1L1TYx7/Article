@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { resetPassword } from "./actions";
 import { AuthCard } from "@/components/AuthCard";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useI18n } from "@/i18n/client";
 
 export default function ResetPasswordPage() {
@@ -71,14 +72,7 @@ function ResetPasswordForm() {
         <input type="hidden" name="email" value={email} />
         <label className="field">
           <span className="label">{t("auth.newPassword")}</span>
-          <input
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={12}
-            className="input"
-          />
+          <PasswordInput name="password" autoComplete="new-password" required minLength={12} />
           <span className="hint">{t("auth.passwordHelp")}</span>
         </label>
         {error && (

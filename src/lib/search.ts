@@ -45,6 +45,7 @@ interface SearchRow {
   title: string;
   dek: string | null;
   isBreaking: boolean;
+  anonymous: boolean | number;
   publishedAt: Date | null;
   authorName: string;
   authorHandle: string;
@@ -119,6 +120,7 @@ export async function searchArticles(filters: SearchFilters): Promise<SearchResu
       a.title,
       a.dek,
       a.isBreaking,
+      a.anonymous,
       a.publishedAt,
       u.name   AS authorName,
       u.handle AS authorHandle,
@@ -146,7 +148,9 @@ export async function searchArticles(filters: SearchFilters): Promise<SearchResu
       -- hid everything published in the last few hours.
       AND a.publishedAt <= UTC_TIMESTAMP()
       AND (${categorySlug} IS NULL OR c.slug = ${categorySlug})
-      AND (${authorHandle} IS NULL OR u.handle = ${authorHandle})
+      -- Filtering by author must not surface what they published without
+      -- a byline: that would name them.
+      AND (${authorHandle} IS NULL OR (u.handle = ${authorHandle} AND a.anonymous = 0))
       AND (${since} IS NULL OR a.publishedAt >= ${since})
       -- Whether a row matches at all is decided by the combined index;
       -- the per-column scores above only order what this admits.
@@ -169,6 +173,7 @@ export async function searchArticles(filters: SearchFilters): Promise<SearchResu
       title: r.title,
       dek: r.dek,
       isBreaking: r.isBreaking,
+      anonymous: !!r.anonymous,
       publishedAt: r.publishedAt,
       author: { name: r.authorName, handle: r.authorHandle },
       category: r.categorySlug ? { name: r.categoryName ?? "", slug: r.categorySlug } : null,
@@ -189,7 +194,7 @@ async function browseArticles(filters: SearchFilters, page: number, offset: numb
     status: "PUBLISHED" as const,
     publishedAt: { not: null, lte: new Date(), ...(filters.since ? { gte: filters.since } : {}) },
     ...(filters.categorySlug ? { category: { slug: filters.categorySlug } } : {}),
-    ...(filters.authorHandle ? { author: { handle: filters.authorHandle } } : {}),
+    ...(filters.authorHandle ? { author: { handle: filters.authorHandle }, anonymous: false as const } : {}),
   };
 
   const [rows, total] = await Promise.all([
@@ -204,6 +209,7 @@ async function browseArticles(filters: SearchFilters, page: number, offset: numb
         title: true,
         dek: true,
         isBreaking: true,
+        anonymous: true,
         publishedAt: true,
         author: { select: { name: true, handle: true } },
         category: { select: { name: true, slug: true } },

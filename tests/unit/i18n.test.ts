@@ -88,6 +88,8 @@ describe("makeI18n", () => {
     expect(english.n(2, "common.articles")).toBe("2 articles");
     // Nepali counts in its own digits.
     expect(nepali.n(3, "common.articles")).toBe("३ लेख");
+    // And groups in lakhs, not thousands: 12,84,930 rather than 1,284,930.
+    expect(nepali.formatNumber(1284930)).toBe("१२,८४,९३०");
   });
 
   test("a missing key shows the key rather than nothing", () => {
@@ -109,5 +111,6 @@ describe("makeI18n", () => {
     expect(english.formatRelative(new Date("2026-09-20T09:00:00Z"), now)).toBe("3 hrs ago");
     expect(english.formatRelative(new Date("2026-09-18T12:00:00Z"), now)).toBe("2 days ago");
     expect(nepali.formatRelative(new Date("2026-09-20T09:00:00Z"), now)).toBe("३ घण्टा अघि");
+    expect(nepali.formatRelative(new Date("2026-09-19T12:00:00Z"), now)).toBe("१ दिन अघि");
   });
 });

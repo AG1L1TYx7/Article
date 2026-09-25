@@ -32,6 +32,8 @@ export interface CommentNode {
    * error message.
    */
   editable: boolean;
+  /** Posted with the byline withheld; authorName already says "Anonymous". */
+  anonymous: boolean;
   /**
    * A comment the author removed that still has replies hanging off it.
    * Kept as a tombstone so deleting your own comment can't take other
@@ -156,7 +158,7 @@ export function CommentThread({
         <span className="avatar h-8 w-8 text-[11px]">{initials(comment.authorName)}</span>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-            <span className="font-medium text-ink">{comment.authorName}</span>
+            <span className={`font-medium ${comment.anonymous ? "text-ink-2 italic" : "text-ink"}`}>{comment.authorName}</span>
             {comment.isOwn && <span className="pill pill-neutral">{t("common.you")}</span>}
             <span className="text-xs text-ink-3">
               <time dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>

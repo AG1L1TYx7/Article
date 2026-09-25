@@ -15,7 +15,7 @@ import type { Messages } from "../t";
 export const ne: Messages = {
   common: {
     apply: "लागू गर्नुहोस्",
-    siteName: "The Dispatch",
+    siteName: "Dispatch Report",
     skipToContent: "मुख्य सामग्रीमा जानुहोस्",
     latest: "ताजा",
     search: "खोज्नुहोस्",
@@ -54,6 +54,9 @@ export const ne: Messages = {
     minRead: "{minutes} मिनेट पढाइ",
     language: "भाषा",
     languageNotice: "यो पृष्ठ अङ्ग्रेजीमा मात्र उपलब्ध छ।",
+    anonymous: "अज्ञात",
+    showPassword: "पासवर्ड देखाउनुहोस्",
+    hidePassword: "पासवर्ड लुकाउनुहोस्",
   },
 
   time: {
@@ -97,6 +100,8 @@ export const ne: Messages = {
     everythingYouFollow: "तपाईंले फलो गरेका सबै",
     nothingNewFromFollows: "माथिका समाचारबाहेक उनीहरूबाट नयाँ केही छैन।",
     searchArchive: "अभिलेख खोज्नुहोस्",
+    latest: "ताजा",
+    mostRead: "सबैभन्दा धेरै पढिएको",
   },
 
   article: {
@@ -113,6 +118,27 @@ export const ne: Messages = {
     copyPrompt: "यो लिङ्क कपी गर्नुहोस्:",
     readIn: "यो समाचार यस भाषामा पढ्नुहोस्:",
     inLanguage: "यो समाचार {language} भाषामा छ।",
+    references: "सन्दर्भ",
+    credits: "श्रेय र अनुमतिपत्र",
+    creditsBlurb: "यस समाचारका तस्बिर, अडियो र भिडियो कसले बनाए, र ती कुन सर्तमा प्रकाशित छन्।",
+    credit: "श्रेय",
+    source: "स्रोत",
+    licence: "अनुमतिपत्र",
+    allRightsReserved: "सर्वाधिकार सुरक्षित",
+    transcript: "लिखित रूप",
+    download: "डाउनलोड",
+    kindImage: "तस्बिर",
+    kindVideo: "भिडियो",
+    kindAudio: "अडियो",
+  },
+  player: {
+    play: "बजाउनुहोस्",
+    pause: "रोक्नुहोस्",
+    back: "१५ सेकेन्ड पछाडि",
+    forward: "१५ सेकेन्ड अगाडि",
+    speed: "बजाउने गति",
+    seek: "अगाडि-पछाडि सार्नुहोस्",
+    listen: "सुन्नुहोस्",
   },
 
   engagement: {
@@ -155,6 +181,9 @@ export const ne: Messages = {
     couldntPost: "त्यो टिप्पणी पोस्ट गर्न सकिएन।",
     couldntSave: "त्यो सम्पादन सुरक्षित गर्न सकिएन।",
     couldntDelete: "त्यो टिप्पणी मेटाउन सकिएन।",
+    anonymous: "अज्ञात",
+    postAnonymously: "नाम नखुलाई पठाउनुहोस्",
+    anonymousNote: "पाठकहरूबाट तपाईंको नाम लुकाइन्छ। मोडरेटरहरूले भने देख्न सक्छन्, र जवाफहरू तपाईंकहाँ आइरहन्छन्।",
   },
 
   search: {
@@ -307,6 +336,48 @@ export const ne: Messages = {
     deleteMyAccount: "मेरो खाता मेटाउनुहोस्",
     keepMyAccount: "खाता राख्नुहोस्",
     couldntDelete: "खाता मेटाउन सकिएन।",
+    appearance: "रूपरङ",
+    appearanceBlurb: "उज्यालो वा अँध्यारो, वा यही यन्त्रको सेटिङ अनुसार। यही ब्राउजरमा सम्झिइन्छ।",
+    contact: "सम्पर्क विवरण",
+    contactBlurb: "हामी तपाईंलाई कसरी सम्पर्क गर्छौं, र खाता खुल्न छाडे तपाईं कसरी भित्र फर्कनुहुन्छ। साइन-इन लिंक तपाईंको इमेल ठेगानामा जान्छन्; प्रमाणित फोन नम्बर तपाईं नै हो भनी देखाउने अर्को उपाय हो।",
+    emailLabel: "इमेल ठेगाना",
+    emailPending: "{email} पुष्टि हुन बाँकी छ — त्यो इनबक्स हेर्नुहोस्।",
+    changeEmail: "बदल्नुहोस्",
+    newEmail: "नयाँ इमेल ठेगाना",
+    confirmWithPassword: "तपाईं नै हो भनी पुष्टि गर्न पासवर्ड",
+    sendConfirmation: "पुष्टि लिंक पठाउनुहोस्",
+    emailChangeSent: "{email} मा लिंक पठाइँदै छ। तपाईंले नखोलेसम्म हालकै ठेगाना चलिरहन्छ।",
+    couldntChangeEmail: "परिवर्तन सुरु गर्न सकिएन।",
+    phoneLabel: "फोन नम्बर",
+    phoneNone: "अहिलेसम्म फोन नम्बर छैन",
+    phoneVerified: "प्रमाणित",
+    phoneUnverified: "अझै प्रमाणित छैन",
+    addPhone: "फोन नम्बर थप्नुहोस्",
+    phoneHelp: "अन्तर्राष्ट्रिय ढाँचामा, जस्तै +977 98 1234 5678। प्रमाणीकरण कोड र, तपाईंले चाहनुभएमा, सूचनाका लागि मात्र प्रयोग हुन्छ।",
+    sendCode: "कोड पठाउनुहोस्",
+    codeSentTo: "{phone} मा छ अङ्कको कोड पठाइयो। यो १० मिनेटमा सकिन्छ।",
+    enterCode: "कोड लेख्नुहोस्",
+    verifyPhone: "प्रमाणित गर्नुहोस्",
+    resendCode: "नयाँ कोड पठाउनुहोस्",
+    removePhone: "हटाउनुहोस्",
+    changePhone: "नम्बर बदल्नुहोस्",
+    phoneSaved: "फोन नम्बर प्रमाणित भयो।",
+    couldntSendCode: "कोड पठाउन सकिएन।",
+    couldntVerifyCode: "त्यो कोड मिलेन।",
+    personalInfo: "व्यक्तिगत जानकारी",
+    personalInfoBlurb: "साइटभरि तपाईंको नाम कसरी देखिन्छ, र तपाईंबारे केही शब्द। यी तपाईंले मात्र बदल्न सक्नुहुन्छ।",
+    firstName: "पहिलो नाम",
+    lastName: "थर",
+    preferredName: "रुचाइएको नाम",
+    preferredNameHint: "तपाईंलाई के भनेर बोलाऊँ। राख्नुभयो भने पहिलो नाम र थरको साटो यही देखिन्छ।",
+    about: "तपाईंबारे",
+    aboutHintStaff: "तपाईंको लेखक पृष्ठमा, नाममुनि देखिन्छ।",
+    aboutHintReader: "तपाईं यहाँ पढ्दा यो सार्वजनिक रूपमा देखिँदैन। कहिल्यै हाम्रा लागि लेख्नुभयो भने लेखक पृष्ठमा देखिन्छ।",
+    charactersLeft: "{count} अक्षर बाँकी",
+    shownAs: "साइटमा यसरी देखिन्छ",
+    notSet: "राखिएको छैन",
+    editDetails: "विवरण सम्पादन गर्नुहोस्",
+    detailsSaved: "सुरक्षित भयो। तपाईंको नयाँ नाम सबै ठाउँमा तुरुन्तै देखिन्छ।",
   },
 
   verify: {
@@ -314,6 +385,9 @@ export const ne: Messages = {
     checkInbox: "नयाँ प्रमाणीकरण लिङ्कका लागि आफ्नो इनबक्स हेर्नुहोस्।",
     resend: "फेरि पठाउनुहोस्",
     sending: "पठाउँदै…",
+    nudge: "कृपया आफ्नो इमेल ठेगाना पुष्टि गर्नुहोस् — यसले टिप्पणी गर्न दिन्छ र खाता फिर्ता पाउन सजिलो बनाउँछ। त्यससम्म बाँकी सबै काम गरिरहन्छ।",
+    nudgeSent: "नयाँ प्रमाणीकरण लिंक पठाइँदै छ। इनबक्स हेर्नुहोस्।",
+    dismiss: "अहिले होइन",
   },
 
   password: {
@@ -432,6 +506,7 @@ export const ne: Messages = {
     confirmingFor: "यस खाताका लागि {email} पुष्टि गर्दै।",
     confirming: "पुष्टि गर्दै…",
     confirmMyEmail: "मेरो इमेल पुष्टि गर्नुहोस्",
+    recoveryHint: "अथेन्टिकेटर हरायो? त्यसको साटो आफ्नो रिकभरी कोडमध्ये एउटा लेख्नुहोस्।",
   },
 
   errors: {
@@ -465,5 +540,11 @@ export const ne: Messages = {
   language: {
     label: "भाषा",
     switchTo: "{language} मा बदल्नुहोस्",
+  },
+  theme: {
+    label: "थिम",
+    system: "प्रणाली",
+    light: "उज्यालो",
+    dark: "अँध्यारो",
   },
 };

@@ -100,11 +100,12 @@ describe("ffmpegArgs", () => {
 });
 
 describe("transcodeVideo without a working binary", () => {
-  test("reports unavailable when ffmpeg is not configured", async () => {
-    expect(isTranscodingConfigured()).toBe(false);
-    await expect(transcodeVideo(Buffer.from("x"), "mov")).resolves.toEqual({
-      status: "unavailable",
-    });
+  test("the bundled ffmpeg is found without FFMPEG_PATH, and garbage input is an error, not a crash", async () => {
+    // ffmpeg-static downloads a real binary at npm install; with nothing
+    // configured it is what runs. Feeding it a file that is not a video
+    // must come back as a clean failure.
+    expect(isTranscodingConfigured()).toBe(true);
+    expect((await transcodeVideo(Buffer.from("x"), "mov")).status).toBe("error");
   });
 
   test("a missing binary is an error rather than a crash", async () => {

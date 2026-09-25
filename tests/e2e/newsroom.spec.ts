@@ -3,6 +3,7 @@ import * as OTPAuth from "otpauth";
 import { uniqueTestIp } from "./support/testIp";
 import { count, scalar, sql } from "./support/db";
 import { waitForHydration } from "./support/hydration";
+import { finishLogin, mfaColumnsSql } from "./support/staff";
 
 /**
  * The newsroom tooling: analytics, people, the audit log, and breaking
@@ -17,7 +18,7 @@ import { waitForHydration } from "./support/hydration";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id WHERE u.email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE u.email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const roleOf = (email: string) => scalar(`SELECT role FROM \`User\` WHERE email = '${email}';`);
@@ -51,7 +52,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 /**
@@ -176,7 +177,9 @@ test.describe("People", () => {
     // The one way to lock yourself out of the page you are standing on.
     const admin = await signInAsAdmin(page, "nrself");
 
-    await page.goto("/dashboard/users");
+    // Searched for by email: the full suite creates hundreds of accounts
+    // in parallel, and the list shows one page at a time.
+    await page.goto(`/dashboard/users?q=${encodeURIComponent(admin)}`);
     const row = page.locator("tr", { hasText: admin });
     await expect(row.getByRole("combobox")).toBeDisabled();
     // And no suspend button either.
@@ -255,7 +258,9 @@ test.describe("People", () => {
     await page.fill('input[name="next"]', own);
     await page.fill('input[name="confirm"]', own);
     await page.getByRole("button", { name: "Set my password and continue" }).click();
-    await page.waitForURL("/dashboard");
+    // A brand-new moderator has no second factor yet, so the newsroom
+    // holds them at the MFA setup page — the next thing they must do.
+    await page.waitForURL(/\/dashboard\/mfa/);
 
     // The temporary password no longer works; the new one does.
     await page.context().clearCookies();
@@ -266,7 +271,7 @@ test.describe("People", () => {
     await expect(page.getByText("Incorrect email or password.")).toBeVisible();
     await page.fill('input[name="password"]', own);
     await page.click('button[type="submit"]');
-    await page.waitForURL("/dashboard");
+    await page.waitForURL(/\/dashboard\/mfa/);
   });
 
   test("a moderator cannot reach the people page", async ({ page }) => {

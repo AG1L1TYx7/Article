@@ -45,13 +45,20 @@ activity, not on this software.
 | Home district | `User.districtId` | Telling a member when a verified report concerns where they live | Consent (they choose to set it; blank by default) | Until cleared or the account is deleted |
 | Contributions (amount, reference, donor name and email where given, message, bank reference) | `Contribution` | Collecting membership and donations, and accounting for them | Contract; kept under legal obligation (an organisation must account for money it receives) | Kept as a financial record. Deleting an account unlinks the row rather than removing it; an anonymous contribution stores no name at all |
 | MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent | Until disabled or deletion |
+| MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent (readers); condition of newsroom access (staff) | Until disabled, reset by an admin, or deletion |
+| MFA recovery codes | `User.mfaRecoveryCodes` (HMAC-SHA256 hashes keyed by `AUTH_SECRET`; each removed when used) | A way back in without the authenticator | As above | Until regenerated, disabled, reset or deletion |
 | Last sign-in time and IP | `User.lastLoginAt/Ip` | "When did I last sign in, and from where" | Legitimate interest (security) | IP cleared after 90 days |
+| Phone number | `User.phoneEncrypted` (AES-256-GCM under `AUTH_SECRET`) + `User.phoneHash` (HMAC-SHA256, unique index) | Verification code; a second proof of identity | Consent (optional; removing it deletes both) | Until removed or deletion |
+| Phone verification code | `User.phoneCodeHash` (HMAC keyed by secret + user id), expiry, attempt count | One-time proof the number is theirs | Consent | 10 minutes, 5 attempts, cleared on success |
+| Pending new email | `User.pendingEmail` | A change of address awaiting its confirmation link | Contract | Until confirmed (1 hour token) or replaced |
+| Anonymous flag on a comment | `Comment.anonymous` | Readers see "Anonymous"; the account link is kept for moderation, replies and erasure | Contract | With the comment |
 | Comments, likes, saves, follows (writers and sections), reports | own tables | The features themselves; the "Following" feed is a time-ordered list of the reader's own choices, not profiling | Contract | Until deletion |
 | Security audit log (action, actor, IP, time) | `AuditLog` | Detecting and investigating abuse | Legitimate interest (security) | 365 days (`AUDIT_RETENTION_DAYS`) |
 | Notifications | `Notification` | In-app alerts | Contract | 180 days |
 | Push subscription (endpoint URL issued by the browser's push service, two encryption keys, optional userId) | `PushSubscription` | Breaking-news and reply alerts the reader turned on | Consent (the toggle); withdrawn by turning it off, which deletes the row | Until turned off or account deleted; rows the push service keeps rejecting purged after 30 days |
 | Rate-limit counters | memory or Upstash | Abuse prevention | Legitimate interest | Minutes |
 | Interface language (`locale` cookie, two letters) | browser cookie | Remembering a language chosen from the switcher; strictly necessary, so no consent banner | Legitimate interest | 1 year |
+| Light or dark theme (`theme` cookie, one word; absent when following the device) | browser cookie | Remembering a theme chosen from the toggle; strictly necessary, so no consent banner | Legitimate interest | 1 year |
 | Verification / reset tokens | `VerificationToken` | One-time links | Contract | 1 hour; rows purged daily |
 | Article view counts | `Article.viewCount`, `ArticleViewDaily` | Editorial analytics | Not personal data (no identifier) | Indefinite |
 | Views by country code / referrer class / device class, per article per day | `ViewDimensionDaily` | Editorial analytics (where readers are, how they arrive) | Not personal data: coarse buckets and counts; the IP and user agent are classified in memory and discarded. Country comes from a CDN/host header (`CF-IPCountry` etc.), never from a lookup we store | Indefinite |

@@ -221,9 +221,113 @@ export const LockIcon = (p: IconProps) => (
   </svg>
 );
 
+export const UserIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);
+
+export const CommandIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z" />
+  </svg>
+);
+
+export const KeyIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="M10.85 12.15 19 4M16 7l2 2M13 10l2 2" />
+  </svg>
+);
+
 export const ExternalIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M14 5h5v5M19 5l-8 8" />
     <path d="M17 13v6H5V7h6" />
+  </svg>
+);
+
+export const SunIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  </svg>
+);
+
+export const MoonIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+  </svg>
+);
+
+export const MonitorIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8M12 16v4" />
+  </svg>
+);
+
+export const VideoIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="6" width="13" height="12" rx="2" />
+    <path d="m16 10 5-3v10l-5-3Z" />
+  </svg>
+);
+
+export const AudioIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 18V6l11-2v12" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="17" cy="16" r="3" />
+  </svg>
+);
+
+export const PlayIcon = (p: IconProps) => (
+  <svg {...base(p)} fill="currentColor" stroke="none">
+    <path d="M7 5v14l12-7Z" />
+  </svg>
+);
+
+export const PauseIcon = (p: IconProps) => (
+  <svg {...base(p)} fill="currentColor" stroke="none">
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </svg>
+);
+
+export const DownloadIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v11M7 10l5 5 5-5M4 19h16" />
+  </svg>
+);
+
+export const RewindIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 12a8 8 0 1 0 2.3-5.6" />
+    <path d="M4 3v4h4" />
+  </svg>
+);
+
+export const ForwardIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20 12a8 8 0 1 1-2.3-5.6" />
+    <path d="M20 3v4h-4" />
+  </svg>
+);
+
+export const EyeIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const EyeOffIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.9" />
+    <path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a10.4 10.4 0 0 0 5.4-1.6" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    <path d="m3 3 18 18" />
   </svg>
 );

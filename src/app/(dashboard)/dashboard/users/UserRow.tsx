@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { sendPasswordResetTo, setUserRole, setUserStatus } from "./actions";
+import { resetUserMfa, sendPasswordResetTo, setUserRole, setUserStatus } from "./actions";
 import { formatDate, initials } from "@/lib/format";
 import { ShieldIcon } from "@/components/icons";
 import { ActionButton } from "@/components/ActionButton";
@@ -136,6 +136,20 @@ export function UserRow({
           >
             Reset link
           </ActionButton>
+          {/* For a lost authenticator AND lost recovery codes. Never offered
+              on your own row: another admin does that for you. */}
+          {!isSelf && user.mfaEnabled && (
+            <ActionButton
+              action={resetUserMfa}
+              args={[user.id]}
+              className="btn btn-sm btn-ghost"
+              pendingLabel="Resetting…"
+              confirm={`Reset two-factor for ${user.name}? They will be signed out everywhere and must set it up again at their next sign-in.`}
+              title="Clear their authenticator and recovery codes"
+            >
+              Reset 2FA
+            </ActionButton>
+          )}
           {!isSelf && (
             <button
               disabled={pending}

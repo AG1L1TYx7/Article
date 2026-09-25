@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { scalar, sql } from "./support/db";
+import { finishLogin } from "./support/staff";
 
 /**
  * The data-protection rights a reader exercises without asking anyone:
@@ -40,7 +41,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 test.describe("Consent", () => {
@@ -84,15 +85,48 @@ test.describe("Access and rectification", () => {
     expect(Array.isArray(data.securityLog)).toBe(true);
   });
 
-  test("a reader can correct their name", async ({ page }) => {
+  test("a reader can set their first, last and preferred name and an about text", async ({ page }) => {
     const email = await register(page, "prname");
     await login(page, email);
     await page.goto("/account");
-    await page.getByRole("button", { name: "Edit" }).click();
-    await page.getByLabel("Name").fill("Corrected Name");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText("Corrected Name").first()).toBeVisible();
-    expect(scalar(`SELECT name FROM \`User\` WHERE email = '${email}';`)).toBe("Corrected Name");
+
+    const section = page.getByRole("region", { name: "Personal information" });
+    await section.getByRole("button", { name: "Edit details" }).click();
+    await section.getByLabel("First name").fill("Augusta");
+    await section.getByLabel(/^Last name/).fill("King");
+    await section.getByLabel(/^About you/).fill("Reads everything.\nWrites to the editor.");
+    // Without a preferred name, first + last is what the site shows.
+    await expect(section.getByText("Augusta King", { exact: true })).toBeVisible();
+    await section.getByLabel(/^Preferred name/).fill("Ada");
+    await section.getByRole("button", { name: "Save", exact: true }).click();
+
+    await expect(section.getByRole("status")).toContainText("Saved");
+    const row = scalar(
+      `SELECT CONCAT_WS('|', name, firstName, lastName, preferredName, REPLACE(bio, '\\n', '/')) FROM \`User\` WHERE email = '${email}';`
+    );
+    expect(row).toBe("Ada|Augusta|King|Ada|Reads everything./Writes to the editor.");
+    // The preferred name is what the site uses, including the header.
+    await expect(section.getByText("Ada", { exact: true }).first()).toBeVisible();
+
+    // And it is in the personal-data download.
+    const exported = await (await page.request.get("/account/data")).json();
+    expect(exported.account).toMatchObject({ name: "Ada", firstName: "Augusta", lastName: "King", preferredName: "Ada" });
+    expect(exported.account.about).toBe("Reads everything.\nWrites to the editor.");
+  });
+
+  test("a profile needs a first name or a preferred name", async ({ page }) => {
+    const email = await register(page, "prnoname");
+    await login(page, email);
+    await page.goto("/account");
+    const section = page.getByRole("region", { name: "Personal information" });
+    await section.getByRole("button", { name: "Edit details" }).click();
+    await section.getByLabel("First name").fill("");
+    await section.getByLabel(/^Last name/).fill("OnlyASurname");
+    await section.getByLabel(/^Preferred name/).fill("");
+    await section.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(section.getByRole("alert")).toContainText("first name or a preferred name");
+    // Nothing was saved.
+    expect(scalar(`SELECT COALESCE(lastName, '') FROM \`User\` WHERE email = '${email}';`)).toBe("");
   });
 });
 
@@ -100,6 +134,9 @@ test.describe("Erasure", () => {
   test("deleting the account erases personal data and ends the session", async ({ page }) => {
     const email = await register(page, "prdelete");
     await login(page, email);
+    const id = scalar(`SELECT id FROM \`User\` WHERE email = '${email}';`);
+    // Personal details on the row, so erasure has something to erase.
+    sql(`UPDATE \`User\` SET firstName = 'Erase', lastName = 'Me', preferredName = 'EM', bio = 'about' WHERE id = '${id}';`);
 
     await page.goto("/account");
     await page.getByRole("button", { name: "Delete account" }).click();
@@ -112,6 +149,11 @@ test.describe("Erasure", () => {
     await page.goto("/account");
     await expect(page).toHaveURL(/\/login/);
     expect(scalar(`SELECT coalesce(id, '') FROM \`User\` WHERE email = '${email}';`)).toBeFalsy();
+    expect(
+      scalar(
+        `SELECT CONCAT_WS('|', name, COALESCE(firstName, '-'), COALESCE(lastName, '-'), COALESCE(preferredName, '-'), COALESCE(bio, '-')) FROM \`User\` WHERE id = '${id}';`
+      )
+    ).toBe("Deleted user|-|-|-|-");
 
     // And the old credentials are dead.
     await page.goto("/login");

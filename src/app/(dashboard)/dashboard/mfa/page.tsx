@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth/config";
+import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { EnrollMfaFlow } from "./EnrollMfaFlow";
 import { DisableMfaForm } from "./DisableMfaForm";
+import { RecoveryCodesPanel } from "./RecoveryCodesPanel";
 import { PageBody, PageHeader } from "../../PageHeader";
 import { ShieldIcon } from "@/components/icons";
+import { parseStoredCodes } from "@/lib/auth/recoveryCodes";
 
 export const metadata: Metadata = { title: "Two-factor authentication", robots: { index: false, follow: false } };
 
@@ -19,6 +22,12 @@ export default async function MfaSettingsPage(props: PageProps<"/dashboard/mfa">
   const params = await props.searchParams;
   const sentHereToVerify =
     params.why === "verify" && session.user.permissions?.includes("issue.verify");
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { mfaRecoveryCodes: true },
+  });
+  const remaining = parseStoredCodes(user?.mfaRecoveryCodes).length;
 
   return (
     <main id="main-content">
@@ -43,9 +52,9 @@ export default async function MfaSettingsPage(props: PageProps<"/dashboard/mfa">
             <a href="/account" className="text-link">account page</a>.
           </p>
         )}
-        {session.user.role === "ADMIN" && !session.user.mfaEnabled && (
+        {!session.user.mfaEnabled && (
           <p className="alert alert-warn mb-6">
-            Admin accounts are required to enable this before using the rest of the dashboard.
+            Newsroom accounts are required to enable this before using the rest of the dashboard.
             The other pages in the sidebar unlock as soon as you confirm a code below — it takes
             about a minute. No phone to hand? A password manager (1Password, Bitwarden) or a
             browser authenticator extension works the same way.
@@ -79,13 +88,21 @@ export default async function MfaSettingsPage(props: PageProps<"/dashboard/mfa">
                 <p className="alert alert-ok mb-4" role="status">
                   MFA is enabled on this account.
                 </p>
-                <DisableMfaForm />
+                <RecoveryCodesPanel remaining={remaining} />
+                <div className="mt-5 border-t border-line pt-5">
+                  <DisableMfaForm />
+                </div>
               </>
             ) : (
               <EnrollMfaFlow />
             )}
           </div>
         </div>
+
+        <p className="mt-4 text-xs text-ink-3">
+          Lost your authenticator and your recovery codes? An administrator can reset two-factor for your
+          account from the People page; you will be asked to set it up again at your next sign-in.
+        </p>
       </PageBody>
     </main>
   );

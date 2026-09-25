@@ -1,11 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueTestIp } from "./support/testIp";
 import { sql } from "./support/db";
+import { finishLogin, mfaColumnsSql } from "./support/staff";
 
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id WHERE u.email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE u.email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const setCategory = (title: string, categorySlug: string) =>
@@ -33,7 +34,7 @@ async function login(page: Page, email: string) {
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  await finishLogin(page);
 }
 
 /** Publishes an article with the given headline and body, then signs out. */
@@ -59,6 +60,15 @@ async function publish(
   await page.locator("tr", { hasText: opts.title }).getByRole("button", { name: "Publish" }).click();
   await page.waitForLoadState("networkidle");
   await page.context().clearCookies();
+
+  // Wait until search can actually see the story before handing it to a
+  // test. On a busy CI database the full-text index can trail the
+  // committed row by a few seconds, and three different tests have
+  // failed on exactly that gap; waiting once here covers all of them.
+  await expect(async () => {
+    await page.goto(`/search?q=${encodeURIComponent(opts.title)}`);
+    await expect(page.getByRole("link", { name: opts.title })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 30000 });
 
   return { handle, email };
 }
@@ -194,8 +204,12 @@ test.describe("Search", () => {
     });
 
     // No q at all: the section filter alone must list the story, and say so.
-    await page.goto("/search?category=sport");
-    await expect(page.getByRole("link", { name: title })).toBeVisible();
+    // Reloaded until it appears: right after a publish on a busy CI
+    // database the first request can land before the row is visible.
+    await expect(async () => {
+      await page.goto("/search?category=sport");
+      await expect(page.getByRole("link", { name: title })).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
     // Scoped to main: the footer's push toggle carries its own status text.
     await expect(page.getByRole("main").getByRole("status")).toContainText(/articles? in Sport, newest first/);
 

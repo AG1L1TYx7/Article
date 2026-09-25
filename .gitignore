@@ -44,8 +44,9 @@ next-env.d.ts
 # prisma generated client
 /src/generated/prisma
 
-# dev-only email outbox (see src/lib/email.ts)
+# dev-only email and SMS outboxes (see src/lib/email.ts, src/lib/sms.ts)
 .email-dev-outbox.log
+.sms-dev-outbox.log
 
 # playwright
 /test-results/
@@ -92,3 +93,17 @@ next-env.d.ts
 # one developer's machine. Ignored so `git add .` cannot pull a second
 # codebase into this repository; also ignored by ESLint (eslint.config.mjs).
 /donttouch/
+# SSH deploy key for GitHub Actions. The private half goes into a GitHub
+# secret and must never be committed.
+.deploy-key-tmp/
+
+# The upload archive and its in-progress file (scripts/pack-cpanel.mjs).
+cpanel-dist.zip
+*.zip.building
+
+# Runtime state: the deploy restart marker (src/lib/restartOnDeploy.ts).
+/tmp/
+
+# Logs written when the suite starts a production server by hand.
+/.prod-server.log
+/.guard-test.log

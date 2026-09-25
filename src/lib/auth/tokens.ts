@@ -11,7 +11,9 @@ import { db } from "@/lib/db";
 // email-verify token can never be replayed to reset a password.
 const TOKEN_BYTES = 32;
 
-export type TokenPurpose = "email-verify" | "password-reset";
+// "email-change" is scoped to the NEW address: the link proves the person
+// controls it, and only then does the account switch to it.
+export type TokenPurpose = "email-verify" | "password-reset" | "email-change";
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");

@@ -55,17 +55,23 @@ export default auth((req) => {
       return NextResponse.redirect(new URL("/", req.nextUrl));
     }
 
-    // Mandatory MFA for Admin accounts (security blueprint §Authentication
-    // & sessions). An admin without MFA enrolled can reach only the
-    // enrollment page itself — every other /dashboard/* route bounces
-    // here until they finish setting it up.
-    // An emailed code does not count here. Whoever holds the mailbox holds
-    // that factor, and an administrator can change what everybody else may
-    // do — so the app is required, and an admin who had switched to email
-    // before being promoted is sent to enrol one. The account page refuses
-    // the switch the other way round; both ends have to hold, or the
-    // weaker one becomes the way in.
-    if (user.role === "ADMIN" && !user.mfaUsesApp && pathname !== "/dashboard/mfa") {
+    // Mandatory MFA for every newsroom account — moderators as well as
+    // admins, since a moderator can publish to the whole site. Someone
+    // without it enrolled can reach only the enrolment page itself; every
+    // other /dashboard/* route bounces here until they finish setting it
+    // up. Readers are never asked: their account cannot change what the
+    // public sees.
+    //
+    // Administrators must have enrolled the authenticator app in
+    // particular. An emailed code does not count for them: whoever holds
+    // the mailbox holds that factor, and an administrator can change what
+    // everybody else may do — so an admin who was using email before being
+    // promoted is sent to enrol an app. The account page refuses the
+    // switch the other way round; both ends have to hold, or the weaker
+    // one becomes the way in.
+    const lacksSecondFactor = STAFF_ROLES.has(user.role) && !user.mfaEnabled;
+    const lacksAuthenticatorApp = user.role === "ADMIN" && !user.mfaUsesApp;
+    if ((lacksSecondFactor || lacksAuthenticatorApp) && pathname !== "/dashboard/mfa") {
       return NextResponse.redirect(new URL("/dashboard/mfa", req.nextUrl));
     }
 

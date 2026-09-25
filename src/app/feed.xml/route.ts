@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { buildRssFeed } from "@/lib/feed";
+import { absoluteUrl } from "@/lib/siteUrl";
 
 // Built fresh on every request, like every other route on this site, so
 // a story is in the feed the second it is published. The query behind it
@@ -26,8 +27,10 @@ export async function GET() {
           dek: true,
           excerpt: true,
           publishedAt: true,
+          anonymous: true,
           author: { select: { name: true } },
           category: { select: { name: true } },
+          media: { where: { type: "AUDIO" }, take: 1, select: { url: true, sizeBytes: true, contentType: true } },
         },
       }),
     [],
@@ -40,8 +43,15 @@ export async function GET() {
       title: article.title,
       summary: article.dek ?? article.excerpt,
       publishedAt: article.publishedAt,
-      authorName: article.author.name,
+      authorName: article.anonymous ? "Anonymous" : article.author.name,
       categoryName: article.category?.name ?? null,
+      enclosure: article.media[0]
+        ? {
+            url: article.media[0].url.startsWith("http") ? article.media[0].url : absoluteUrl(article.media[0].url),
+            length: article.media[0].sizeBytes ?? 0,
+            type: article.media[0].contentType,
+          }
+        : null,
     }))
   );
 

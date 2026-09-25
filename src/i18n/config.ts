@@ -11,6 +11,10 @@
  * its own `locale` and links to its translations. A Nepali reader on an
  * English-only site sees Nepali chrome around English stories, which is
  * the honest state of affairs rather than an empty front page.
+ *
+ * Spanish (messages/es.ts) was carried here briefly and is shelved rather
+ * than lost: it stays in history on main, and restoring it is this list
+ * plus the four maps below plus an import in messages/index.ts.
  */
 export const LOCALES = ["en", "ne"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -23,10 +27,7 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   ne: "नेपाली",
 };
 
-/**
- * The BCP 47 tag handed to Intl for dates and numbers. Nepali uses its
- * own digits (२० सेप्टेम्बर), which is how Nepali newspapers print them.
- */
+/** The BCP 47 tag handed to Intl for dates and numbers. */
 export const INTL_LOCALE: Record<Locale, string> = {
   en: "en-GB",
   ne: "ne-NP",

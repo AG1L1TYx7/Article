@@ -40,14 +40,25 @@ async function login(page: Page, email: string, password = PASSWORD) {
   await page.click('button[type="submit"]');
 }
 
-async function enrollMfa(page: Page): Promise<string> {
+/**
+ * Enrols through the real screen and returns the authenticator secret and
+ * the one-time recovery codes the page shows exactly once.
+ */
+async function enrollMfaWithCodes(page: Page): Promise<{ secret: string; codes: string[] }> {
   await page.getByRole("button", { name: "Set up authenticator app" }).click();
   const secret = await page.locator("p.font-mono.text-xs.break-all").textContent();
   if (!secret) throw new Error("Manual entry key not found on enrollment screen");
   await page.fill('input[name="code"]', codeFor(secret.trim()));
   await page.getByRole("button", { name: "Confirm and enable" }).click();
   await expect(page.getByText("MFA is enabled on this account.")).toBeVisible();
-  return secret.trim();
+  const codes = await page.locator("[data-recovery-codes] li").allTextContents();
+  expect(codes).toHaveLength(10);
+  await page.getByRole("button", { name: "I've saved them" }).click();
+  return { secret: secret.trim(), codes: codes.map((c) => c.trim()) };
+}
+
+async function enrollMfa(page: Page): Promise<string> {
+  return (await enrollMfaWithCodes(page)).secret;
 }
 
 test.describe("Mandatory admin MFA", () => {
@@ -167,13 +178,108 @@ test.describe("MFA enrollment and TOTP login", () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test("MFA is optional for a moderator — no forced setup, no TOTP prompt at login", async ({ page }) => {
+  test("a moderator is held at the setup page too — every newsroom account needs MFA", async ({ page }) => {
     const email = `mod-nomf+${Date.now()}@example.com`;
     await register(page, email, `modnomfa${Date.now()}`);
     promoteTo("MODERATOR", email);
 
     await login(page, email);
+    await page.waitForURL(/\/dashboard\/mfa/);
+    await expect(page.getByText(/Newsroom accounts are required/)).toBeVisible();
+    await page.goto("/dashboard/articles");
+    await expect(page).toHaveURL(/\/dashboard\/mfa/);
+
+    // Enrolling unlocks it.
+    await enrollMfa(page);
+    await page.goto("/dashboard/articles");
+    await expect(page).toHaveURL(/\/dashboard\/articles$/);
+  });
+});
+
+test.describe("Recovery", () => {
+  test("a recovery code signs in when the authenticator is gone, and works only once", async ({ page }) => {
+    test.slow();
+    const email = `admin-recover+${Date.now()}@example.com`;
+    await register(page, email, `adminrecover${Date.now()}`);
+    promoteToAdmin(email);
+    await login(page, email);
+    await page.waitForURL(/\/dashboard\/mfa/);
+    const { codes } = await enrollMfaWithCodes(page);
+
+    // Ten unused, shown on the security page.
+    await page.goto("/dashboard/mfa");
+    await expect(page.locator("[data-recovery-remaining]")).toHaveAttribute("data-recovery-remaining", "10");
+
+    // Sign out; sign back in with a recovery code instead of the app.
+    await page.getByRole("button", { name: "Log out" }).click();
+    await page.waitForURL(/\/login/);
+    await login(page, email);
+    await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
+    // Not a remembered device: the code must be typed again next time.
+    await page.getByRole("checkbox").uncheck();
+    await page.fill('input[name="totp"]', codes[0]!);
+    await page.getByRole("button", { name: "Verify" }).click();
     await page.waitForURL("/dashboard");
-    await expect(page.getByText("Set up two-factor authentication")).toBeVisible();
+
+    // One fewer left, and the use is in the audit trail.
+    await page.goto("/dashboard/mfa");
+    await expect(page.locator("[data-recovery-remaining]")).toHaveAttribute("data-recovery-remaining", "9");
+    await page.goto("/dashboard/audit-log");
+    await expect(page.getByText("auth.mfa.recovery_used").first()).toBeVisible();
+
+    // The same code again is refused.
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: "Log out" }).click();
+    await page.waitForURL(/\/login/);
+    await login(page, email);
+    await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
+    await page.fill('input[name="totp"]', codes[0]!);
+    await page.getByRole("button", { name: "Verify" }).click();
+    await expect(page.getByText("Incorrect code.")).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test("an admin can reset another account's two-factor, which forces a fresh enrolment", async ({ browser, page }) => {
+    test.slow();
+    const stamp = Date.now();
+    const modEmail = `mod-reset+${stamp}@example.com`;
+    await register(page, modEmail, `modreset${stamp}`);
+    promoteTo("MODERATOR", modEmail);
+    await login(page, modEmail);
+    await page.waitForURL(/\/dashboard\/mfa/);
+    await enrollMfa(page);
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL("/dashboard");
+
+    // A separate browser for the admin.
+    const adminContext = await browser.newContext();
+    const admin = await adminContext.newPage();
+    await admin.setExtraHTTPHeaders({ "x-forwarded-for": uniqueTestIp() });
+    const adminEmail = `admin-resetter+${stamp}@example.com`;
+    await register(admin, adminEmail, `adminresetter${stamp}`);
+    promoteToAdmin(adminEmail);
+    await admin.goto("/login");
+    await login(admin, adminEmail);
+    await admin.waitForURL(/\/dashboard\/mfa/);
+    await enrollMfa(admin);
+
+    admin.on("dialog", (d) => d.accept());
+    await admin.goto(`/dashboard/users?q=${encodeURIComponent(modEmail)}`);
+    const row = admin.locator("tr", { hasText: modEmail });
+    await row.getByRole("button", { name: "Reset 2FA" }).click();
+    // The 2FA pill goes only once the action has completed and the row
+    // has re-rendered — waiting on the button would pass while it is
+    // still pending, because its label changes to "Resetting…".
+    await expect(row.getByText("2FA", { exact: true })).toHaveCount(0);
+    await expect(row.getByRole("button", { name: "Reset 2FA" })).toHaveCount(0);
+
+    // The moderator is signed out everywhere and, on returning, must enrol again.
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login/);
+    await login(page, modEmail);
+    await page.waitForURL(/\/dashboard\/mfa/);
+    await expect(page.getByRole("button", { name: "Set up authenticator app" })).toBeVisible();
+
+    await adminContext.close();
   });
 });

@@ -8,11 +8,14 @@ import { getI18n } from "@/i18n/server";
  * stored in a cookie by a server action, so it works with JavaScript off
  * and does not need every URL to carry a language prefix.
  *
- * Each language is written in its own name ("नेपाली", not "Nepali"),
+ * Each language is written in its own name ("Español", not "Spanish"),
  * because the person who needs the button is the one who cannot read the
  * current language.
+ *
+ * "compact" is the button alone, for the masthead and the newsroom
+ * sidebar; the other variants add a "Language: English" label.
  */
-export async function LanguageSwitcher({ variant = "inline" }: { variant?: "inline" | "row" }) {
+export async function LanguageSwitcher({ variant = "inline" }: { variant?: "inline" | "row" | "compact" }) {
   const { locale, t } = await getI18n();
   const h = await headers();
   // Where to come back to. The proxy records the path so this works from
@@ -24,9 +27,11 @@ export async function LanguageSwitcher({ variant = "inline" }: { variant?: "inli
   return (
     <form action={setLocale} className={variant === "row" ? "flex flex-wrap items-center gap-2" : "inline-flex flex-wrap items-center gap-2"}>
       <input type="hidden" name="returnTo" value={returnTo} />
-      <span className="text-xs text-ink-3">
-        {t("language.label")}: <span className="text-ink-2">{LOCALE_NAMES[locale]}</span>
-      </span>
+      {variant !== "compact" && (
+        <span className="text-xs text-ink-3">
+          {t("language.label")}: <span className="text-ink-2">{LOCALE_NAMES[locale]}</span>
+        </span>
+      )}
       {others.map((l) => (
         <button
           key={l}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArticleEditor } from "@/components/editor/ArticleEditor";
+import { MediaDetailsDialog } from "@/components/editor/MediaDetailsDialog";
 import { slugify } from "@/lib/slugify";
 import { DEFAULT_LOCALE, LOCALES, LOCALE_NAMES, isLocale, type Locale } from "@/i18n/config";
 import { uploadFile } from "@/lib/uploadClient";
@@ -17,7 +18,7 @@ import {
   type ArticleActionResult,
 } from "./actions";
 import { StatusPill } from "./StatusPill";
-import { ClockIcon, ExternalIcon, ImageIcon, XIcon } from "@/components/icons";
+import { ClockIcon, ExternalIcon, ImageIcon, PenIcon, XIcon } from "@/components/icons";
 
 interface CategoryOption {
   id: string;
@@ -28,6 +29,10 @@ interface CoverImage {
   id: string;
   url: string;
   altText?: string | null;
+  /** "Photo: Jane Doe / Reuters · CC BY 4.0", once the details are in. */
+  creditLine?: string | null;
+  /** Credited, licensed and confirmed — what publishing requires. */
+  rightsOk?: boolean;
 }
 
 export interface ArticleFormInitial {
@@ -38,6 +43,7 @@ export interface ArticleFormInitial {
   categoryId: string;
   tagSlugs: string;
   isBreaking: boolean;
+  anonymous?: boolean;
   bodyJson: object;
   bodyHtml: string;
   coverImage?: CoverImage | null;
@@ -88,6 +94,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [tagSlugs, setTagSlugs] = useState(initial?.tagSlugs ?? "");
   const [isBreaking, setIsBreaking] = useState(initial?.isBreaking ?? false);
+  const [anonymous, setAnonymous] = useState(initial?.anonymous ?? false);
   const [cover, setCover] = useState<CoverImage | null>(initial?.coverImage ?? null);
   const [coverAlt, setCoverAlt] = useState(initial?.coverImage?.altText ?? "");
   const [seoTitle, setSeoTitle] = useState(initial?.seoTitle ?? "");
@@ -97,6 +104,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
   const [scheduledFor, setScheduledFor] = useState(toLocalInput(initial?.scheduledFor));
   const [coverUploading, setCoverUploading] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
+  const [coverDetails, setCoverDetails] = useState<{ id: string; url: string } | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   // Seeded from the stored article, not left empty: combined with the
   // editor's onCreate emit, this makes it impossible to save a blank body
@@ -132,6 +140,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
         .map((t) => t.trim())
         .filter(Boolean),
       isBreaking,
+      anonymous,
       coverImageId: cover?.id,
       coverAltText: cover ? coverAlt : undefined,
       seoTitle: seoTitle || undefined,
@@ -193,7 +202,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
     return () => clearTimeout(timer);
     // buildInput reads every field; the effect re-arms on any of them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, title, dek, slug, excerpt, categoryId, tagSlugs, isBreaking, cover, coverAlt, seoTitle, seoDescription, locale, translationOfSlug, scheduledFor, body, pending, actionPending, persist]);
+  }, [dirty, title, dek, slug, excerpt, categoryId, tagSlugs, isBreaking, anonymous, cover, coverAlt, seoTitle, seoDescription, locale, translationOfSlug, scheduledFor, body, pending, actionPending, persist]);
 
   // Leaving with unsaved changes asks first. Browsers show their own
   // wording; the string here just has to be non-empty.
@@ -268,8 +277,11 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
         setCoverError(result.error);
         return;
       }
-      setCover({ id: result.media.id, url: result.media.url });
+      setCover({ id: result.media.id, url: result.media.url, rightsOk: false });
       touch();
+      // Credit and licence are asked for now, while the person still
+      // knows where the picture came from; publishing needs them.
+      setCoverDetails({ id: result.media.id, url: result.media.url });
     } finally {
       setCoverUploading(false);
     }
@@ -498,6 +510,26 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
               </span>
             </span>
           </label>
+
+          <label className="flex items-start gap-2.5 border-t border-line pt-3 text-sm">
+            <input
+              type="checkbox"
+              checked={anonymous}
+              onChange={(e) => {
+                setAnonymous(e.target.checked);
+                touch();
+              }}
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+            />
+            <span>
+              <span className="font-medium">Publish anonymously</span>
+              <span className="mt-0.5 block text-xs text-ink-3">
+                Readers see &ldquo;Anonymous&rdquo; instead of your name, and the story is kept off your author page,
+                the feed of people who follow you, and their alerts. The newsroom and the audit log still know it is
+                yours.
+              </span>
+            </span>
+          </label>
         </div>
 
         {!isLive && status !== "ARCHIVED" && (
@@ -534,6 +566,7 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
             ref={coverInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
+            data-testid="cover-file-input"
             hidden
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -545,12 +578,23 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
             <div className="mt-3">
               {/* eslint-disable-next-line @next/next/no-img-element -- just uploaded through this site's own pipeline */}
               <img src={cover.url} alt="" className="aspect-[16/9] w-full rounded-md bg-surface-2 object-cover" />
+              <p className={`mt-2 text-xs ${cover.rightsOk ? "text-ink-3" : "text-danger"}`}>
+                {cover.rightsOk ? cover.creditLine ?? "Credited." : "Needs a credit and licence before publishing."}
+              </p>
               <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCoverDetails({ id: cover.id, url: cover.url })}
+                  disabled={coverUploading}
+                  className="btn btn-secondary btn-sm flex-1 gap-1"
+                >
+                  <PenIcon size={13} /> Details
+                </button>
                 <button
                   type="button"
                   onClick={() => coverInputRef.current?.click()}
                   disabled={coverUploading}
-                  className="btn btn-secondary btn-sm flex-1"
+                  className="btn btn-ghost btn-sm"
                 >
                   {coverUploading ? "Uploading…" : "Replace"}
                 </button>
@@ -594,6 +638,23 @@ export function ArticleForm({ categories, articleId: initialId, status: initialS
               <ImageIcon size={22} />
               {coverUploading ? "Uploading…" : "Add a cover image"}
             </button>
+          )}
+          {coverDetails && (
+            <MediaDetailsDialog
+              key={coverDetails.id}
+              media={{ id: coverDetails.id, type: "IMAGE", url: coverDetails.url }}
+              onCancel={() => setCoverDetails(null)}
+              onDone={(values) => {
+                setCover((c) =>
+                  c && c.id === coverDetails.id
+                    ? { ...c, altText: values.altText, creditLine: values.creditLine, rightsOk: !!values.rightsConfirmedAt }
+                    : c
+                );
+                setCoverAlt(values.altText ?? "");
+                setCoverDetails(null);
+                touch();
+              }}
+            />
           )}
           {coverError && (
             <p className="mt-2 text-xs text-danger" role="alert">

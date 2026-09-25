@@ -8,6 +8,7 @@ import { isLocked, nextLockout } from "@/lib/auth/lockout";
 import { loginSchema, mfaCodeSchema } from "@/lib/validation/auth";
 import { loginLimiter, mfaCheckLimiter } from "@/lib/rateLimit";
 import { verifyTotp } from "@/lib/auth/mfa";
+import { consumeRecoveryCode, looksLikeRecoveryCode, parseStoredCodes } from "@/lib/auth/recoveryCodes";
 import { readCookie, TRUST_COOKIE, verifyTrustToken } from "@/lib/auth/trustedDevice";
 import { recordAuthEvent } from "@/lib/audit";
 import { PrismaAdapter } from "@/lib/auth/adapter";
@@ -372,17 +373,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // above (that's specifically for password guessing); the per-IP
           // loginLimiter still throttles repeated attempts either way.
           //
-          // Two methods, and the account says which. An emailed code was
+          // Three ways to satisfy the second factor, and the account
+          // decides which of the first two applies. An emailed code was
           // already sent by checkMfaRequired() in the login action, which
           // runs only after this same password check passes — so nothing
           // here can be used to make us send mail.
-          const passed = totp
-            ? user.mfaMethod === "EMAIL"
-              ? (await verifyEmailOtp(user.id, totp)) === "ok"
-              : !!user.mfaSecret && verifyTotp(user.email, user.mfaSecret, totp)
-            : false;
+          let secondFactorOk = false;
+          if (totp) {
+            if (user.mfaMethod === "EMAIL") {
+              secondFactorOk = (await verifyEmailOtp(user.id, totp)) === "ok";
+            } else if (user.mfaSecret && /^\d{6}$/.test(totp)) {
+              secondFactorOk = verifyTotp(user.email, user.mfaSecret, totp);
+            }
+            // A recovery code (lib/auth/recoveryCodes.ts) is the way back
+            // in when the authenticator or the mailbox is gone, so it is
+            // tried for either method once the normal one has not matched.
+            // Eight letters and digits, so it cannot be mistaken for a
+            // six-digit code. Consumed on success, never replayable.
+            if (!secondFactorOk && looksLikeRecoveryCode(totp)) {
+              const { matched, remaining } = consumeRecoveryCode(parseStoredCodes(user.mfaRecoveryCodes), totp);
+              if (matched) {
+                secondFactorOk = true;
+                await db.user.update({
+                  where: { id: user.id },
+                  data: { mfaRecoveryCodes: JSON.stringify(remaining) },
+                });
+                await recordAuthEvent({
+                  userId: user.id,
+                  action: "auth.mfa.recovery_used",
+                  metadata: { remaining: remaining.length },
+                  ip,
+                });
+              }
+            }
+          }
 
-          if (!passed) {
+          if (!secondFactorOk) {
             // The password was right and the second factor was not. That
             // is the signal that a password is already compromised, and
             // it is the single most urgent line in this log.
@@ -654,6 +680,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const current = await db.user.findUnique({
           where: { id: token.sub },
           select: {
+            name: true,
             role: true,
             status: true,
             sessionVersion: true,
@@ -671,6 +698,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!current || current.status !== "ACTIVE" || current.sessionVersion !== token.sessionVersion) {
           return null;
         }
+        // The row is already being read on every request; taking the name
+        // from it means a changed name reaches the header at once rather
+        // than at the next sign-in.
+        token.name = current.name;
         token.role = current.role;
         token.mfaEnabled = current.mfaEnabled;
         token.mfaUsesApp = current.mfaEnabled && current.mfaMethod === "TOTP";

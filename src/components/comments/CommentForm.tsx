@@ -19,6 +19,7 @@ export function CommentForm({
   const router = useRouter();
   const { t, formatNumber } = useI18n();
   const [body, setBody] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export function CommentForm({
     setError(null);
     setNotice(null);
 
-    const result = await postComment({ articleId, body, parentId });
+    const result = await postComment({ articleId, body, parentId, anonymous });
     setPending(false);
 
     if (!result.ok) {
@@ -73,6 +74,19 @@ export function CommentForm({
           {notice}
         </p>
       )}
+      <label className="flex items-start gap-2.5 text-sm text-ink-2">
+        <input
+          type="checkbox"
+          name="anonymous"
+          checked={anonymous}
+          onChange={(e) => setAnonymous(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+        />
+        <span>
+          <span className="font-medium text-ink">{t("comments.postAnonymously")}</span>
+          <span className="mt-0.5 block text-xs text-ink-3">{t("comments.anonymousNote")}</span>
+        </span>
+      </label>
       <div className="flex items-center gap-2">
         <button
           type="submit"

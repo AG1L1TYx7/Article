@@ -77,6 +77,16 @@ export default function TermsPage() {
           may not republish, scrape, or systematically copy our content without written permission.
         </p>
 
+        <h2>Pictures, audio and video</h2>
+        <p>
+          Every picture, audio clip and video in a story carries a credit and a licence, shown under the file and
+          in the story&apos;s &ldquo;Credits and licences&rdquo;. Where the licence is a Creative Commons or
+          public-domain one, you may reuse the file on the terms of that licence, which is linked; everything
+          else is ours or our licensors&apos; and may not be copied without permission. If you believe something
+          we have published infringes your rights, contact us (below) with the story&apos;s address and a
+          description of the material, and we will respond promptly.
+        </p>
+
         <h2>Accuracy and liability</h2>
         <p>
           We try to get things right and correct errors promptly; corrections are noted on the article. Nothing on

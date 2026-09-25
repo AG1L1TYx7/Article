@@ -16,7 +16,12 @@ const nextConfig: NextConfig = {
   // instead of folding it into the server chunks. The cPanel bundle's
   // setup.js (scripts/cpanel-setup.cjs) runs migrations with the same
   // driver, and it can only require() what exists as a package.
-  serverExternalPackages: ["mariadb"],
+  //
+  // ffmpeg-static for the same reason: its index.js resolves the binary
+  // beside itself with __dirname, which only works when the package is
+  // real on disk rather than inlined into a chunk. scripts/build-cpanel.mjs
+  // adds the Linux binary to the bundle. See docs/media.md.
+  serverExternalPackages: ["mariadb", "ffmpeg-static"],
 };
 
 export default nextConfig;

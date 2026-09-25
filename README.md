@@ -1,7 +1,8 @@
-# The Dispatch — news & article platform
+# Dispatch Report — news & article platform
 
 A publishing platform for a news site: staff write and publish articles with
-photo and video, readers register, comment, react, save, follow and share.
+photos, video and audio — each credited and licensed — and readers register,
+comment, react, save, follow and share.
 
 Built with Next.js 16 (App Router), MySQL via Prisma 7, and Auth.js.
 The full architecture and security plan this implements is in [`docs/`](docs/).
@@ -66,12 +67,14 @@ administrators. See [docs/two-factor.md](docs/two-factor.md), and note
 that the emailed code makes `RESEND_API_KEY` a sign-in dependency for
 anybody who turns it on.
 
-### Admins must enrol MFA
+### Staff must enrol MFA
 
-The first time an admin signs in they are redirected to `/dashboard/mfa` and
-cannot reach anything else in the dashboard until they scan the QR code with
-an authenticator app. This is enforced in `src/proxy.ts`, not just in the UI.
-MFA is optional for moderators.
+The first time a moderator or admin signs in they are redirected to
+`/dashboard/mfa` and cannot reach anything else in the dashboard until they
+scan the QR code with an authenticator app. This is enforced in
+`src/proxy.ts`, not just in the UI. Enrolment issues ten one-time recovery
+codes (stored as keyed hashes); an admin can reset another account's second
+factor from the People page. Readers are never asked.
 
 After one successful code, "Don't ask for a code on this device for 30
 days" (ticked by default) sets a signed cookie so that browser needs only
@@ -91,13 +94,14 @@ before you have signed up for a single third-party service:
 | Missing | What happens instead |
 | --- | --- |
 | `RESEND_API_KEY` | Emails are written to `.email-dev-outbox.log` (gitignored) |
+| `TWILIO_*` | Phone-verification texts are written to `.sms-dev-outbox.log` (gitignored) |
 | `S3_*` | Uploads are stored in `./.local-uploads` |
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
 | `RESEND_API_KEY` (again) | Sign-in codes go to the log file too — so the emailed second factor cannot be used for real |
 | `GOOGLE_CLIENT_*` | "Sign in with Google" is not offered; email and password only |
-| `CLAMAV_HOST` | Uploads are not malware-scanned, so **video uploads are refused** (images are unaffected) |
-| `FFMPEG_PATH` | Video is stored as uploaded rather than re-encoded to H.264/AAC |
+| `CLAMAV_HOST` | Uploads are not malware-scanned; the re-encode is the control (see [docs/media.md](docs/media.md)) |
+| `FFMPEG_PATH` | The `ffmpeg-static` binary from `npm install` re-encodes video and audio; with neither, those uploads are refused |
 
 **Before deploying**, the Upstash one matters most: the in-process rate
 limiter gives each server process its own counters, so on more than one
@@ -121,6 +125,7 @@ comment at the top of `src/lib/rateLimit.ts`.
 | `npm run bootstrap:staff` | Create or promote a staff account |
 | `npm run cleanup:test-data` | Remove e2e leftovers (dry run unless `-- --confirm`) |
 | `npm run audit` | Dependency audit, failing on anything unreviewed |
+| `npm run check:production` | Reports what is still on a local fallback; exit 1 on a blocker. `-- --strict` fails on warnings too |
 | `npm run build:cpanel` | Assemble an upload-ready bundle for cPanel Node.js hosting |
 | `npm run push:keys` | Generate the VAPID key pair that turns on push notifications (paste into `.env`) |
 | `npm run db:backup` | Gzipped SQL dump of the database `DATABASE_URL` points at (`-- --keep 14` prunes old ones) |
@@ -207,10 +212,19 @@ locks, with the lock doubling on each further attempt from two minutes up to a
 day — per account, so rotating accounts does not dodge it, and per IP at the
 rate-limit layer, so rotating targets does not either.
 
-TOTP MFA, mandatory for admins, with secrets encrypted at rest
-(AES-256-GCM); an emailed six-digit code as a lighter alternative for
-members and moderators, HMAC-stored, single use, five guesses then
-destroyed, and never sent until the password has already been accepted. Sessions are JWTs, but every request re-reads the user's role,
+A second factor is mandatory for every newsroom account (moderators as
+well as admins), with authenticator secrets encrypted at rest
+(AES-256-GCM). Administrators must use the authenticator app in
+particular — whoever holds the mailbox holds an emailed factor, and an
+administrator can change what everybody else may do. For members and
+moderators an emailed six-digit code is a lighter alternative:
+HMAC-stored, single use, five guesses then destroyed, and never sent
+until the password has already been accepted. Ten one-time recovery
+codes are issued at enrolment and stored only as keyed hashes; an admin
+can reset another account's second factor from the People page, which
+signs it out everywhere and forces a fresh enrolment. Readers are asked
+to confirm their email address but never blocked from reading, saving or
+following; only commenting and publishing require it. Sessions are JWTs, but every request re-reads the user's role,
 status and `sessionVersion` from the database — so banning an account, or
 "log out everywhere", takes effect on the very next request rather than
 whenever the token happens to expire.
@@ -303,19 +317,28 @@ Stated plainly so nobody assumes otherwise:
 
 - **Email, object storage, Redis rate limiting and the CAPTCHA** all run on
   local fallbacks until their keys are in `.env` (see `.env.example`).
-- **Video uploads need ClamAV and ffmpeg on the server** — the Docker setup
-  provides both; shared cPanel hosting cannot.
+- **Malware scanning needs ClamAV running as a daemon** — the Docker setup
+  provides it; cPanel hosting cannot. Video and audio still work there
+  because the bundled ffmpeg re-encodes them ([docs/media.md](docs/media.md)).
 - **An outside penetration review** needs a person. The code-side hardening
   (CSP, headers, MFA, audit log, dependency gate) is in, and the load test
   and backup/restore drill are single commands ([docs/operations.md](docs/operations.md))
   that still have to be *run* against the real server once it exists.
 - **The privacy policy and terms are English-only** even when the
-  interface is in Nepali; a translated policy is a legal document and
+  interface is in Spanish; a translated policy is a legal document and
   needs a lawyer. The newsroom's inner pages (editor, moderation queue,
   analytics) are English too. See [docs/i18n.md](docs/i18n.md) for what
   is translated, how to add a language, and how translated stories link.
 
 ## Deploying
+
+**Start with [docs/production-checklist.md](docs/production-checklist.md).**
+`npm run check:production` reports what is still on a local fallback; in
+production the server refuses to start until the essentials (a real
+`AUTH_SECRET`, the public https address, an email provider) are set, so a
+misconfigured deploy fails at startup rather than at the first password
+reset. `/api/health` returns 200 while the database answers, for an
+uptime monitor.
 
 See [docs/deployment.md](docs/deployment.md) — a step-by-step guide for a
 fresh Ubuntu VPS or dedicated server, covering server hardening, Docker,
@@ -329,9 +352,9 @@ see [docs/ci-cd.md](docs/ci-cd.md) for what runs and the six secrets that
 turn on automatic deployment to cPanel.
 
 **cPanel works too**, if it offers "Setup Node.js App" with Node 20.9+ — see
-[docs/cpanel.md](docs/cpanel.md) and `npm run build:cpanel`. Video uploads are
-refused on that path, because malware scanning needs a ClamAV daemon shared
-hosting will not give you; everything else works.
+[docs/cpanel.md](docs/cpanel.md) and `npm run build:cpanel`. There is no
+malware scanner on shared hosting; uploads are still re-encoded, which is
+the main control, so images, video and audio all work.
 
 ## Known local hazard
 

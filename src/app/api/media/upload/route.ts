@@ -3,7 +3,7 @@ import { isCrossOriginRequest } from "@/lib/csrf";
 import { requireVerifiedEmail, ForbiddenError, UnauthorizedError } from "@/lib/auth/rbac";
 import { mediaUploadLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
-import { processUpload, VIDEO_MAX_BYTES } from "@/lib/mediaPipeline";
+import { processUpload, UPLOAD_MAX_BYTES } from "@/lib/mediaPipeline";
 
 // This route intentionally lives under /api/, which src/proxy.ts's matcher
 // already excludes — both to keep the RBAC check here (not duplicated at
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   // memory just to then reject it is its own denial-of-service — so refuse
   // anything over the largest limit we'd ever accept before materializing
   // it.
-  if (file.size > VIDEO_MAX_BYTES) {
+  if (file.size > UPLOAD_MAX_BYTES) {
     return NextResponse.json({ error: "File is too large." }, { status: 413 });
   }
 

@@ -11,7 +11,7 @@ import { sql } from "./support/db";
  */
 function seedPair(stamp: number) {
   const enSlug = `i18n-original-${stamp}`;
-  const neSlug = `i18n-anuvad-${stamp}`;
+  const neSlug = `i18n-anuwad-${stamp}`;
   sql(
     `INSERT INTO \`Article\` (id, slug, title, dek, \`bodyJson\`, \`bodyHtml\`, status, locale, \`authorId\`, \`publishedAt\`, \`createdAt\`, \`updatedAt\`)
      VALUES ('${enSlug}', '${enSlug}', 'Original story ${stamp}', 'An original in English.', '{}', '<p>Body.</p>', 'PUBLISHED', 'en',
@@ -19,7 +19,7 @@ function seedPair(stamp: number) {
   );
   sql(
     `INSERT INTO \`Article\` (id, slug, title, dek, \`bodyJson\`, \`bodyHtml\`, status, locale, \`authorId\`, \`translationOfId\`, \`publishedAt\`, \`createdAt\`, \`updatedAt\`)
-     VALUES ('${neSlug}', '${neSlug}', 'अनुवादित समाचार ${stamp}', 'नेपालीमा अनुवाद।', '{}', '<p>मुख्य पाठ।</p>', 'PUBLISHED', 'ne',
+     VALUES ('${neSlug}', '${neSlug}', 'अनूदित समाचार ${stamp}', 'नेपालीमा एउटा अनुवाद।', '{}', '<p>मुख्य भाग।</p>', 'PUBLISHED', 'ne',
              (SELECT id FROM \`User\` WHERE email = 'e2e-fixture@example.com'), '${enSlug}', NOW(3), NOW(3), NOW(3));`
   );
   return { enSlug, neSlug };
@@ -95,14 +95,14 @@ test.describe("Internationalisation", () => {
     await expect(page.getByRole("heading", { level: 1 })).not.toHaveAttribute("lang", /.+/);
   });
 
-  test("the sitemap pairs the two versions with hreflang alternates", async ({ page, request }) => {
+  test("the sitemap pairs the two versions with hreflang alternates", async ({ request }) => {
     const stamp = Date.now();
     const { enSlug, neSlug } = seedPair(stamp);
     const xml = await (await request.get("/sitemap.xml")).text();
-    const entry = xml.slice(xml.indexOf(`/article/${enSlug}</loc>`) - 200, xml.indexOf(`/article/${enSlug}</loc>`) + 600);
+    const at = xml.indexOf(`/article/${enSlug}</loc>`);
+    const entry = xml.slice(Math.max(0, at - 200), at + 600);
     expect(entry).toContain(`hreflang="ne"`);
     expect(entry).toContain(`/article/${neSlug}`);
-    void page;
   });
 
   test("the legal pages say they are English-only to a Nepali reader", async ({ browser }) => {
@@ -112,7 +112,7 @@ test.describe("Internationalisation", () => {
     const context = await browser.newContext({ locale: "ne-NP", extraHTTPHeaders: { "accept-language": "ne" } });
     const page = await context.newPage();
     await page.goto("/privacy");
-    await expect(page.getByRole("note")).toContainText("अङ्ग्रेजीमा मात्र");
+    await expect(page.getByRole("note")).toContainText("अङ्ग्रेजीमा मात्र उपलब्ध छ");
     await context.close();
   });
 });

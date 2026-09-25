@@ -5,10 +5,12 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ArticleForm } from "../ArticleForm";
 import { ArticleLinks } from "@/components/articles/ArticleLinks";
+import { ArticleReferences } from "@/components/articles/ArticleReferences";
 import { PageBody, PageHeader } from "../../../PageHeader";
 import { StatusPill } from "../StatusPill";
 import { ExternalIcon } from "@/components/icons";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { creditLine, isRightsComplete } from "@/lib/mediaRights";
 
 export const metadata: Metadata = { title: "Edit article", robots: { index: false, follow: false } };
 
@@ -22,7 +24,20 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     include: {
       tags: { include: { tag: true } },
       links: { orderBy: { createdAt: "asc" } },
-      coverImage: { select: { id: true, url: true, altText: true } },
+      references: { orderBy: { position: "asc" } },
+      coverImage: {
+        select: {
+          id: true,
+          url: true,
+          altText: true,
+          credit: true,
+          sourceName: true,
+          sourceUrl: true,
+          license: true,
+          rightsNote: true,
+          rightsConfirmedAt: true,
+        },
+      },
       translationOf: { select: { slug: true } },
     },
   });
@@ -85,9 +100,18 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             categoryId: article.categoryId ?? "",
             tagSlugs: article.tags.map((t) => t.tag.slug).join(", "),
             isBreaking: article.isBreaking,
+            anonymous: article.anonymous,
             bodyJson: article.bodyJson as object,
             bodyHtml: article.bodyHtml,
-            coverImage: article.coverImage,
+            coverImage: article.coverImage
+              ? {
+                  id: article.coverImage.id,
+                  url: article.coverImage.url,
+                  altText: article.coverImage.altText,
+                  creditLine: creditLine("IMAGE", article.coverImage),
+                  rightsOk: isRightsComplete(article.coverImage),
+                }
+              : null,
             seoTitle: article.seoTitle ?? "",
             seoDescription: article.seoDescription ?? "",
             scheduledFor: article.scheduledFor?.toISOString() ?? null,
@@ -95,6 +119,8 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
             translationOfSlug: article.translationOf?.slug ?? "",
           }}
         />
+
+        <ArticleReferences articleId={article.id} references={article.references} />
 
         <ArticleLinks
           articleId={article.id}

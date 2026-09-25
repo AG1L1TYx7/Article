@@ -32,14 +32,14 @@ If any of them is a no, stop — the rest will not save you.
 
 Stated plainly so it is not a surprise after you have deployed.
 
-**Video uploads are refused.** Not degraded — refused, with a 503
-explaining why. Video cannot be re-encoded the way images are, so malware
-scanning is its whole defence, and that needs ClamAV running as a daemon.
-Shared hosting will not give you one. Images are unaffected and work
-normally.
-
-**No ffmpeg**, so even if scanning were available, video would be stored
-in whatever container it arrived in rather than normalised.
+**No malware scanner.** ClamAV has to run as a daemon, and shared
+hosting will not give you one. Every upload is still re-encoded — images
+by sharp, video and audio by the Linux build of ffmpeg that
+`npm run build:cpanel` puts in the bundle — and that re-encode is what
+makes a file publishable; the scanner, where one exists, is a second
+opinion. See `docs/media.md`. If the bundled ffmpeg cannot run on the
+host (a very old glibc, say), video and audio uploads are refused with a
+503 that says so; images are unaffected.
 
 **You cannot build on the server.** `next build` wants roughly 2GB of
 RAM, and shared hosting usually kills the process well below that, with
@@ -49,8 +49,8 @@ your own machine and upload the result.
 **The rate limiter is per-process.** Fine on cPanel, which runs one. If
 you ever scale out, it needs Upstash — see `docs/deployment.md`.
 
-If video matters to you, use the VPS or dedicated server instead. The
-Docker setup in `docs/deployment.md` handles all of the above.
+If you want a malware scanner as well, use the VPS or dedicated server:
+the Docker setup in `docs/deployment.md` runs ClamAV for you.
 
 ## Deploying
 
@@ -103,7 +103,17 @@ DATABASE_URL="mysql://acct_dbuser:password@localhost:3306/acct_news"
 # every enrolled authenticator.
 AUTH_SECRET="..."
 NEXTAUTH_URL="https://yourdomain.com"
+
+# Required: without an email provider nobody can verify an address or
+# reset a password, so the app refuses to start in production without it.
+RESEND_API_KEY="re_..."
+EMAIL_FROM="Dispatch Report <no-reply@yourdomain.com>"
 ```
+
+Those five are the minimum: the app checks them at startup and will not
+serve until they are set (see [production-checklist.md](production-checklist.md)
+for the rest — object storage, CAPTCHA, push keys, legal details — which
+are warnings, not blockers).
 
 If the database password contains `@`, `:`, `/` or `%`, URL-encode it
 (`@` becomes `%40`, and so on).
@@ -138,6 +148,8 @@ page, `cd` to the application root, then:
 
 ```bash
 node setup.js check
+# and, from your own machine with the server's .env values:
+# npm run check:production
 ```
 
 It connects with your `.env`, and tells you what is wrong in plain
@@ -193,10 +205,11 @@ if there is nothing new) and Restart. `git log --stat` shows whether
 
 ## Honestly, should you?
 
-Use cPanel if it is what you have and you can live without video.
+Use cPanel if it is what you have: articles, images, video and audio all
+work there.
 
-Use the VPS or dedicated server if you want video, want Docker to handle
-ClamAV and ffmpeg for you, and want `git pull && docker compose up -d
+Use the VPS or dedicated server if you want Docker to handle ClamAV and
+the database for you, and want `git pull && docker compose up -d
 --build` instead of a manual upload every time. That path is in
 [deployment.md](deployment.md) and it is the one this project was built
 around.

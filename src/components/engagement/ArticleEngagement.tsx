@@ -15,6 +15,7 @@ export function ArticleEngagement({
   bookmarked,
   followingAuthor,
   isOwnArticle,
+  anonymous = false,
 }: {
   articleId: string;
   authorId: string;
@@ -25,6 +26,8 @@ export function ArticleEngagement({
   bookmarked: boolean;
   followingAuthor: boolean;
   isOwnArticle: boolean;
+  /** No follow control on an anonymous story: it would name the author. */
+  anonymous?: boolean;
 }) {
   const { t } = useI18n();
   const signedOutTitle = t("engagement.loginToDoThat");
@@ -51,7 +54,7 @@ export function ArticleEngagement({
         disabledTitle={signedOutTitle}
       />
       {/* Following yourself is meaningless, so the control isn't offered. */}
-      {!isOwnArticle && (
+      {!isOwnArticle && !anonymous && (
         <ToggleButton
           initialActive={followingAuthor}
           activeLabel={t("engagement.following", { name: authorName })}

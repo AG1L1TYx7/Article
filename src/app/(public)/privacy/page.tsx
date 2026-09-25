@@ -97,6 +97,26 @@ export default async function PrivacyPage() {
             </tr>
             <tr>
               <td>
+                A phone number, if you add one. Stored encrypted, with a keyed hash beside it so the same number
+                cannot be verified on two accounts. The verification code is stored only as a keyed hash and
+                expires in ten minutes.
+              </td>
+              <td>You add a phone number on your account page</td>
+              <td>To send you a verification code; a second way to prove it is you</td>
+              <td>Consent — withdrawn by removing the number, which deletes it</td>
+            </tr>
+            <tr>
+              <td>
+                Which of your comments were posted anonymously. Readers see &ldquo;Anonymous&rdquo;; the comment
+                stays linked to your account so moderators can act on abuse, replies reach you, and deletion
+                removes it.
+              </td>
+              <td>You tick &ldquo;Post anonymously&rdquo;</td>
+              <td>To withhold your name from readers while keeping the site accountable</td>
+              <td>Performance of a contract</td>
+            </tr>
+            <tr>
+              <td>
                 A push subscription: the address your browser&apos;s push service issued for this device, and
                 two encryption keys. Linked to your account only if you were signed in when you turned alerts on.
               </td>
@@ -111,9 +131,9 @@ export default async function PrivacyPage() {
               <td>Legitimate interest in the security of the service</td>
             </tr>
             <tr>
-              <td>Two-factor authentication secret (encrypted)</td>
+              <td>Two-factor authentication secret (encrypted) and recovery codes (stored only as keyed hashes)</td>
               <td>You enable two-factor authentication</td>
-              <td>To verify your codes</td>
+              <td>To verify your codes, and to let you back in if you lose your authenticator</td>
               <td>Consent; security</td>
             </tr>
             <tr>
@@ -173,6 +193,13 @@ export default async function PrivacyPage() {
                 <code>locale</code>
               </td>
               <td>Only if you choose a language from the switcher: remembers it. Holds a two-letter code and nothing else.</td>
+              <td>1 year</td>
+            </tr>
+            <tr>
+              <td>
+                <code>theme</code>
+              </td>
+              <td>Only if you choose light or dark rather than following your device: remembers it. Holds that one word.</td>
               <td>1 year</td>
             </tr>
             <tr>

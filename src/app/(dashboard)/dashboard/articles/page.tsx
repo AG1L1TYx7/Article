@@ -34,6 +34,7 @@ export default async function ArticlesListPage() {
       publishedAt: true,
       scheduledFor: true,
       viewCount: true,
+      anonymous: true,
       author: { select: { name: true } },
       category: { select: { name: true } },
     },
@@ -104,6 +105,11 @@ export default async function ArticlesListPage() {
                   {isAdmin && <td className="text-ink-2">{article.author.name}</td>}
                   <td>
                     <StatusPill status={article.status} />
+                    {article.anonymous && (
+                      <span className="pill pill-neutral ml-1" title="Readers see “Anonymous” instead of the author's name">
+                        anonymous
+                      </span>
+                    )}
                   </td>
                   <td className="text-ink-2 whitespace-nowrap">
                     {formatDate(article.updatedAt)}

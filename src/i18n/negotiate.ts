@@ -7,7 +7,7 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "./config";
  * Order of precedence:
  *   1. The locale cookie — an explicit choice from the switcher.
  *   2. Accept-Language — what the browser is set to, honouring q-weights
- *      and matching "ne-NP" to "ne".
+ *      and matching "es-ES" to "es".
  *   3. The default.
  *
  * A cookie holding a language that is no longer offered falls through

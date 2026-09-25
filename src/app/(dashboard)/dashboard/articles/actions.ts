@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { requireRole, requireVerifiedEmail, ForbiddenError, guardAction } from "@/lib/auth/rbac";
-import { addArticleLinkSchema, articleInputSchema, type ArticleInput } from "@/lib/validation/article";
+import { addArticleLinkSchema, addArticleReferenceSchema, articleInputSchema, type ArticleInput } from "@/lib/validation/article";
 import { sanitizeArticleHtml } from "@/lib/sanitize";
 import { extractSearchText } from "@/lib/searchText";
 import { slugify } from "@/lib/slugify";
@@ -12,6 +12,7 @@ import { linkPreviewLimiter } from "@/lib/rateLimit";
 import { fetchLinkPreview } from "@/lib/linkPreview";
 import { notifyBreakingNews } from "@/lib/notifications";
 import { pushBreakingNews } from "@/lib/push";
+import { linkArticleMedia, mediaReferencedBy, rightsBlockers, rightsBlockersMessage } from "@/lib/articleMedia";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import type { Article } from "@/generated/prisma/client";
@@ -170,6 +171,14 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
     const translationOf = await resolveTranslationOf(data.translationOfSlug || undefined, null);
     if ("error" in translationOf) return { ok: false, error: translationOf.error };
 
+    // Scheduling is publishing with a delay, so it meets the same bar:
+    // every file credited and licensed. A draft may hold anything.
+    const media = await mediaReferencedBy(bodyHtml, data.coverImageId ?? null);
+    if (schedule.data.status === "SCHEDULED") {
+      const blockers = rightsBlockers(media);
+      if (blockers.length) return { ok: false, error: rightsBlockersMessage(blockers) };
+    }
+
     const article = await db.article.create({
       data: {
         title: data.title,
@@ -190,6 +199,7 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
         categoryId: data.categoryId ?? null,
         coverImageId: data.coverImageId ?? null,
         isBreaking: data.isBreaking ?? false,
+        anonymous: data.anonymous ?? false,
         seoTitle: data.seoTitle?.trim() || null,
         seoDescription: data.seoDescription?.trim() || null,
         authorId: session.user.id,
@@ -200,6 +210,7 @@ export async function createArticle(input: ArticleInput): Promise<ArticleActionR
 
     await syncTags(article.id, data.tagSlugs);
     await applyCoverAlt(data);
+    await linkArticleMedia(article.id, media);
     await recordAudit({
       actorId: session.user.id,
       action: "article.create",
@@ -238,6 +249,14 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
     const translationOf = await resolveTranslationOf(data.translationOfSlug || undefined, articleId);
     if ("error" in translationOf) return { ok: false, error: translationOf.error };
 
+    // Scheduling, and editing a story that is already live, both mean
+    // the files reach readers: every one must be credited and licensed.
+    const media = await mediaReferencedBy(bodyHtml, data.coverImageId ?? null);
+    if (schedule.data.status === "SCHEDULED" || article.status === "PUBLISHED") {
+      const blockers = rightsBlockers(media);
+      if (blockers.length) return { ok: false, error: rightsBlockersMessage(blockers) };
+    }
+
     await db.article.update({
       where: { id: articleId },
       data: {
@@ -255,6 +274,7 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
         categoryId: data.categoryId ?? null,
         coverImageId: data.coverImageId ?? null,
         isBreaking: data.isBreaking ?? false,
+        anonymous: data.anonymous ?? false,
         seoTitle: data.seoTitle?.trim() || null,
         seoDescription: data.seoDescription?.trim() || null,
         locale: data.locale ?? "en",
@@ -265,6 +285,7 @@ export async function updateArticle(articleId: string, input: ArticleInput): Pro
 
     await syncTags(articleId, data.tagSlugs);
     await applyCoverAlt(data);
+    await linkArticleMedia(articleId, media);
     await recordAudit({
       actorId: session.user.id,
       action: "article.update",
@@ -294,6 +315,14 @@ export async function publishArticle(articleId: string): Promise<ArticleActionRe
     const article = await db.article.findUnique({ where: { id: articleId } });
     if (!article) return { ok: false, error: "Article not found." };
     assertCanEdit(session.user.role, session.user.id, article);
+
+    // The one rule every file must meet before it reaches readers: who
+    // made it and on what terms, confirmed by the person who added it.
+    // See lib/mediaRights.ts.
+    const media = await mediaReferencedBy(article.bodyHtml, article.coverImageId);
+    const blockers = rightsBlockers(media);
+    if (blockers.length) return { ok: false, error: rightsBlockersMessage(blockers) };
+    await linkArticleMedia(articleId, media);
 
     await db.article.update({
       where: { id: articleId },
@@ -506,6 +535,121 @@ export async function removeArticleLink(linkId: string): Promise<ArticleLinkResu
 
     revalidatePath(`/dashboard/articles/${link.article.id}`);
     revalidatePath(`/article/${link.article.slug}`);
+    return { ok: true };
+  });
+}
+
+const MAX_REFERENCES_PER_ARTICLE = 50;
+
+export interface ArticleReferenceResult {
+  ok: boolean;
+  error?: string;
+  position?: number;
+}
+
+/**
+ * Adds a source to the story's reference list. Numbered after the last
+ * one, which is the number a citation in the text points at. No fetch
+ * and no preview: a reference is the author's own description of the
+ * source, so there is nothing to look up and no outbound request.
+ */
+export async function addArticleReference(input: {
+  articleId: string;
+  title: string;
+  author?: string;
+  publication?: string;
+  url?: string;
+  publishedOn?: string;
+  note?: string;
+}): Promise<ArticleReferenceResult> {
+  return guardAction(async () => {
+    const session = await requireRole("MODERATOR");
+
+    const parsed = addArticleReferenceSchema.safeParse(input);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid reference" };
+    const data = parsed.data;
+
+    const article = await db.article.findUnique({
+      where: { id: data.articleId },
+      select: { id: true, slug: true, authorId: true, _count: { select: { references: true } } },
+    });
+    if (!article) return { ok: false, error: "Article not found." };
+    assertCanEdit(session.user.role, session.user.id, article);
+    if (article._count.references >= MAX_REFERENCES_PER_ARTICLE) {
+      return { ok: false, error: `An article can have at most ${MAX_REFERENCES_PER_ARTICLE} references.` };
+    }
+
+    const last = await db.articleReference.findFirst({
+      where: { articleId: article.id },
+      orderBy: { position: "desc" },
+      select: { position: true },
+    });
+    const position = (last?.position ?? 0) + 1;
+
+    await db.articleReference.create({
+      data: {
+        articleId: article.id,
+        position,
+        title: data.title,
+        author: data.author || null,
+        publication: data.publication || null,
+        url: data.url || null,
+        publishedOn: data.publishedOn || null,
+        note: data.note || null,
+      },
+    });
+
+    await recordAudit({
+      actorId: session.user.id,
+      action: "article.reference.add",
+      targetType: "Article",
+      targetId: article.id,
+      metadata: { position, title: data.title, url: data.url ?? null },
+      ip: await getClientIp(),
+    });
+
+    revalidatePath(`/dashboard/articles/${article.id}`);
+    revalidatePath(`/article/${article.slug}`);
+    return { ok: true, position };
+  });
+}
+
+/**
+ * Removes a reference and renumbers the ones after it, so the list stays
+ * 1, 2, 3 — the numbers readers see. A citation in the text that pointed
+ * at a later number will now point one earlier; the author is the one
+ * removing it, and the editor says so.
+ */
+export async function removeArticleReference(referenceId: string): Promise<ArticleReferenceResult> {
+  return guardAction(async () => {
+    const session = await requireRole("MODERATOR");
+
+    const ref = await db.articleReference.findUnique({
+      where: { id: referenceId },
+      select: { id: true, position: true, article: { select: { id: true, slug: true, authorId: true } } },
+    });
+    if (!ref) return { ok: true };
+    assertCanEdit(session.user.role, session.user.id, ref.article);
+
+    await db.$transaction([
+      db.articleReference.delete({ where: { id: ref.id } }),
+      db.articleReference.updateMany({
+        where: { articleId: ref.article.id, position: { gt: ref.position } },
+        data: { position: { decrement: 1 } },
+      }),
+    ]);
+
+    await recordAudit({
+      actorId: session.user.id,
+      action: "article.reference.remove",
+      targetType: "Article",
+      targetId: ref.article.id,
+      metadata: { position: ref.position },
+      ip: await getClientIp(),
+    });
+
+    revalidatePath(`/dashboard/articles/${ref.article.id}`);
+    revalidatePath(`/article/${ref.article.slug}`);
     return { ok: true };
   });
 }

@@ -36,7 +36,7 @@ export default async function NotificationsPage() {
       commentId: true,
       actor: { select: { name: true } },
       article: { select: { slug: true, title: true } },
-      comment: { select: { body: true, status: true } },
+      comment: { select: { body: true, status: true, anonymous: true } },
       // Only what may be shown. Deliberately not the reporter: a district
       // alert must never carry who filed the report, and the surest way
       // to guarantee that is never to read it here.
@@ -83,9 +83,12 @@ export default async function NotificationsPage() {
               ? `/issues/${n.issue.slug}`
               : null;
 
+          // An anonymous reply stays anonymous here too: the author's name
+          // must not leak through the notification about their comment.
+          const actorName = n.comment?.anonymous ? t("notifications.someone") : (n.actor?.name ?? t("notifications.someone"));
           const headline =
             n.type === "COMMENT_REPLY"
-              ? t("notifications.replied", { name: n.actor?.name ?? t("notifications.someone") })
+              ? t("notifications.replied", { name: actorName })
               : n.type === "BREAKING_NEWS"
                 ? t("notifications.breakingNews")
                 : n.type === "ISSUE_IN_YOUR_DISTRICT"
@@ -98,7 +101,7 @@ export default async function NotificationsPage() {
 
           const glyph =
             n.type === "COMMENT_REPLY" ? (
-              <span className="avatar h-9 w-9 text-xs">{initials(n.actor?.name ?? "?")}</span>
+              <span className="avatar h-9 w-9 text-xs">{initials(n.comment?.anonymous ? "?" : (n.actor?.name ?? "?"))}</span>
             ) : n.type === "ISSUE_IN_YOUR_DISTRICT" || n.type === "YOUR_ISSUE_UPDATED" ? (
               <span className="avatar h-9 w-9 bg-accent-soft text-accent ring-accent/20">
                 <FlagIcon size={16} />
