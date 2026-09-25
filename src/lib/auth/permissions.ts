@@ -154,6 +154,14 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
           "Raise something happening where they live. Every member has this; removing it from the member role closes reporting to everybody.",
         minTier: "READER",
       },
+      // Deliberately NOT granted to the built-in moderator role.
+      //
+      // src/proxy.ts requires a second factor of anybody holding this, and
+      // putting it on the default staff role therefore locks every
+      // existing moderator out of the whole dashboard until they enrol —
+      // a policy change smuggled in as a side effect of a security rule.
+      // An administrator who wants somebody checking reports grants it on
+      // purpose, and accepts the second factor that comes with it.
       {
         key: "issue.verify",
         label: "Check reports before anyone sees them",
@@ -316,7 +324,7 @@ export const SYSTEM_ROLES: {
     key: "moderator",
     name: "Moderator",
     description:
-      "Staff. Writes and publishes, and works the moderation queue. Cannot manage people, sections or settings.",
+      "Staff. Writes and publishes, and works the moderation queue. Cannot manage people, sections or settings, and does not check reported issues — that is a separate grant, because it carries sight of who filed anonymously.",
     tier: "MODERATOR",
     isSystem: true,
     permissions: [
@@ -330,9 +338,6 @@ export const SYSTEM_ROLES: {
       "comment.create",
       "comment.moderate",
       "issue.submit",
-      "issue.verify",
-      "issue.publish",
-      "issue.resolve",
       "contribution.view",
       "contribution.confirm",
     ],
