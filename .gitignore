@@ -81,3 +81,9 @@ next-env.d.ts
 # Database dumps from npm run db:backup. Keep them off the repository and off this disk.
 /backups/
 *.sql.gz
+
+# Local cPanel deploy toolkit (contains live credentials) - never commit
+/pp.virtualhost.at/
+
+# Playwright run logs written when capturing full output by hand.
+/e2e-*.log

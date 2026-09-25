@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { followedSources, followingFeed } from "@/lib/followingFeed";
 import { ArticleCard } from "@/components/articles/ArticleCard";
+import { IssueCard } from "./issues/IssueCard";
+import { listPublishedIssues } from "@/lib/issues";
 import { withDatabaseFallback } from "@/lib/buildSafe";
 import { daysAgo } from "@/lib/timeWindow";
 import { ArrowRightIcon } from "@/components/icons";
@@ -22,7 +24,7 @@ const CARD_SELECT = {
 } as const;
 
 export default async function Home() {
-  const { t } = await getI18n();
+  const { t, formatDate } = await getI18n();
 
   // Rendered on every request (the root layout forces dynamic rendering
   // for the whole site), so what a reader sees is always the database as
@@ -79,6 +81,15 @@ export default async function Home() {
   // the grid is three pictures rather than two pictures and a gap.
   const remaining = rest.slice(3);
   const featured = remaining.filter((a) => a.coverImage).slice(0, 3);
+
+  // Same fallback as the articles above: the front page must still render
+  // during a database outage, and `next build` evaluates this module
+  // before any database exists.
+  const issues = await withDatabaseFallback(
+    () => listPublishedIssues({ take: 4 }),
+    [],
+    "home issues"
+  );
   const latest = remaining.filter((a) => !featured.includes(a));
 
   if (!lead) {
@@ -128,6 +139,30 @@ export default async function Home() {
           ) : (
             <p className="mt-4 text-sm text-ink-2">{t("home.nothingNewFromFollows")}</p>
           )}
+        </section>
+      )}
+
+      {/* Reports from the districts.
+          On the front page rather than only at /issues, because a platform
+          where the public can raise something and a platform where they
+          can raise something *and be seen* are different platforms. Buried
+          behind a nav link, this is a suggestion box. */}
+      {issues.length > 0 && (
+        <section aria-labelledby="issues-heading" className="mt-14 border-t border-line pt-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id="issues-heading" className="section-title">
+              {t("home.fromTheDistricts")}
+            </h2>
+            <Link href="/issues" className="text-link inline-flex items-center gap-1 text-sm">
+              {t("home.allReports")} <ArrowRightIcon size={14} />
+            </Link>
+          </div>
+          <p className="mt-1 text-sm text-ink-2">{t("home.fromTheDistrictsBlurb")}</p>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {issues.map((issue) => (
+              <IssueCard key={issue.id} issue={issue} formatDate={formatDate} />
+            ))}
+          </div>
         </section>
       )}
 

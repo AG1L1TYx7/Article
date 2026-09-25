@@ -3,7 +3,8 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRole, guardAction } from "@/lib/auth/rbac";
+import { requireRole, requirePermission, guardAction } from "@/lib/auth/rbac";
+import { assignRole, RoleRuleError } from "@/lib/auth/roleService";
 import { hashPassword } from "@/lib/auth/password";
 import { createToken } from "@/lib/auth/tokens";
 import { sendEmail, passwordResetEmail } from "@/lib/email";
@@ -16,9 +17,6 @@ export interface UserActionResult {
   ok: boolean;
   error?: string;
 }
-
-const ASSIGNABLE_ROLES = ["READER", "MODERATOR", "ADMIN"] as const;
-type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
 
 /**
  * Refuses a change that would leave nobody able to administer the site.
@@ -50,7 +48,7 @@ const newUserSchema = z.object({
     .min(3)
     .max(30)
     .regex(/^[a-z0-9_-]+$/, "Handle can only contain lowercase letters, numbers, - and _"),
-  role: z.enum(ASSIGNABLE_ROLES),
+  roleId: z.string().min(1, "Pick a role."),
   // Optional: the admin picks the temporary password (to read out over
   // the phone, say). Same length rule as registration. Empty means
   // "generate one".
@@ -80,15 +78,15 @@ export async function createUser(input: {
   name: string;
   email: string;
   handle: string;
-  role: string;
+  roleId: string;
   temporaryPassword?: string;
 }): Promise<CreateUserResult> {
   return guardAction(async () => {
-    const session = await requireRole("ADMIN");
+    const session = await requirePermission("user.manage");
 
     const parsed = newUserSchema.safeParse({ ...input, email: input.email.trim().toLowerCase() });
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
-    const { name, email, handle, role } = parsed.data;
+    const { name, email, handle, roleId } = parsed.data;
 
     const clash = await db.user.findFirst({
       where: { OR: [{ email }, { handle }] },
@@ -101,13 +99,22 @@ export async function createUser(input: {
       };
     }
 
+    const role = await db.userRole.findUnique({
+      where: { id: roleId },
+      select: { id: true, key: true, tier: true },
+    });
+    if (!role) return { ok: false, error: "That is not a role." };
+
     const temporaryPassword = parsed.data.temporaryPassword ?? randomBytes(12).toString("base64url");
     const user = await db.user.create({
       data: {
         name,
         email,
         handle,
-        role,
+        // Both columns together — see assignRole() in lib/auth/roleService.ts
+        // for why User.role is a denormalised copy of the role's tier.
+        roleId: role.id,
+        role: role.tier,
         passwordHash: await hashPassword(temporaryPassword),
         emailVerifiedAt: new Date(),
         // Whoever made this password up, it is not the person's own: the
@@ -122,7 +129,7 @@ export async function createUser(input: {
       action: "user.create",
       targetType: "User",
       targetId: user.id,
-      metadata: { role },
+      metadata: { role: role.key },
       ip: await getClientIp(),
     });
 
@@ -165,49 +172,44 @@ async function emailPasswordReset(email: string) {
   await sendEmail({ to: email, ...passwordResetEmail(link) });
 }
 
-export async function setUserRole(userId: string, role: string): Promise<UserActionResult> {
+/**
+ * Moves somebody onto a role.
+ *
+ * Takes a role id now that roles are editable data, not one of three
+ * fixed names. Every rule this used to apply inline — no self-edit, never
+ * the last administrator — moved to assignRole() in lib/auth/roleService.ts,
+ * because the role editor can reach the same dangerous states from the
+ * other direction and a rule written twice is a rule enforced once.
+ */
+export async function setUserRole(userId: string, roleId: string): Promise<UserActionResult> {
   return guardAction(async () => {
-    const session = await requireRole("ADMIN");
+    const session = await requirePermission("user.manage");
 
-    if (!ASSIGNABLE_ROLES.includes(role as AssignableRole)) {
-      return { ok: false, error: "That is not a role." };
-    }
-
-    // Changing your own role is how an admin accidentally locks
-    // themselves out of the page they are standing on.
-    if (userId === session.user.id) {
-      return { ok: false, error: "You cannot change your own role. Ask another admin." };
-    }
-
-    const target = await db.user.findUnique({
-      where: { id: userId },
-      select: { id: true, role: true, email: true },
-    });
+    const [target, role] = await Promise.all([
+      db.user.findUnique({ where: { id: userId }, select: { id: true, roleId: true } }),
+      db.userRole.findUnique({ where: { id: roleId }, select: { id: true, key: true } }),
+    ]);
     if (!target) return { ok: false, error: "That account no longer exists." };
-    if (target.role === role) return { ok: true };
+    if (!role) return { ok: false, error: "That is not a role." };
+    if (target.roleId === role.id) return { ok: true };
 
-    if (role !== "ADMIN" && (await wouldRemoveLastAdmin(userId))) {
-      return { ok: false, error: "That is the last active admin. Promote someone else first." };
+    const previous = target.roleId
+      ? await db.userRole.findUnique({ where: { id: target.roleId }, select: { key: true } })
+      : null;
+
+    try {
+      await assignRole({ userId, roleId: role.id, actorId: session.user.id });
+    } catch (err) {
+      if (err instanceof RoleRuleError) return { ok: false, error: err.message };
+      throw err;
     }
-
-    await db.user.update({
-      where: { id: userId },
-      data: {
-        role: role as AssignableRole,
-        // Their existing sessions carry the old role in a token that is
-        // re-checked but not re-issued. Bumping this invalidates them, so
-        // the change takes effect on their very next request rather than
-        // whenever they happen to log in again.
-        sessionVersion: { increment: 1 },
-      },
-    });
 
     await recordAudit({
       actorId: session.user.id,
       action: "user.role.change",
       targetType: "User",
       targetId: userId,
-      metadata: { from: target.role, to: role },
+      metadata: { from: previous?.key ?? null, to: role.key },
       ip: await getClientIp(),
     });
 

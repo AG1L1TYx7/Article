@@ -48,7 +48,7 @@ async function login(page: Page, email: string) {
 
 async function signInAsAdmin(page: Page, prefix: string) {
   const email = await register(page, prefix);
-  sql(`UPDATE \`User\` SET role = 'ADMIN' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('ADMIN') SET u.role = 'ADMIN', u.roleId = r.id WHERE u.email = '${email}';`);
   await login(page, email);
   await page.waitForURL(/\/dashboard\/mfa/);
   await page.getByRole("button", { name: "Set up authenticator app" }).click();
@@ -73,7 +73,7 @@ async function chooseMode(page: Page, label: RegExp) {
 /** Publishes an article as a fresh moderator and returns its slug and author. */
 async function publishArticle(page: Page, title: string) {
   const email = await register(page, "setwriter");
-  sql(`UPDATE \`User\` SET role = 'MODERATOR' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('MODERATOR') SET u.role = 'MODERATOR', u.roleId = r.id WHERE u.email = '${email}';`);
   await login(page, email);
   await page.goto("/dashboard/articles/new");
   await page.getByLabel("Title", { exact: true }).fill(title);

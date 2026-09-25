@@ -11,9 +11,31 @@
 export interface Point {
   label: string;
   value: number;
+  /**
+   * A stable identifier, where the data has one.
+   *
+   * Labels are not unique and cannot be made so: two writers may share a
+   * display name, and two sections may not but nothing enforces it. React
+   * needs a key per list item, and a duplicate one makes it drop or
+   * duplicate rows — so anything that can supply an id should.
+   */
+  id?: string;
 }
 
 const fmt = (n: number) => n.toLocaleString("en-GB");
+
+/**
+ * The React key for one point.
+ *
+ * Prefers the id. Falls back to the label *and the position*, because the
+ * label alone is not unique — that produced "Encountered two children with
+ * the same key" the first time two writers shared a name. These lists are
+ * rendered from a fresh server query and never reordered in place, so the
+ * index is a safe part of the key here.
+ */
+function pointKey(p: Point, index: number): string {
+  return p.id ?? `${p.label}#${index}`;
+}
 
 function niceMax(max: number): number {
   if (max <= 0) return 4;
@@ -34,8 +56,8 @@ function DataTable({ caption, rows }: { caption: string; rows: Point[] }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr key={r.label}>
+        {rows.map((r, i) => (
+          <tr key={pointKey(r, i)}>
             <td>{r.label}</td>
             <td>{fmt(r.value)}</td>
           </tr>
@@ -101,7 +123,7 @@ export function AreaChart({
         {series.length > 1 && <path d={area} fill={`url(#${gradientId})`} />}
         <path d={path(series)} fill="none" stroke="var(--accent)" strokeWidth="2.25" strokeLinejoin="round" strokeLinecap="round" />
         {series.map((p, i) => (
-          <g key={p.label}>
+          <g key={pointKey(p, i)}>
             <circle cx={x(i)} cy={y(p.value)} r={n > 40 ? 2 : 3.5} fill="var(--surface)" stroke="var(--accent)" strokeWidth="2">
               <title>{`${p.label}: ${fmt(p.value)}${compare?.[i] ? ` (previous: ${fmt(compare[i]!.value)})` : ""}`}</title>
             </circle>
@@ -165,7 +187,7 @@ export function BarChart({
         {series.map((p, i) => {
           const cx = pad.left + slot * i + slot / 2;
           return (
-            <g key={p.label}>
+            <g key={pointKey(p, i)}>
               <rect x={cx - bar / 2} y={y(p.value)} width={bar} height={Math.max(0, pad.top + h - y(p.value))} rx="2" fill={color} opacity={p.value === 0 ? 0.25 : 0.9}>
                 <title>{`${p.label}: ${fmt(p.value)}`}</title>
               </rect>
@@ -199,8 +221,8 @@ export function HorizontalBars({
   return (
     <figure>
       <ul className="flex flex-col gap-2.5" aria-label={title}>
-        {series.map((p) => (
-          <li key={p.label} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm">
+        {series.map((p, i) => (
+          <li key={pointKey(p, i)} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm">
             <span className="truncate text-ink-2" title={p.label}>
               {p.label}
             </span>
@@ -245,7 +267,7 @@ export function Donut({
         <circle cx="60" cy="60" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="14" />
         {slices.map(({ point: p, len, offset }, i) => (
           <circle
-            key={p.label}
+            key={pointKey(p, i)}
             cx="60"
             cy="60"
             r={r}
@@ -272,7 +294,7 @@ export function Donut({
       </svg>
       <ul className="flex flex-col gap-1.5 text-sm">
         {series.map((p, i) => (
-          <li key={p.label} className="flex items-center gap-2">
+          <li key={pointKey(p, i)} className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colors[i % colors.length] }} />
             <span className="text-ink-2">{p.label}</span>
             <span className="ml-auto pl-4 tabular-nums">{fmt(p.value)}</span>

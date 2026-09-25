@@ -7,7 +7,7 @@ import { sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteTo(role: "ADMIN" | "MODERATOR", email: string) {
-  sql(`UPDATE \`User\` SET role = '${role}' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id WHERE u.email = '${email}';`);
 }
 
 function markEmailVerified(email: string) {

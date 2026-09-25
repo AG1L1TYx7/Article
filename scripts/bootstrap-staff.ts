@@ -44,6 +44,20 @@ async function main() {
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   const handleBase = email.split("@")[0]!.replace(/[^a-z0-9_-]/g, "").slice(0, 24) || "staff";
 
+  // The role row behind the requested tier. Roles are editable data now
+  // (see lib/auth/permissions.ts), but "admin" and "moderator" are seeded
+  // by a migration and cannot be deleted, so these always resolve.
+  const roleRecord = await db.userRole.findUnique({
+    where: { key: role === "ADMIN" ? "admin" : "moderator" },
+    select: { id: true },
+  });
+  if (!roleRecord) {
+    throw new Error(
+      "The built-in roles are missing. Run `npx prisma migrate deploy` (or `node setup.js migrate`) first."
+    );
+  }
+  const roleId = roleRecord.id;
+
   const existing = await db.user.findUnique({ where: { email } });
 
   const user = existing
@@ -51,7 +65,7 @@ async function main() {
         where: { email },
         // An existing account keeps its password — this path is "promote
         // the account I already registered", not "reset my credentials".
-        data: { role, emailVerifiedAt: existing.emailVerifiedAt ?? new Date(), status: "ACTIVE" },
+        data: { role, roleId, emailVerifiedAt: existing.emailVerifiedAt ?? new Date(), status: "ACTIVE" },
       })
     : await db.user.create({
         data: {
@@ -62,6 +76,7 @@ async function main() {
             : handleBase,
           passwordHash,
           role,
+          roleId,
           // Verified on the spot: this account is being vouched for by
           // whoever has server access, and publishing requires a
           // confirmed address (see requireVerifiedEmail in lib/auth/rbac.ts).

@@ -9,6 +9,7 @@
  */
 export const en = {
   common: {
+    apply: "Apply",
     siteName: "The Dispatch",
     skipToContent: "Skip to content",
     latest: "Latest",
@@ -79,6 +80,9 @@ export const en = {
   },
 
   home: {
+    fromTheDistricts: "From the districts",
+    fromTheDistrictsBlurb: "Raised by people where they live, and checked before publication.",
+    allReports: "All reports",
     nothingYet: "Nothing published yet.",
     firstStory: "The first story will appear here the moment it goes live.",
     topStories: "Top stories",
@@ -176,6 +180,9 @@ export const en = {
   },
 
   category: {
+    reportedHere: "Reported by people here",
+    reportedHereBlurb: "Verified reports raised by members about this area of work.",
+    allReports: "All reports",
     nothingYet: "Nothing published in this section yet.",
   },
 
@@ -209,6 +216,9 @@ export const en = {
   },
 
   notifications: {
+    issueNearby: "A verified report in {district}",
+    yourIssueUpdated: "There is news about your report",
+    yourDistrict: "your district",
     kicker: "Activity",
     title: "Notifications",
     unread: "{count} unread",
@@ -235,6 +245,7 @@ export const en = {
   },
 
   account: {
+    switchMethodFirst: "You are using an emailed code. Turn that off below if you would rather use an app.",
     kicker: "Account",
     title: "Your account",
     profile: "Profile",
@@ -301,6 +312,8 @@ export const en = {
   },
 
   password: {
+    setTitle: "Add a password",
+    setIntro: "You sign in with Google. Adding a password gives you a second way in — and is what lets you disconnect Google later.",
     chooseOwn: "Choose your own password",
     change: "Change password",
     requiredIntro: "You signed in with a temporary password. Pick one that is yours before going any further — nothing else on the site opens until you do.",
@@ -316,7 +329,48 @@ export const en = {
     couldntChange: "Couldn't change the password.",
   },
 
+  issues: {
+    kicker: "Raised by people",
+    title: "Reported issues",
+    inDistrict: "Reported in {district}",
+    intro:
+      "Anyone can report something happening where they live. Nothing appears here until somebody has checked it \u2014 and once it does, people in that district are told.",
+    report: "Report an issue",
+    filterByDistrict: "District",
+    allOfNepal: "All of Nepal",
+    noneYet: "No reports have been published yet.",
+    noneHere: "Nothing published for {district} yet. That does not mean nothing is happening \u2014 it means nobody has reported it.",
+    reportedAnonymously: "Reported anonymously",
+    reference: "Reference",
+  },
   auth: {
+    enterCodeEmailIntro: "We've emailed a six-digit code to the address on your account. It expires in ten minutes.",
+    sendAnotherCode: "Send another code",
+    codeResent: "Sent. Check your inbox, and your spam folder.",
+    twoFactorMethod: "How you'll confirm it's you",
+    methodApp: "Authenticator app",
+    methodAppHelp: "A code from an app on your phone. Works without a signal and cannot be intercepted in an inbox. Required for administrators.",
+    methodEmail: "Emailed code",
+    methodEmailHelp: "A six-digit code sent to your email address each time you sign in. Nothing to install — but anyone who can read your email can sign in as you.",
+    enableEmailOtp: "Email me a code at sign-in",
+    disableTwoFactor: "Turn off",
+    emailOtpOn: "On — we email a code when you sign in.",
+    emailOtpOff: "Off — your password alone signs you in.",
+    adminMustUseApp: "Administrators must use an authenticator app. An emailed code is not enough for an account that can publish on behalf of the platform.",
+    googleTermsNotice: "By continuing with Google you confirm you are 16 or older and agree to the {terms} and the {privacy}.",
+    continueWithGoogle: "Continue with Google",
+    signUpWithGoogle: "Sign up with Google",
+    orSeparator: "or",
+    googleNeedsConsent: "Tick the box above first — we need your agreement before creating an account.",
+    connectedAccounts: "Connected accounts",
+    googleAccount: "Google",
+    googleConnectedOn: "Connected {date}",
+    googleNotConnected: "Not connected",
+    connectGoogle: "Connect Google",
+    disconnectGoogle: "Disconnect",
+    disconnectNeedsPassword: "Set a password before disconnecting Google, or you would have no way left to sign in.",
+    googleDisconnected: "Google was disconnected from your account.",
+    googleConnectedNotice: "Google is now connected to your account.",
     login: "Log in",
     welcomeBack: "Welcome back.",
     newHere: "New here?",
@@ -385,6 +439,9 @@ export const en = {
   },
 
   dashboard: {
+    contributions: "Contributions",
+    issues: "Reported issues",
+    roles: "Roles",
     newsroom: "Newsroom",
     viewSite: "View site",
     overview: "Overview",

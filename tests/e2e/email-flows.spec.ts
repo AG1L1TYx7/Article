@@ -7,7 +7,7 @@ import { sql } from "./support/db";
 // The dashboard (where the verification banner lives) is staff-only — see
 // proxy.ts — so exercising it needs a MODERATOR, not a plain reader.
 function promoteToModerator(email: string) {
-  sql(`UPDATE \`User\` SET role = 'MODERATOR' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('MODERATOR') SET u.role = 'MODERATOR', u.roleId = r.id WHERE u.email = '${email}';`);
 }
 
 // Exercises verify-email and password-reset end to end against the dev

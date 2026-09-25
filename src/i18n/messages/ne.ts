@@ -14,6 +14,7 @@ import type { Messages } from "../t";
  */
 export const ne: Messages = {
   common: {
+    apply: "लागू गर्नुहोस्",
     siteName: "The Dispatch",
     skipToContent: "मुख्य सामग्रीमा जानुहोस्",
     latest: "ताजा",
@@ -84,6 +85,9 @@ export const ne: Messages = {
   },
 
   home: {
+    fromTheDistricts: "जिल्लाहरूबाट",
+    fromTheDistrictsBlurb: "मानिसहरूले आफू बस्ने ठाउँबाट उठाएका, प्रकाशन अघि जाँचिएका।",
+    allReports: "सबै विषयहरू",
     nothingYet: "अहिलेसम्म केही प्रकाशित छैन।",
     firstStory: "पहिलो समाचार प्रकाशित हुनेबित्तिकै यहाँ देखिनेछ।",
     topStories: "मुख्य समाचार",
@@ -181,6 +185,9 @@ export const ne: Messages = {
   },
 
   category: {
+    reportedHere: "यहाँका मानिसहरूले उठाएका",
+    reportedHereBlurb: "यस क्षेत्रसँग सम्बन्धित, सदस्यहरूले उठाएका र प्रमाणित भएका विषयहरू।",
+    allReports: "सबै विषयहरू",
     nothingYet: "यस विभागमा अहिलेसम्म केही प्रकाशित छैन।",
   },
 
@@ -214,6 +221,9 @@ export const ne: Messages = {
   },
 
   notifications: {
+    issueNearby: "{district} मा प्रमाणित भएको विषय",
+    yourIssueUpdated: "तपाईंको विषयबारे जानकारी",
+    yourDistrict: "तपाईंको जिल्ला",
     kicker: "गतिविधि",
     title: "सूचनाहरू",
     unread: "{count} नपढिएका",
@@ -240,6 +250,7 @@ export const ne: Messages = {
   },
 
   account: {
+    switchMethodFirst: "तपाईं इमेल कोड प्रयोग गर्दै हुनुहुन्छ। एप प्रयोग गर्न चाहनुहुन्छ भने तल त्यो बन्द गर्नुहोस्।",
     kicker: "खाता",
     title: "तपाईंको खाता",
     profile: "प्रोफाइल",
@@ -306,6 +317,8 @@ export const ne: Messages = {
   },
 
   password: {
+    setTitle: "पासवर्ड थप्नुहोस्",
+    setIntro: "तपाईं Google बाट साइन इन गर्नुहुन्छ। पासवर्ड थप्दा भित्र पस्ने दोस्रो उपाय बन्छ — र पछि Google हटाउन यही चाहिन्छ।",
     chooseOwn: "आफ्नै पासवर्ड छान्नुहोस्",
     change: "पासवर्ड परिवर्तन",
     requiredIntro: "तपाईंले अस्थायी पासवर्डले लग इन गर्नुभयो। अगाडि बढ्नुअघि आफ्नै पासवर्ड छान्नुहोस् — त्यसअघि साइटको अरू केही खुल्दैन।",
@@ -321,7 +334,48 @@ export const ne: Messages = {
     couldntChange: "पासवर्ड परिवर्तन गर्न सकिएन।",
   },
 
+  issues: {
+    kicker: "मानिसहरूले उठाएका",
+    title: "उठाइएका विषयहरू",
+    inDistrict: "{district} मा उठाइएका",
+    intro:
+      "आफू बस्ने ठाउँमा भइरहेको कुरा जोसुकैले उठाउन सक्नुहुन्छ। कसैले जाँच नगरेसम्म यहाँ देखिँदैन \u2014 र देखिएपछि त्यस जिल्लाका मानिसहरूलाई खबर जान्छ।",
+    report: "विषय उठाउनुहोस्",
+    filterByDistrict: "जिल्ला",
+    allOfNepal: "सम्पूर्ण नेपाल",
+    noneYet: "अहिलेसम्म कुनै विषय प्रकाशित भएको छैन।",
+    noneHere: "{district} का लागि अहिलेसम्म केही प्रकाशित भएको छैन। यसको अर्थ केही भइरहेको छैन भन्ने होइन \u2014 कसैले उठाएको छैन भन्ने हो।",
+    reportedAnonymously: "नाम नखुलाई उठाइएको",
+    reference: "सन्दर्भ",
+  },
   auth: {
+    enterCodeEmailIntro: "तपाईंको खातामा भएको इमेल ठेगानामा छ अङ्कको कोड पठाएका छौं। दस मिनेटमा म्याद सकिन्छ।",
+    sendAnotherCode: "अर्को कोड पठाउनुहोस्",
+    codeResent: "पठाइयो। इनबक्स र स्प्याम फोल्डर हेर्नुहोस्।",
+    twoFactorMethod: "तपाईं नै हो भनी कसरी पुष्टि गर्ने",
+    methodApp: "अथेन्टिकेटर एप",
+    methodAppHelp: "फोनको एपबाट आउने कोड। सिग्नल नभए पनि चल्छ र इनबक्सबाट चोरिन सक्दैन। प्रशासकका लागि अनिवार्य।",
+    methodEmail: "इमेलमा कोड",
+    methodEmailHelp: "साइन इन गर्दा हरेक पटक इमेलमा छ अङ्कको कोड आउँछ। केही इन्स्टल गर्नु पर्दैन — तर तपाईंको इमेल पढ्न सक्ने जो कोहीले तपाईंकै रूपमा साइन इन गर्न सक्छ।",
+    enableEmailOtp: "साइन इन गर्दा इमेलमा कोड पठाउनुहोस्",
+    disableTwoFactor: "बन्द गर्नुहोस्",
+    emailOtpOn: "चालु — साइन इन गर्दा हामी कोड इमेल गर्छौं।",
+    emailOtpOff: "बन्द — पासवर्डले मात्रै साइन इन हुन्छ।",
+    adminMustUseApp: "प्रशासकले अथेन्टिकेटर एप नै प्रयोग गर्नुपर्छ। प्लेटफर्मको तर्फबाट प्रकाशन गर्न सक्ने खाताका लागि इमेल कोड पर्याप्त हुँदैन।",
+    googleTermsNotice: "Google बाट जारी राख्दा तपाईं १६ वर्ष वा माथिको हुनुहुन्छ भन्ने पुष्टि गर्नुहुन्छ र {terms} तथा {privacy} मा सहमत हुनुहुन्छ।",
+    continueWithGoogle: "Google बाट जारी राख्नुहोस्",
+    signUpWithGoogle: "Google बाट दर्ता गर्नुहोस्",
+    orSeparator: "वा",
+    googleNeedsConsent: "पहिले माथिको बाकसमा चिन्ह लगाउनुहोस् — खाता बनाउनुअघि तपाईंको सहमति चाहिन्छ।",
+    connectedAccounts: "जोडिएका खाताहरू",
+    googleAccount: "Google",
+    googleConnectedOn: "{date} मा जोडिएको",
+    googleNotConnected: "जोडिएको छैन",
+    connectGoogle: "Google जोड्नुहोस्",
+    disconnectGoogle: "हटाउनुहोस्",
+    disconnectNeedsPassword: "Google हटाउनुअघि पासवर्ड राख्नुहोस्, नत्र साइन इन गर्ने कुनै उपाय बाँकी रहँदैन।",
+    googleDisconnected: "तपाईंको खाताबाट Google हटाइयो।",
+    googleConnectedNotice: "अब तपाईंको खातामा Google जोडिएको छ।",
     login: "लग इन",
     welcomeBack: "फेरि स्वागत छ।",
     newHere: "नयाँ हुनुहुन्छ?",
@@ -390,6 +444,9 @@ export const ne: Messages = {
   },
 
   dashboard: {
+    contributions: "सहयोगहरू",
+    issues: "उठाइएका विषयहरू",
+    roles: "भूमिकाहरू",
     newsroom: "न्युजरुम",
     viewSite: "साइट हेर्नुहोस्",
     overview: "सारांश",

@@ -20,6 +20,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/dashboard/settings",
   "/dashboard/audit-log",
   "/dashboard/categories",
+  "/dashboard/roles",
 ];
 
 // Where someone with a temporary password may still go. Everything else
@@ -58,8 +59,28 @@ export default auth((req) => {
     // & sessions). An admin without MFA enrolled can reach only the
     // enrollment page itself — every other /dashboard/* route bounces
     // here until they finish setting it up.
-    if (user.role === "ADMIN" && !user.mfaEnabled && pathname !== "/dashboard/mfa") {
+    // An emailed code does not count here. Whoever holds the mailbox holds
+    // that factor, and an administrator can change what everybody else may
+    // do — so the app is required, and an admin who had switched to email
+    // before being promoted is sent to enrol one. The account page refuses
+    // the switch the other way round; both ends have to hold, or the
+    // weaker one becomes the way in.
+    if (user.role === "ADMIN" && !user.mfaUsesApp && pathname !== "/dashboard/mfa") {
       return NextResponse.redirect(new URL("/dashboard/mfa", req.nextUrl));
+    }
+
+    // A second factor is also required of anybody who can check reports.
+    //
+    // `issue.verify` means being able to see who filed every anonymous
+    // report — on a platform whose sectors include corruption, that is the
+    // most dangerous data here, and a stolen password should not be enough
+    // to reach it. Either method will do, unlike for administrators: this
+    // is a volunteer on a phone in a district office, and demanding an
+    // authenticator app would push the work to somebody who has one rather
+    // than somebody who should do it.
+    const checksReports = user.permissions?.includes("issue.verify") ?? false;
+    if (checksReports && !user.mfaEnabled && pathname !== "/dashboard/mfa") {
+      return NextResponse.redirect(new URL("/dashboard/mfa?why=verify", req.nextUrl));
     }
 
     const requiresAdmin = ADMIN_ONLY_PREFIXES.some((p) => pathname.startsWith(p));
@@ -79,6 +100,7 @@ export default auth((req) => {
     isDev: process.env.NODE_ENV === "development",
     mediaOrigin: mediaOrigin(),
     turnstile: !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
   });
 
   // The request copy is what the renderer reads; the response copy is what
@@ -98,7 +120,7 @@ export default auth((req) => {
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("Content-Security-Policy", csp);
   res.headers.set("Content-Language", locale);
-  applySecurityHeaders(res);
+  applySecurityHeaders(res, req.nextUrl.hostname);
   return res;
 });
 
@@ -118,7 +140,31 @@ function mediaOrigin(): string | undefined {
   }
 }
 
-function applySecurityHeaders(res: NextResponse) {
+/**
+ * Hosts that must never be sent HSTS.
+ *
+ * `npm start` runs with NODE_ENV=production, and the end-to-end suite runs
+ * exactly that on http://localhost:3000 on every pass. Chrome treats
+ * localhost as a trustworthy origin, so it *accepts* the header there —
+ * and then refuses plain HTTP to localhost for the next two years, with
+ * `includeSubDomains` dragging every other local project down with it.
+ * The symptom is ERR_SSL_PROTOCOL_ERROR on a site that has no TLS and
+ * never did, and the cure is buried in chrome://net-internals/#hsts.
+ *
+ * A local address cannot be protected by HSTS in any useful sense anyway:
+ * there is no network hop to downgrade.
+ */
+function isLocalHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname === "::1" ||
+    hostname.endsWith(".localhost")
+  );
+}
+
+function applySecurityHeaders(res: NextResponse, hostname: string) {
   res.headers.set("X-Content-Type-Options", "nosniff");
   // Superseded by frame-ancestors in the CSP above, kept for browsers
   // that predate it. The two agree: nothing may frame this site.
@@ -128,7 +174,7 @@ function applySecurityHeaders(res: NextResponse) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), interest-cohort=()"
   );
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && !isLocalHost(hostname)) {
     res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
 }

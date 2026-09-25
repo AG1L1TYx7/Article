@@ -26,14 +26,24 @@ async function main() {
     adapter: new PrismaMariaDb(process.env.DATABASE_URL!),
   });
 
+  // The reader role, so the fixture account looks like any other
+  // registration. Without a role it would hold no permissions at all,
+  // which is a state the application never produces and which would make
+  // this account behave unlike the ones the tests create.
+  const readerRole = await db.userRole.findUnique({
+    where: { key: "reader" },
+    select: { id: true },
+  });
+
   const user = await db.user.upsert({
     where: { email: FIXTURE_EMAIL },
-    update: {},
+    update: { roleId: readerRole?.id ?? undefined },
     create: {
       email: FIXTURE_EMAIL,
       name: "E2E Fixture",
       handle: "e2efixture",
       emailVerifiedAt: new Date(),
+      roleId: readerRole?.id ?? undefined,
     },
   });
 

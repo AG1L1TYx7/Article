@@ -13,7 +13,7 @@ import { sql } from "./support/db";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteToModerator(email: string) {
-  sql(`UPDATE \`User\` SET role = 'MODERATOR' WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('MODERATOR') SET u.role = 'MODERATOR', u.roleId = r.id WHERE u.email = '${email}';`);
 }
 
 function bumpSessionVersion(email: string) {

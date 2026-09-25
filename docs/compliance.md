@@ -39,6 +39,11 @@ activity, not on this software.
 | Name, handle, email | `User` | Account; byline on comments | Contract | Until deletion |
 | Password | `User.passwordHash` (Argon2id) | Authentication | Contract | Until deletion |
 | Email verified at; terms accepted at | `User` | Proof the address is theirs; proof of consent (Art. 7) | Legal obligation / legitimate interest | Until deletion |
+| Connected sign-in providers (`provider`, the account id Google issues for you, the OAuth tokens, connected-at) | `Account` | Letting you sign in with Google instead of a password | Contract | Until you disconnect it or delete the account |
+| Sign-in code (HMAC of a six-digit code, expiry, guess count) | `EmailOtp` | The emailed second factor, for accounts that chose it | Consent (the switch); withdrawn by turning it off, which deletes the row | 10 minutes; expired rows swept by the retention pass |
+| Reported issues (title, description, district, ward, photographs, and the reporter's account) | `Issue`, `IssueMedia` | The platform's core purpose: raising and verifying issues | Contract; published under legitimate interest (public-interest reporting) | A report that could not be verified is deleted after 90 days (`REJECTED_ISSUE_RETENTION_DAYS`); a published report is kept as a record, and everything goes when the account is deleted |
+| Home district | `User.districtId` | Telling a member when a verified report concerns where they live | Consent (they choose to set it; blank by default) | Until cleared or the account is deleted |
+| Contributions (amount, reference, donor name and email where given, message, bank reference) | `Contribution` | Collecting membership and donations, and accounting for them | Contract; kept under legal obligation (an organisation must account for money it receives) | Kept as a financial record. Deleting an account unlinks the row rather than removing it; an anonymous contribution stores no name at all |
 | MFA secret | `User.mfaSecret` (AES-256-GCM, keyed by `AUTH_SECRET`) | Second factor | Consent | Until disabled or deletion |
 | Last sign-in time and IP | `User.lastLoginAt/Ip` | "When did I last sign in, and from where" | Legitimate interest (security) | IP cleared after 90 days |
 | Comments, likes, saves, follows (writers and sections), reports | own tables | The features themselves; the "Following" feed is a time-ordered list of the reader's own choices, not profiling | Contract | Until deletion |
@@ -95,16 +100,36 @@ admin reassigns them, then the account can go.
   terms and privacy policy". The server refuses the account without it
   and stores `termsAcceptedAt`. The age of 16 is the GDPR default (Art. 8)
   and above COPPA's 13.
+- **Signing up with Google requires the same tick, before leaving this
+  site.** The account is created on the way back from Google, in a
+  different request from the one that showed the checkbox, so the box
+  alone would demonstrate nothing. Pressing "Sign up with Google" mints a
+  signed token recording the policy version and the moment agreed, and
+  `signIn` refuses to create an account without it — somebody arriving
+  from Google with no such record is sent to the registration page to
+  agree first. If the policy version changed while they were at Google,
+  the token is refused and they are asked again. See
+  `lib/auth/oauthFlow.ts`.
+- Connecting or disconnecting Google on an existing account is an
+  explicit action on the account page, is written to the audit log, and —
+  when a connection is made by matching a verified address rather than by
+  pressing that button — is emailed to the account holder.
 - Two-factor authentication and "remember this device" are opt-in.
 - Marketing consent does not exist because there is no marketing.
 
 ## Cookies and tracking
 
-Only strictly necessary cookies (session, CSRF, optional MFA trust), so
-no consent banner is required under the ePrivacy Directive/PECR. No
+Only strictly necessary cookies (session, CSRF, optional MFA trust, and —
+only while a Google sign-in is actually in progress — the short-lived
+consent and connect-intent cookies described in `lib/auth/oauthFlow.ts`),
+so no consent banner is required under the ePrivacy Directive/PECR. No
 analytics service, no advertising, no third-party scripts except
-Cloudflare Turnstile when enabled (which the policy discloses). Global
-Privacy Control needs no handling because nothing is sold or shared.
+Cloudflare Turnstile when enabled (which the policy discloses). Google
+sign-in adds no script and no request to Google from any page: the button
+is inline SVG, the profile picture is copied here once and served from
+this origin, and the only contact with Google happens when somebody
+presses the button themselves. Global Privacy Control needs no handling
+because nothing is sold or shared.
 
 ## Security measures (Art. 32)
 

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { MarkAllReadButton } from "./MarkAllReadButton";
-import { BellIcon, MessageIcon, CheckIcon } from "@/components/icons";
+import { BellIcon, CheckIcon, FlagIcon, MessageIcon } from "@/components/icons";
 import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
 import { getI18n } from "@/i18n/server";
@@ -37,6 +37,10 @@ export default async function NotificationsPage() {
       actor: { select: { name: true } },
       article: { select: { slug: true, title: true } },
       comment: { select: { body: true, status: true } },
+      // Only what may be shown. Deliberately not the reporter: a district
+      // alert must never carry who filed the report, and the surest way
+      // to guarantee that is never to read it here.
+      issue: { select: { slug: true, title: true, district: { select: { name: true } } } },
     },
   });
 
@@ -75,18 +79,30 @@ export default async function NotificationsPage() {
           const visibleBody = n.comment?.status === "APPROVED" ? n.comment.body : null;
           const href = n.article
             ? `/article/${n.article.slug}${n.commentId ? `#comment-${n.commentId}` : ""}`
-            : null;
+            : n.issue
+              ? `/issues/${n.issue.slug}`
+              : null;
 
           const headline =
             n.type === "COMMENT_REPLY"
               ? t("notifications.replied", { name: n.actor?.name ?? t("notifications.someone") })
               : n.type === "BREAKING_NEWS"
                 ? t("notifications.breakingNews")
-                : t("notifications.approved");
+                : n.type === "ISSUE_IN_YOUR_DISTRICT"
+                  ? t("notifications.issueNearby", {
+                      district: n.issue?.district.name ?? t("notifications.yourDistrict"),
+                    })
+                  : n.type === "YOUR_ISSUE_UPDATED"
+                    ? t("notifications.yourIssueUpdated")
+                    : t("notifications.approved");
 
           const glyph =
             n.type === "COMMENT_REPLY" ? (
               <span className="avatar h-9 w-9 text-xs">{initials(n.actor?.name ?? "?")}</span>
+            ) : n.type === "ISSUE_IN_YOUR_DISTRICT" || n.type === "YOUR_ISSUE_UPDATED" ? (
+              <span className="avatar h-9 w-9 bg-accent-soft text-accent ring-accent/20">
+                <FlagIcon size={16} />
+              </span>
             ) : n.type === "BREAKING_NEWS" ? (
               <span className="avatar h-9 w-9 bg-accent-soft text-accent ring-accent/20">
                 <BellIcon size={16} />

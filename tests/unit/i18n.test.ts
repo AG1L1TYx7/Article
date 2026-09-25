@@ -55,6 +55,10 @@ describe("dictionaries", () => {
       "account.deletePhrase",
       "account.twoFactorOn",
       "account.twoFactorOff",
+      // A brand name. Nepali uses the Latin mark for it too, and
+      // transliterating it would make the button harder to recognise,
+      // not easier.
+      "auth.googleAccount",
     ]);
     const enFlat = flatten(en);
     const same = Object.entries(flatten(ne))

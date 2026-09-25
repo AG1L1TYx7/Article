@@ -8,19 +8,41 @@ import { ShieldIcon } from "@/components/icons";
 
 export const metadata: Metadata = { title: "Two-factor authentication", robots: { index: false, follow: false } };
 
-export default async function MfaSettingsPage() {
+export default async function MfaSettingsPage(props: PageProps<"/dashboard/mfa">) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  // Set by src/proxy.ts when somebody is sent here for checking reports
+  // rather than for being an administrator. The two have different reasons
+  // and different requirements, and being told the wrong one is how a
+  // volunteer concludes the site is broken.
+  const params = await props.searchParams;
+  const sentHereToVerify =
+    params.why === "verify" && session.user.permissions?.includes("issue.verify");
 
   return (
     <main id="main-content">
       <PageHeader
         kicker="Security"
         title="Two-factor authentication"
-        description="A six-digit code from an authenticator app, asked for at every sign-in on top of your password."
+        description={
+          sentHereToVerify
+            ? "A second factor is required before you can check reports. Either an authenticator app or an emailed code will do."
+            : "A six-digit code from an authenticator app, asked for at every sign-in on top of your password."
+        }
       />
 
       <PageBody narrow>
+        {sentHereToVerify && !session.user.mfaEnabled && (
+          <p className="alert alert-warn mb-6">
+            Checking reports means being able to see who filed every one of them, including the
+            ones sent anonymously. On a platform where people report corruption in their own
+            municipality, that name is the most dangerous thing here — so a stolen password must
+            not be enough to reach it. Set up either method and the queue unlocks. An emailed
+            code is fine if you would rather not install an app; you can turn that on from your{" "}
+            <a href="/account" className="text-link">account page</a>.
+          </p>
+        )}
         {session.user.role === "ADMIN" && !session.user.mfaEnabled && (
           <p className="alert alert-warn mb-6">
             Admin accounts are required to enable this before using the rest of the dashboard.
