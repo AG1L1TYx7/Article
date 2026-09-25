@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `roleId` VARCHAR(191) NULL;
+ALTER TABLE `User` ADD COLUMN `roleId` VARCHAR(191) NULL;
 
 -- CreateTable
 CREATE TABLE `UserRole` (

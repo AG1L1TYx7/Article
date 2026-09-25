@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `mfaMethod` ENUM('TOTP', 'EMAIL') NULL;
+ALTER TABLE `User` ADD COLUMN `mfaMethod` ENUM('TOTP', 'EMAIL') NULL;
 
 -- CreateTable
 CREATE TABLE `EmailOtp` (
