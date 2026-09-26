@@ -307,7 +307,6 @@ export const en = {
     accountBox: "Your account",
     allSettings: "All settings",
     finishProfile: "Finish your profile",
-    checkName: "Add your name",
     checkBio: "Write a few words about you",
     checkEmail: "Verify your email address",
     checkTwoFactor: "Turn on two-factor authentication",

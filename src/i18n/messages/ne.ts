@@ -311,7 +311,6 @@ export const ne: Messages = {
     accountBox: "तपाईंको खाता",
     allSettings: "सबै सेटिङ",
     finishProfile: "प्रोफाइल पूरा गर्नुहोस्",
-    checkName: "आफ्नो नाम थप्नुहोस्",
     checkBio: "आफ्नोबारे केही शब्द लेख्नुहोस्",
     checkEmail: "इमेल ठेगाना प्रमाणित गर्नुहोस्",
     checkTwoFactor: "दुई-चरण प्रमाणीकरण सक्रिय गर्नुहोस्",

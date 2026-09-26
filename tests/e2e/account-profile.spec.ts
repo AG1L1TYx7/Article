@@ -35,7 +35,7 @@ async function signIn(page: Page, prefix: string, role: "READER" | "ADMIN" = "RE
   return { email, handle: `${prefix}${stamp}` };
 }
 
-test("the profile shows the person, their numbers and their activity, not settings", async ({ page }) => {
+test("the profile shows the person, their numbers and their activity, not settings", async ({ page }, testInfo) => {
   const { email, handle } = await signIn(page, "prof");
   sql(`UPDATE \`User\` SET bio = 'Reads the budget annexes so you do not have to.' WHERE email = '${email}';`);
   await page.goto("/account");
@@ -44,6 +44,7 @@ test("the profile shows the person, their numbers and their activity, not settin
   await expect(page.getByText(`@${handle}`)).toBeVisible();
   await expect(page.getByText("Reads the budget annexes so you do not have to.")).toBeVisible();
   await expect(page.locator("#main-content").getByText("Reader", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("profile.png"), fullPage: true });
 
   // Settings are not on this page any more.
   await expect(page.getByRole("heading", { name: "Two-factor authentication" })).toHaveCount(0);
@@ -60,7 +61,7 @@ test("the profile shows the person, their numbers and their activity, not settin
   await expect(page.getByRole("link", { name: "Turn on two-factor authentication" })).toHaveAttribute("href", "/account/settings#security");
 });
 
-test("Edit profile and Settings lead to the settings page, which has every section", async ({ page }) => {
+test("Edit profile and Settings lead to the settings page, which has every section", async ({ page }, testInfo) => {
   await signIn(page, "profset");
   await page.goto("/account");
   await page.getByRole("link", { name: "Edit profile" }).click();
@@ -70,6 +71,7 @@ test("Edit profile and Settings lead to the settings page, which has every secti
   for (const section of ["Account", "Security", "Preferences", "Privacy and data"]) {
     await expect(page.getByRole("heading", { name: section, level: 2 })).toBeVisible();
   }
+  await page.screenshot({ path: testInfo.outputPath("settings.png") });
   await page.getByRole("link", { name: "Back to your profile" }).click();
   await expect(page).toHaveURL(/\/account$/);
 });

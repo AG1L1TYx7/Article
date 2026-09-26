@@ -57,8 +57,6 @@ export default async function ProfilePage(props: PageProps<"/account">) {
       createdAt: true,
       emailVerifiedAt: true,
       mfaEnabled: true,
-      firstName: true,
-      preferredName: true,
       district: { select: { name: true, nameNe: true } },
       _count: {
         select: {
@@ -130,7 +128,6 @@ export default async function ProfilePage(props: PageProps<"/account">) {
   ];
 
   const checklist: { done: boolean; label: MessageKey; href: string }[] = [
-    { done: !!(user.firstName || user.preferredName), label: "account.checkName", href: "/account/settings#personal" },
     { done: !!user.bio, label: "account.checkBio", href: "/account/settings#personal" },
     { done: !!user.emailVerifiedAt, label: "account.checkEmail", href: "/account/settings#account" },
     { done: user.mfaEnabled, label: "account.checkTwoFactor", href: "/account/settings#security" },
@@ -313,8 +310,8 @@ export default async function ProfilePage(props: PageProps<"/account">) {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-ink-3">{t("account.twoFactor")}</dt>
-                <dd>
-                  <span className={`pill ${user.mfaEnabled ? "pill-ok" : "pill-neutral"}`}>
+                <dd className="shrink-0">
+                  <span className={`pill whitespace-nowrap ${user.mfaEnabled ? "pill-ok" : "pill-neutral"}`}>
                     <ShieldIcon size={11} /> {user.mfaEnabled ? t("account.twoFactorOn") : t("account.twoFactorOff")}
                   </span>
                 </dd>
