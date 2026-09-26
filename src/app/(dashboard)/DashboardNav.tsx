@@ -9,6 +9,8 @@ import {
   LockIcon,
   MessageIcon,
   PenIcon,
+  FlagIcon,
+  HeartIcon,
   ShieldIcon,
   SlidersIcon,
   TagIcon,
@@ -33,6 +35,9 @@ const ITEMS: Item[] = [
   { href: "/dashboard/analytics", label: "dashboard.analytics", icon: ChartIcon },
   { href: "/dashboard/categories", label: "dashboard.categories", icon: TagIcon, adminOnly: true },
   { href: "/dashboard/users", label: "dashboard.people", icon: UsersIcon, adminOnly: true },
+  { href: "/dashboard/issues", label: "dashboard.issues", icon: FlagIcon },
+  { href: "/dashboard/contributions", label: "dashboard.contributions", icon: HeartIcon },
+  { href: "/dashboard/roles", label: "dashboard.roles", icon: ShieldIcon, adminOnly: true },
   { href: "/dashboard/audit-log", label: "dashboard.auditLog", icon: ListIcon, adminOnly: true },
   { href: "/dashboard/settings", label: "dashboard.settings", icon: SlidersIcon, adminOnly: true },
 ];

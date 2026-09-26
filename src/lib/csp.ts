@@ -17,9 +17,24 @@ export interface CspOptions {
   mediaOrigin?: string;
   /** Whether the Turnstile CAPTCHA script needs to be allowed. */
   turnstile: boolean;
+  /** Whether "Continue with Google" can send somebody to Google. */
+  google?: boolean;
 }
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+/**
+ * Where a Google sign-in actually goes.
+ *
+ * `accounts.google.com` is the authorisation endpoint itself. The other
+ * two are where Google bounces a session through on the way, and a
+ * redirect chain that leaves the allowlist is blocked just as firmly as a
+ * form posting straight there.
+ */
+const GOOGLE_AUTH_ORIGINS = [
+  "https://accounts.google.com",
+  "https://accounts.youtube.com",
+  "https://www.google.com",
+];
 
 /**
  * A note on Turnstile and 'strict-dynamic'.
@@ -34,7 +49,7 @@ const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
  * needed for the verification call it makes.
  */
 
-export function buildCsp({ nonce, isDev, mediaOrigin, turnstile }: CspOptions): string {
+export function buildCsp({ nonce, isDev, mediaOrigin, turnstile, google }: CspOptions): string {
   const scriptSrc = [
     "'self'",
     `'nonce-${nonce}'`,
@@ -85,8 +100,17 @@ export function buildCsp({ nonce, isDev, mediaOrigin, turnstile }: CspOptions): 
     // on the page at an attacker's origin.
     ["base-uri", ["'none'"]],
     // A form that posts credentials somewhere else is phishing from
-    // inside your own page.
-    ["form-action", ["'self'"]],
+    // inside your own page — so this stays as tight as the site allows.
+    //
+    // Google is named here only when sign-in is configured, and it has to
+    // be: "Continue with Google" is a form whose server action ends in a
+    // redirect to Google's authorisation endpoint, and Chrome and Safari
+    // apply form-action to the redirects that follow a form submission,
+    // not just to its immediate target. Without this the button is
+    // silently blocked with "Sending form data to '<URL>' violates the
+    // following Content Security Policy directive" in the console, and
+    // nothing at all on screen.
+    ["form-action", google ? ["'self'", ...GOOGLE_AUTH_ORIGINS] : ["'self'"]],
     // The modern replacement for X-Frame-Options, and the one that
     // actually supports more than one value.
     ["frame-ancestors", ["'none'"]],

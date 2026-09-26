@@ -9,6 +9,7 @@ import { issueTrustToken, TRUST_COOKIE, verifyTrustToken } from "@/lib/auth/trus
 import { mfaCheckLimiter } from "@/lib/rateLimit";
 import { getClientIp } from "@/lib/request";
 import { recordAuthEvent } from "@/lib/audit";
+import { issueEmailOtp } from "@/lib/auth/emailOtp";
 import { z } from "zod";
 
 const inputSchema = z.object({ email: z.email(), password: z.string().min(1) });
@@ -26,6 +27,11 @@ const DUMMY_HASH =
 export interface PreLoginCheck {
   /** Show the second-factor prompt before signing in. */
   mfa: boolean;
+  /**
+   * Which second factor to ask for. "email" means a code has just been
+   * sent to the address on the account; "app" means an authenticator.
+   */
+  method?: "app" | "email";
   /**
    * Set only when the password was CORRECT and the account is locked
    * after earlier failures. Someone who has the password already knows the
@@ -51,7 +57,10 @@ export async function checkMfaRequired(email: string, password: string): Promise
       passwordHash: true,
       lockedUntil: true,
       status: true,
+      email: true,
+      name: true,
       mfaEnabled: true,
+      mfaMethod: true,
       mfaSecret: true,
       sessionVersion: true,
     },
@@ -77,7 +86,65 @@ export async function checkMfaRequired(email: string, password: string): Promise
   // Same check the real sign-in makes; if the device is trusted, the code
   // step is skipped there too, so don't show it here.
   const trustCookie = (await cookies()).get(TRUST_COOKIE)?.value;
-  return { mfa: !verifyTrustToken(trustCookie, user) };
+  if (verifyTrustToken(trustCookie, user)) return { mfa: false };
+
+  // The one place an emailed code is sent for a password sign-in, and it
+  // sits *after* the password has been verified above. That ordering is
+  // what stops this being a way to send mail to any address on demand.
+  if (user.mfaMethod === "EMAIL") {
+    await issueEmailOtp({ id: user.id, email: user.email, name: user.name }).catch(() => {
+      // Nothing useful to say here: the code page offers a resend, and
+      // saying "we could not email you" to whoever typed the password is
+      // more information than they have earned if it was not their account.
+    });
+    return { mfa: true, method: "email" };
+  }
+
+  return { mfa: true, method: "app" };
+}
+
+/**
+ * Sends another code, for somebody sitting on the code page.
+ *
+ * Takes the password again rather than trusting a flag from the browser:
+ * there is no session yet, so the password is the only proof available
+ * that this resend was asked for by the account holder. The cooldown in
+ * lib/auth/emailOtp.ts is what stops it being used to flood an inbox.
+ */
+export async function resendSignInCode(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  const ip = await getClientIp();
+  const { success } = await mfaCheckLimiter.limit(ip);
+  if (!success) return { ok: false, error: "Too many requests. Wait a minute and try again." };
+
+  const parsed = inputSchema.safeParse({ email, password });
+  if (!parsed.success) return { ok: false, error: "Could not send a new code." };
+
+  const user = await db.user.findUnique({
+    where: { email: parsed.data.email },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      passwordHash: true,
+      status: true,
+      mfaEnabled: true,
+      mfaMethod: true,
+    },
+  });
+  if (!user?.passwordHash) {
+    await verifyPassword(DUMMY_HASH, parsed.data.password).catch(() => false);
+    return { ok: false, error: "Could not send a new code." };
+  }
+  const valid = await verifyPassword(user.passwordHash, parsed.data.password).catch(() => false);
+  if (!valid || user.status !== "ACTIVE" || !user.mfaEnabled || user.mfaMethod !== "EMAIL") {
+    return { ok: false, error: "Could not send a new code." };
+  }
+
+  const result = await issueEmailOtp({ id: user.id, email: user.email, name: user.name });
+  if (!result.ok) {
+    return { ok: false, error: `Wait ${result.secondsRemaining}s before asking for another code.` };
+  }
+  return { ok: true };
 }
 
 /**
@@ -94,7 +161,10 @@ export async function rememberThisDevice(): Promise<{ ok: boolean }> {
     where: { id: session.user.id },
     select: { id: true, sessionVersion: true, mfaSecret: true, mfaEnabled: true },
   });
-  if (!user?.mfaEnabled || !user.mfaSecret) return { ok: false };
+  // No mfaSecret check: an account whose second factor is an emailed code
+  // has none, and it may be remembered just the same — the token binds to
+  // sessionVersion, which turning the method off increments.
+  if (!user?.mfaEnabled) return { ok: false };
 
   const { token, expires } = issueTrustToken({ id: user.id, sessionVersion: user.sessionVersion, mfaSecret: user.mfaSecret });
   (await cookies()).set(TRUST_COOKIE, token, {

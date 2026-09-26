@@ -5,7 +5,16 @@ import { changePassword } from "./actions";
 import { useI18n } from "@/i18n/client";
 import { PasswordInput } from "@/components/PasswordInput";
 
-export function ChangePasswordForm({ required, next }: { required: boolean; next: string }) {
+export function ChangePasswordForm({
+  required,
+  next,
+  hasPassword,
+}: {
+  required: boolean;
+  next: string;
+  /** False for an account created through Google: there is none to confirm. */
+  hasPassword: boolean;
+}) {
   const { t } = useI18n();
   const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +26,9 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
     e.preventDefault();
     setPending(true);
     setError(null);
-    const result = await changePassword({ current, next: password, confirm });
+    const result = await changePassword(
+      hasPassword ? { current, next: password, confirm } : { next: password, confirm }
+    );
     setPending(false);
     if (!result.ok) {
       setError(result.error ?? t("password.couldntChange"));
@@ -32,6 +43,11 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      {/* Nothing to confirm when the account has no password yet — an
+          account created through Google. Being signed in is the whole of
+          the proof there is, and the server agrees: see the branch in
+          actions.ts. */}
+      {hasPassword && (
       <label className="field">
         <span className="label">{required ? t("password.temporary") : t("password.current")}</span>
         <PasswordInput
@@ -43,6 +59,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
           autoFocus
         />
       </label>
+      )}
       <label className="field">
         <span className="label">{t("password.new")}</span>
         <PasswordInput
@@ -50,6 +67,7 @@ export function ChangePasswordForm({ required, next }: { required: boolean; next
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          autoFocus={!hasPassword}
           required
           minLength={12}
           maxLength={256}

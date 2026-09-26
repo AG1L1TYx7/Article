@@ -18,7 +18,7 @@ import { finishLogin, mfaColumnsSql } from "./support/staff";
 const PASSWORD = "correct-horse-battery-staple";
 
 const promoteTo = (role: string, email: string) =>
-  sql(`UPDATE \`User\` SET role = '${role}'${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE u.email = '${email}';`);
 const markEmailVerified = (email: string) =>
   sql(`UPDATE \`User\` SET \`emailVerifiedAt\` = NOW() WHERE email = '${email}';`);
 const roleOf = (email: string) => scalar(`SELECT role FROM \`User\` WHERE email = '${email}';`);
@@ -166,7 +166,9 @@ test.describe("People", () => {
 
     await page.goto("/dashboard/users");
     const row = page.locator("tr", { hasText: reader });
-    await row.getByRole("combobox").selectOption("MODERATOR");
+    // By visible label, not by value: roles are editable data now, so the
+    // option values are database ids rather than the old fixed enum.
+    await row.getByRole("combobox").selectOption({ label: "Moderator" });
 
     await expect.poll(() => roleOf(reader)).toBe("MODERATOR");
   });
@@ -229,7 +231,9 @@ test.describe("People", () => {
     await page.getByLabel("Name", { exact: true }).fill("Added Writer");
     await page.getByLabel("Handle", { exact: true }).fill(`nradded${stamp}`);
     await page.getByLabel("Email", { exact: true }).fill(email);
-    await page.getByLabel("Writer & moderator").check();
+    // The role choices are read from the database now, so this is the
+    // seeded role's name rather than the old hard-coded blurb.
+    await page.getByRole("radio", { name: /Moderator/ }).check();
     await page.getByRole("button", { name: "Create account" }).click();
 
     // The temporary password is shown once, in the dialog.

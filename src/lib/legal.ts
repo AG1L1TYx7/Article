@@ -26,10 +26,33 @@ export const LEGAL = {
 
 export const LEGAL_COMPLETE = !!(LEGAL.entity && LEGAL.address && LEGAL.contactEmail && LEGAL.jurisdiction);
 
-/** Which third parties currently receive personal data, from the environment. */
-export function activeProcessors(): { name: string; purpose: string; data: string; region: string }[] {
+/**
+ * Which third parties currently receive personal data.
+ *
+ * Mostly derived from the environment, but the mail route is now a
+ * runtime setting (see lib/smtp.ts), and the privacy policy has to name
+ * whoever actually carries the mail — an administrator who points this at
+ * Gmail has changed who processes every verification and reset message,
+ * and a policy still naming Resend would be wrong in the one direction
+ * that matters.
+ *
+ * `smtpHost` is passed in rather than read here so this stays a pure
+ * function: it is rendered by a server component that can await the
+ * setting, and a database call hidden inside a "build the policy" helper
+ * is a surprise nobody needs.
+ */
+export function activeProcessors(
+  options: { smtpHost?: string | null } = {}
+): { name: string; purpose: string; data: string; region: string }[] {
   const list = [];
-  if (process.env.RESEND_API_KEY) {
+  if (options.smtpHost) {
+    list.push({
+      name: `Your mail server (${options.smtpHost})`,
+      purpose: "Sending transactional email (verification, password reset, sign-in codes)",
+      data: "Email address, message content",
+      region: "Wherever that server is operated — ask the publisher if it matters to you",
+    });
+  } else if (process.env.RESEND_API_KEY) {
     list.push({ name: "Resend", purpose: "Sending transactional email (verification, password reset)", data: "Email address, message content", region: "United States" });
   }
   if (process.env.S3_BUCKET) {
@@ -40,6 +63,16 @@ export function activeProcessors(): { name: string; purpose: string; data: strin
   }
   if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
     list.push({ name: "Cloudflare Turnstile", purpose: "Telling people from bots at registration", data: "IP address, browser characteristics", region: "Global (Cloudflare)" });
+  }
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    list.push({
+      name: "Google (Sign in with Google)",
+      purpose:
+        "Letting you sign in with a Google account instead of a password, if you choose to. Nothing is sent to Google unless you press that button.",
+      data:
+        "Google tells us your name, email address, whether Google has verified that address, and your profile picture. We ask for nothing else. The picture is copied here once and then served from this site, so viewing a page never contacts Google.",
+      region: "United States (Google acts as its own controller for what it does with your Google account)",
+    });
   }
   if (process.env.TWILIO_ACCOUNT_SID) {
     list.push({ name: "Twilio", purpose: "Sending the text message that verifies a phone number", data: "Phone number, the six-digit code", region: "United States" });
@@ -59,4 +92,18 @@ export const RETENTION = {
   emailOutboxDays: 30,
   /** A push subscription the push service keeps rejecting is dropped after this long. */
   pushFailedDays: 30,
+  /**
+   * How long a report that could not be verified is kept.
+   *
+   * The most dangerous stale data this platform holds. A rejected report
+   * is an *unverified* accusation, still linked to the person who made it,
+   * and it will never be published — so every day it is kept is risk
+   * carried for no benefit. The reporter has already been told why it was
+   * rejected, which is what they were owed.
+   *
+   * Ninety days rather than immediately, so somebody can appeal or supply
+   * what was missing, and so a pattern of rejections from one account is
+   * still visible to moderation for a season.
+   */
+  rejectedIssueDays: Number(process.env.REJECTED_ISSUE_RETENTION_DAYS) || 90,
 };

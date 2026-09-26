@@ -47,6 +47,22 @@ describe("buildCsp", () => {
     expect(csp["frame-ancestors"]).toEqual(["'none'"]);
   });
 
+  test("form-action names Google only when sign-in is configured", () => {
+    // "Continue with Google" is a form whose server action redirects to
+    // Google's authorisation endpoint, and Chrome and Safari apply
+    // form-action to the redirects that follow a submission — not just to
+    // its immediate target. Without the origin the button is silently
+    // blocked, with nothing on screen to say why.
+    const withGoogle = parse(buildCsp({ ...base, google: true }))["form-action"];
+    expect(withGoogle).toContain("'self'");
+    expect(withGoogle).toContain("https://accounts.google.com");
+
+    // And stays shut on a deployment that has not configured it: every
+    // extra origin here is somewhere a form could post credentials to.
+    expect(parse(buildCsp({ ...base, google: false }))["form-action"]).toEqual(["'self'"]);
+    expect(parse(buildCsp(base))["form-action"]).toEqual(["'self'"]);
+  });
+
   test("allows the media origin when uploads are served from elsewhere", () => {
     // With S3 configured, Media.url points at the bucket or CDN. Without
     // this, every article image is blocked.

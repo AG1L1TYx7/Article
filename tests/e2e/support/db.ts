@@ -56,6 +56,21 @@ const USER = process.env.MYSQL_USER ?? "root";
 const PASSWORD = process.env.MYSQL_PASSWORD ?? "";
 const DATABASE = process.env.MYSQL_DATABASE ?? "news_platform";
 
+/**
+ * Every statement runs with the session pinned to UTC.
+ *
+ * Prisma sends and reads datetimes as UTC, but MySQL's `NOW()` returns the
+ * *server's* local time, and the DATETIME columns carry no zone to
+ * reconcile them. On any machine not set to UTC the two disagree by the
+ * offset, so a helper that backdates a row by thirty minutes with
+ * `NOW(3) - INTERVAL 30 MINUTE` actually moves it forwards by the offset
+ * minus thirty — and a test asserting that an edit window has closed
+ * watches it open wider instead. Setting the zone here rather than in each
+ * helper keeps the whole suite honest, including the `NOW(3)` values used
+ * as createdAt/publishedAt in seeded rows.
+ */
+const UTC_SESSION = "SET time_zone = '+00:00'; ";
+
 function run(args: string[], query: string): string {
   return execFileSync(
     MYSQL,
@@ -74,7 +89,7 @@ function run(args: string[], query: string): string {
       ...args,
       DATABASE,
       "-e",
-      query,
+      UTC_SESSION + query,
     ],
     { encoding: "utf8" }
   );

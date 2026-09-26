@@ -6,26 +6,28 @@ import { createUser } from "./actions";
 import { slugify } from "@/lib/slugify";
 import { CheckIcon, PlusIcon, XIcon } from "@/components/icons";
 
-const ROLES = [
-  { value: "READER", label: "Reader", blurb: "Comments, saves, follows." },
-  { value: "MODERATOR", label: "Writer & moderator", blurb: "Writes and publishes; reviews comments." },
-  { value: "ADMIN", label: "Administrator", blurb: "Everything, including people. Must enrol 2FA." },
-] as const;
-
 /**
  * "Add person": an admin creates an account with a role in one step.
  * The temporary password is shown exactly once, here; it is never
  * emailed or logged. A reset link is emailed as well, so where mail is
  * configured the new person can ignore the temporary password entirely.
  */
-export function InviteUserForm() {
+export interface InviteRole {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+export function InviteUserForm({ roles }: { roles: InviteRole[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [handle, setHandle] = useState("");
   const [handleTouched, setHandleTouched] = useState(false);
-  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("MODERATOR");
+  // Defaults to the first staff role offered rather than a hard-coded
+  // name: the roles are editable now, and "MODERATOR" may not exist.
+  const [roleId, setRoleId] = useState<string>(roles[0]?.id ?? "");
   // Empty = let the server generate one. Filled in when the admin wants
   // to read a password out to someone, or has a house convention.
   const [temporaryPassword, setTemporaryPassword] = useState("");
@@ -39,7 +41,7 @@ export function InviteUserForm() {
     setEmail("");
     setHandle("");
     setHandleTouched(false);
-    setRole("MODERATOR");
+    setRoleId(roles[0]?.id ?? "");
     setTemporaryPassword("");
     setError(null);
     setCreated(null);
@@ -50,7 +52,7 @@ export function InviteUserForm() {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const result = await createUser({ name, email, handle, role, temporaryPassword: temporaryPassword || undefined });
+    const result = await createUser({ name, email, handle, roleId, temporaryPassword: temporaryPassword || undefined });
     setPending(false);
     if (!result.ok) {
       setError(result.error ?? "Couldn't create that account.");
@@ -235,24 +237,26 @@ export function InviteUserForm() {
             <fieldset className="field">
               <legend className="label">Role</legend>
               <div className="mt-1 grid gap-2">
-                {ROLES.map((r) => (
+                {roles.map((r) => (
                   <label
-                    key={r.value}
+                    key={r.id}
                     className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 text-sm transition-colors ${
-                      role === r.value ? "border-ink bg-surface-2" : "border-line hover:border-line-strong"
+                      roleId === r.id ? "border-ink bg-surface-2" : "border-line hover:border-line-strong"
                     }`}
                   >
                     <input
                       type="radio"
                       name="role"
-                      value={r.value}
-                      checked={role === r.value}
-                      onChange={() => setRole(r.value)}
+                      value={r.id}
+                      checked={roleId === r.id}
+                      onChange={() => setRoleId(r.id)}
                       className="mt-0.5 accent-[var(--accent)]"
                     />
                     <span>
-                      <span className="font-medium">{r.label}</span>
-                      <span className="block text-xs text-ink-3">{r.blurb}</span>
+                      <span className="font-medium">{r.name}</span>
+                      {r.description && (
+                        <span className="block text-xs text-ink-3">{r.description}</span>
+                      )}
                     </span>
                   </label>
                 ))}

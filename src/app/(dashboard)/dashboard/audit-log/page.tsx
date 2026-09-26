@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
+import { sessionHas } from "@/lib/auth/rbac";
 import { db } from "@/lib/db";
 import { one } from "@/lib/searchParams";
 import type { Prisma } from "@/generated/prisma/client";
@@ -31,7 +32,11 @@ const FILTERS = [
 export default async function AuditLogPage(props: PageProps<"/dashboard/audit-log">) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "ADMIN") redirect("/dashboard");
+  // The permission, not the tier. An administrator may deliberately create
+  // a role that holds other administrative powers but NOT auditlog.view —
+  // the log names every actor and their IP, and that is its own decision to
+  // grant. Checking the tier here quietly ignored that decision.
+  if (!sessionHas(session, "auditlog.view")) redirect("/dashboard");
 
   const params = await props.searchParams;
   const action = one(params.action).slice(0, 60);

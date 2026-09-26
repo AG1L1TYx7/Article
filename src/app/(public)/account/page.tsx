@@ -5,14 +5,19 @@ import { cookies } from "next/headers";
 import { auth, signOut } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { TRUST_COOKIE, trustTokenExpiry, verifyTrustToken } from "@/lib/auth/trustedDevice";
-import { forgetThisDevice } from "./actions";
+import { connectGoogle, forgetThisDevice } from "./actions";
+import { ConnectedAccounts } from "./ConnectedAccounts";
+import { googleEnabled } from "@/lib/auth/config";
 import { AccountPrivacy } from "./AccountPrivacy";
+import { EmailOtpToggle } from "./EmailOtpToggle";
+import { HomeDistrict } from "./HomeDistrict";
+import { SignOutEverywhere } from "./SignOutEverywhere";
 import { EmailVerifyBanner } from "@/app/(dashboard)/dashboard/EmailVerifyBanner";
 import { EnrollMfaFlow } from "@/app/(dashboard)/dashboard/mfa/EnrollMfaFlow";
 import { DisableMfaForm } from "@/app/(dashboard)/dashboard/mfa/DisableMfaForm";
 import { RecoveryCodesPanel } from "@/app/(dashboard)/dashboard/mfa/RecoveryCodesPanel";
 import { parseStoredCodes } from "@/lib/auth/recoveryCodes";
-import { BellIcon, BookmarkIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/components/icons";
+import { BellIcon, BookmarkIcon, FlagIcon, LogoutIcon, PenIcon, ShieldIcon } from "@/components/icons";
 import { initials } from "@/lib/format";
 import { PushToggle } from "@/components/push/PushToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -60,6 +65,7 @@ export default async function AccountPage() {
       email: true,
       role: true,
       mfaEnabled: true,
+      mfaMethod: true,
       mfaSecret: true,
       mfaRecoveryCodes: true,
       phoneEncrypted: true,
@@ -68,6 +74,9 @@ export default async function AccountPage() {
       sessionVersion: true,
       emailVerifiedAt: true,
       createdAt: true,
+      districtId: true,
+      passwordHash: true,
+      accounts: { select: { provider: true, createdAt: true } },
       _count: { select: { bookmarks: true, comments: true, follows: true, articles: true } },
     },
   });
@@ -81,6 +90,17 @@ export default async function AccountPage() {
   const trustCookie = (await cookies()).get(TRUST_COOKIE)?.value;
   const deviceTrusted = user.mfaEnabled && verifyTrustToken(trustCookie, user);
   const trustExpires = deviceTrusted ? trustTokenExpiry(trustCookie) : null;
+
+  const districts = await db.district.findMany({
+    orderBy: [{ province: { number: "asc" } }, { name: "asc" }],
+    select: { id: true, name: true, nameNe: true, province: { select: { name: true } } },
+  });
+
+  // Whether Google can sign in to this account, and whether removing it
+  // would leave no way back in. An account made with Google has no
+  // password, so the last sign-in method must not be removable.
+  const googleAccount = user.accounts.find((a) => a.provider === "google") ?? null;
+  const canDisconnectGoogle = !!user.passwordHash || user.accounts.length > 1;
 
   return (
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">
@@ -186,20 +206,47 @@ export default async function AccountPage() {
           <ShieldIcon size={18} /> {t("account.twoFactor")}
         </h2>
         <p className="mt-1 text-sm text-ink-2">{t("account.twoFactorBlurb")}</p>
+        {/* Two methods, and which one is offered depends on who is asking.
+            The app is stronger and is the only thing an administrator may
+            use (src/proxy.ts); the emailed code asks nothing of a member
+            beyond an inbox they already have. */}
         <div className="mt-5 border-t border-line pt-5">
-          {user.mfaEnabled ? (
-            <>
-              <p className="alert alert-ok mb-4" role="status">
-                {t("account.twoFactorIsOn")}
-              </p>
-              <RecoveryCodesPanel remaining={parseStoredCodes(user.mfaRecoveryCodes).length} />
-              <div className="mt-5 border-t border-line pt-5">
-                <DisableMfaForm />
-              </div>
-            </>
-          ) : (
-            <EnrollMfaFlow />
-          )}
+          <p className="label">{t("auth.twoFactorMethod")}</p>
+
+          <div className="mt-3">
+            <p className="font-medium">{t("auth.methodApp")}</p>
+            <p className="mb-3 text-xs text-ink-3">{t("auth.methodAppHelp")}</p>
+            {user.mfaEnabled && user.mfaMethod === "TOTP" ? (
+              <>
+                <p className="alert alert-ok mb-4" role="status">
+                  {t("account.twoFactorIsOn")}
+                </p>
+                {/* Recovery codes belong to the authenticator app: they are
+                    what gets you back in when the phone is gone. The emailed
+                    method needs no such fallback, because the mailbox is
+                    already the factor. */}
+                <RecoveryCodesPanel remaining={parseStoredCodes(user.mfaRecoveryCodes).length} />
+                <div className="mt-5 border-t border-line pt-5">
+                  <DisableMfaForm />
+                </div>
+              </>
+            ) : user.mfaEnabled ? (
+              // Using the emailed code: enrolling an app would mean two
+              // methods at once, which the account page does not model.
+              // Turn the other one off first.
+              <p className="text-sm text-ink-2">{t("account.switchMethodFirst")}</p>
+            ) : (
+              <EnrollMfaFlow />
+            )}
+          </div>
+
+          <div className="mt-5 border-t border-line pt-5">
+            <EmailOtpToggle
+              enabled={user.mfaEnabled && user.mfaMethod === "EMAIL"}
+              isAdmin={user.role === "ADMIN"}
+              emailVerified={user.emailVerifiedAt !== null}
+            />
+          </div>
         </div>
 
         {user.mfaEnabled && (
@@ -229,6 +276,33 @@ export default async function AccountPage() {
             )}
           </div>
         )}
+      </section>
+
+      {/* How you sign in, besides a password. Hidden entirely when Google
+          sign-in is not configured on this deployment. */}
+      {googleEnabled && (
+        <section className="card mt-4 p-6" aria-labelledby="connected-heading">
+          <h2 id="connected-heading" className="flex items-center gap-2 text-lg font-medium">
+            <ShieldIcon size={18} /> {t("auth.connectedAccounts")}
+          </h2>
+          <ConnectedAccounts
+            connectedAt={googleAccount ? formatDate(googleAccount.createdAt) : null}
+            canDisconnect={canDisconnectGoogle}
+            connectAction={connectGoogle}
+          />
+        </section>
+      )}
+
+      {/* Where they live, which is how a district alert finds them. Beside
+          the alert settings on purpose: it is only ever used for that. */}
+      <section className="card mt-4 p-6" aria-labelledby="district-heading">
+        <h2 id="district-heading" className="flex items-center gap-2 text-lg font-medium">
+          <FlagIcon size={18} /> Reports near you
+        </h2>
+        <p className="mt-1 text-sm text-ink-2">
+          Tell us your district and we will let you know when a verified report concerns it.
+        </p>
+        <HomeDistrict districts={districts} current={user.districtId} />
       </section>
 
       {/* Alerts on this device. The toggle renders nothing when push is
@@ -275,6 +349,7 @@ export default async function AccountPage() {
           <Link href="/account/password" className="text-link">
             {t("account.changePassword")}
           </Link>
+          <SignOutEverywhere />
           {" · "}
           <Link href="/forgot-password" className="text-link">
             {t("account.forgotReset")}

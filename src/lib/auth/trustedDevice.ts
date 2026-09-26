@@ -42,19 +42,34 @@ function sign(body: string): string {
   return createHmac("sha256", key()).update(body).digest("base64url");
 }
 
-export function mfaFingerprint(encryptedSecret: string): string {
-  return createHash("sha256").update(encryptedSecret).digest("base64url").slice(0, 16);
+/**
+ * What the token is bound to, so that re-enrolling revokes every device.
+ *
+ * An authenticator app has a secret, and its fingerprint changes when the
+ * app is re-enrolled — which is the usual response to a lost phone, and
+ * exactly when every remembered device should stop being trusted.
+ *
+ * An emailed code has no secret. Its fingerprint is derived from the
+ * account id instead, which never changes — so revocation there rests
+ * entirely on `sessionVersion`, which enabling or disabling the method
+ * increments (see account/emailOtpActions.ts). That is sufficient, but it
+ * is the reason those two actions must keep bumping it.
+ */
+export function mfaFingerprint(encryptedSecret: string | null, userId?: string): string {
+  const input = encryptedSecret ?? `email-otp:${userId ?? ""}`;
+  return createHash("sha256").update(input).digest("base64url").slice(0, 16);
 }
 
-export function issueTrustToken(user: { id: string; sessionVersion: number; mfaSecret: string }): {
-  token: string;
-  expires: Date;
-} {
+export function issueTrustToken(user: {
+  id: string;
+  sessionVersion: number;
+  mfaSecret: string | null;
+}): { token: string; expires: Date } {
   const expires = new Date(Date.now() + TRUST_DAYS * 24 * 60 * 60 * 1000);
   const payload: Payload = {
     u: user.id,
     v: user.sessionVersion,
-    m: mfaFingerprint(user.mfaSecret),
+    m: mfaFingerprint(user.mfaSecret, user.id),
     e: Math.floor(expires.getTime() / 1000),
   };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -66,7 +81,7 @@ export function verifyTrustToken(
   token: string | undefined | null,
   user: { id: string; sessionVersion: number; mfaSecret: string | null }
 ): boolean {
-  if (!token || !user.mfaSecret) return false;
+  if (!token) return false;
   const [body, signature] = token.split(".");
   if (!body || !signature) return false;
 
@@ -84,7 +99,7 @@ export function verifyTrustToken(
   return (
     payload.u === user.id &&
     payload.v === user.sessionVersion &&
-    payload.m === mfaFingerprint(user.mfaSecret) &&
+    payload.m === mfaFingerprint(user.mfaSecret, user.id) &&
     payload.e * 1000 > Date.now()
   );
 }

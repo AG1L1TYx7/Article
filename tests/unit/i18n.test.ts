@@ -4,20 +4,20 @@ import { negotiateLocale, parseAcceptLanguage } from "@/i18n/negotiate";
 import { flatten, interpolate, makeI18n } from "@/i18n/t";
 import { MESSAGES } from "@/i18n/messages";
 import { en } from "@/i18n/messages/en";
-import { es } from "@/i18n/messages/es";
+import { ne } from "@/i18n/messages/ne";
 
 describe("negotiateLocale", () => {
   test("an explicit cookie wins over the browser", () => {
-    expect(negotiateLocale("es", "en-GB,en;q=0.9")).toBe("es");
+    expect(negotiateLocale("ne", "en-GB,en;q=0.9")).toBe("ne");
   });
 
   test("a cookie for a language no longer offered falls through", () => {
-    expect(negotiateLocale("fr", "es-ES")).toBe("es");
+    expect(negotiateLocale("fr", "ne-NP")).toBe("ne");
   });
 
   test("Accept-Language is honoured by weight, matching region tags to the base language", () => {
-    expect(negotiateLocale(null, "fr-FR,es-MX;q=0.8,en;q=0.5")).toBe("es");
-    expect(negotiateLocale(null, "es;q=0.3,en;q=0.9")).toBe("en");
+    expect(negotiateLocale(null, "fr-FR,ne-NP;q=0.8,en;q=0.5")).toBe("ne");
+    expect(negotiateLocale(null, "ne;q=0.3,en;q=0.9")).toBe("en");
   });
 
   test("nothing usable means the default", () => {
@@ -27,7 +27,7 @@ describe("negotiateLocale", () => {
   });
 
   test("parseAcceptLanguage keeps header order for equal weights and drops q=0", () => {
-    expect(parseAcceptLanguage("en-GB, en;q=1, fr;q=0, es;q=0.5")).toEqual(["en-GB", "en", "es"]);
+    expect(parseAcceptLanguage("en-GB, en;q=1, fr;q=0, ne;q=0.5")).toEqual(["en-GB", "en", "ne"]);
     expect(parseAcceptLanguage("")).toEqual([]);
   });
 });
@@ -41,9 +41,9 @@ describe("dictionaries", () => {
 
   test("every translation keeps the placeholders of its English source", () => {
     const placeholders = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
-    const esFlat = flatten(es);
+    const neFlat = flatten(ne);
     for (const [key, english] of Object.entries(flatten(en))) {
-      expect(placeholders(esFlat[key]!), `placeholders in ${key}`).toEqual(placeholders(english));
+      expect(placeholders(neFlat[key]!), `placeholders in ${key}`).toEqual(placeholders(english));
     }
   });
 
@@ -53,11 +53,15 @@ describe("dictionaries", () => {
     const allowed = new Set([
       "common.siteName",
       "account.deletePhrase",
-      // "Audio" is the same word in Spanish.
-      "article.kindAudio",
+      "account.twoFactorOn",
+      "account.twoFactorOff",
+      // A brand name. Nepali uses the Latin mark for it too, and
+      // transliterating it would make the button harder to recognise,
+      // not easier.
+      "auth.googleAccount",
     ]);
     const enFlat = flatten(en);
-    const same = Object.entries(flatten(es))
+    const same = Object.entries(flatten(ne))
       .filter(([key, value]) => enFlat[key] === value && !allowed.has(key))
       .map(([key]) => key);
     expect(same).toEqual([]);
@@ -72,20 +76,20 @@ describe("interpolate", () => {
 
 describe("makeI18n", () => {
   const english = makeI18n("en", MESSAGES.en);
-  const spanish = makeI18n("es", MESSAGES.es);
+  const nepali = makeI18n("ne", MESSAGES.ne);
 
   test("translates by key with variables", () => {
     expect(english.t("article.moreFrom", { section: "Sport" })).toBe("More from Sport");
-    expect(spanish.t("article.moreFrom", { section: "Deportes" })).toBe("Más de Deportes");
+    expect(nepali.t("article.moreFrom", { section: "खेलकुद" })).toBe("खेलकुद विभागबाट थप");
   });
 
   test("picks the plural form and formats the count for the locale", () => {
     expect(english.n(1, "common.articles")).toBe("1 article");
     expect(english.n(2, "common.articles")).toBe("2 articles");
-    expect(spanish.n(1, "common.articles")).toBe("1 artículo");
-    expect(spanish.n(3, "common.articles")).toBe("3 artículos");
-    // Spanish groups thousands with a point.
-    expect(spanish.formatNumber(1284930)).toBe("1.284.930");
+    // Nepali counts in its own digits.
+    expect(nepali.n(3, "common.articles")).toBe("३ लेख");
+    // And groups in lakhs, not thousands: 12,84,930 rather than 1,284,930.
+    expect(nepali.formatNumber(1284930)).toBe("१२,८४,९३०");
   });
 
   test("a missing key shows the key rather than nothing", () => {
@@ -97,7 +101,7 @@ describe("makeI18n", () => {
   test("dates are formatted in UTC for both languages", () => {
     const date = new Date("2026-09-20T23:30:00Z");
     expect(english.formatDate(date)).toBe("20 Sept 2026");
-    expect(spanish.formatDate(date)).toMatch(/20 sept 2026/);
+    expect(nepali.formatDate(date)).toContain("२०२६");
   });
 
   test("relative times read naturally", () => {
@@ -106,7 +110,7 @@ describe("makeI18n", () => {
     expect(english.formatRelative(new Date("2026-09-20T11:30:00Z"), now)).toBe("30 min ago");
     expect(english.formatRelative(new Date("2026-09-20T09:00:00Z"), now)).toBe("3 hrs ago");
     expect(english.formatRelative(new Date("2026-09-18T12:00:00Z"), now)).toBe("2 days ago");
-    expect(spanish.formatRelative(new Date("2026-09-20T09:00:00Z"), now)).toBe("hace 3 h");
-    expect(spanish.formatRelative(new Date("2026-09-19T12:00:00Z"), now)).toBe("hace 1 día");
+    expect(nepali.formatRelative(new Date("2026-09-20T09:00:00Z"), now)).toBe("३ घण्टा अघि");
+    expect(nepali.formatRelative(new Date("2026-09-19T12:00:00Z"), now)).toBe("१ दिन अघि");
   });
 });
