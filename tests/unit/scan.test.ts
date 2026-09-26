@@ -25,7 +25,10 @@ async function fakeClamd(
 
   server = createServer((socket) => {
     socket.on("data", (chunk) => {
-      received.push(chunk);
+      // A socket with no encoding set always emits Buffers; the guard keeps
+      // the types happy across @types/node versions, which have typed this
+      // chunk as Buffer, string | Buffer and NonSharedBuffer in turn.
+      received.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       const combined = Buffer.concat(received);
       // The stream ends with a zero-length chunk: four zero bytes.
       const tail = combined.subarray(combined.length - 4);
