@@ -137,7 +137,7 @@ test.describe("Contact details", () => {
     // never at stake if the outbox fallback were ever misconfigured.
     const phone = `+15005550${String(stamp).slice(-3)}`;
 
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await expect(page.locator("[data-phone-status]")).toHaveAttribute("data-phone-status", "none");
     await page.getByRole("button", { name: "Add a phone number" }).click();
     await page.getByLabel("Phone number").fill(phone);
@@ -184,7 +184,7 @@ test.describe("Contact details", () => {
     await page.context().clearCookies();
     const other = `phone2+${stamp}@example.com`;
     await registerAndLogin(page, other, `phoneb${stamp.toString(36)}`);
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await page.getByRole("button", { name: "Add a phone number" }).click();
     await page.getByLabel("Phone number").fill(phone);
     await page.getByRole("button", { name: "Send code" }).click();
@@ -198,7 +198,7 @@ test.describe("Contact details", () => {
     const newEmail = `mail-new+${stamp}@example.com`;
     await registerAndLogin(page, email, `mail${stamp.toString(36)}`);
 
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await page.getByRole("button", { name: "Change", exact: true }).click();
     await page.getByLabel("New email address").fill(newEmail);
     await page.getByLabel(/Your password, to confirm/).fill("wrong-password-here");

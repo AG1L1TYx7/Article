@@ -98,5 +98,6 @@ export async function setHomeDistrict(districtId: string | null): Promise<{ ok: 
   });
 
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }
