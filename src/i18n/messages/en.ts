@@ -471,6 +471,7 @@ export const en = {
     people: "People",
     auditLog: "Audit log",
     settings: "Settings",
+    systemHealth: "System health",
     manageTwoFactor: "Manage two-factor authentication",
     setUpTwoFactor: "Set up two-factor authentication",
     setUpTwoFactorFirst: "Set up two-factor authentication first",

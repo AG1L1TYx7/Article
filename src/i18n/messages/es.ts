@@ -475,6 +475,7 @@ export const es: Messages = {
     people: "Personas",
     auditLog: "Registro de auditoría",
     settings: "Ajustes",
+    systemHealth: "Estado del sistema",
     manageTwoFactor: "Gestionar la verificación en dos pasos",
     setUpTwoFactor: "Configurar la verificación en dos pasos",
     setUpTwoFactorFirst: "Configure primero la verificación en dos pasos",
