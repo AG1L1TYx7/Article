@@ -120,6 +120,16 @@ describe("gradeHeaders", () => {
     expect(gradeHeaders({ ...strict, "strict-transport-security": "max-age=3600" }, true).status).toBe("fail");
     expect(gradeHeaders({ ...strict, "strict-transport-security": null }, false).status).toBe("ok");
   });
+  test("HSTS is only expected when the page was requested under a public host", () => {
+    // The proxy never sends it to localhost, so a production build asked
+    // for 127.0.0.1 legitimately has none; that must not read as a problem.
+    const noHsts = { ...strict, "strict-transport-security": null };
+    expect(gradeHeaders(noHsts, true, false).status).toBe("ok");
+    expect(gradeHeaders(noHsts, true, true).status).toBe("fail");
+    // ...while the other production-only checks still apply.
+    const evalPolicy = { ...noHsts, "content-security-policy": "script-src 'self' 'nonce-abc' 'strict-dynamic' 'unsafe-eval'; frame-ancestors 'none'" };
+    expect(gradeHeaders(evalPolicy, true, false).details!.join(" ")).toMatch(/eval/);
+  });
   test("a policy that allows inline scripts without strict-dynamic fails", () => {
     const loose = { ...strict, "content-security-policy": "script-src 'self' 'nonce-abc' 'unsafe-inline'" };
     expect(gradeHeaders(loose, true).details!.join(" ")).toMatch(/inline scripts/);

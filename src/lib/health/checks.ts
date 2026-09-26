@@ -184,14 +184,25 @@ function configuration(): Check[] {
 
 // --- Security -------------------------------------------------------------
 
+/**
+ * A real page, fetched from this same process: what a visitor receives,
+ * minus whatever the web server in front adds.
+ *
+ * Strict-Transport-Security is only expected when the site has a public
+ * address. src/proxy.ts leaves it off when the host is localhost, and the
+ * host it sees is the configured NEXTAUTH_URL (Auth.js rewrites the
+ * request URL to it), not the address this request was sent to. So a
+ * build configured for the live domain sends HSTS even to 127.0.0.1, and
+ * a test or laptop build configured for localhost rightly never does.
+ * Checked both ways against a production build.
+ */
 async function headers(): Promise<Finding> {
-  // A real page, fetched from this same process: what a visitor receives,
-  // minus whatever the web server in front adds.
   const port = process.env.PORT || "3000";
   const res = await fetch(`http://127.0.0.1:${port}/login`, { redirect: "manual", cache: "no-store" });
   const names = ["content-security-policy", "strict-transport-security", "x-content-type-options", "x-frame-options", "referrer-policy", "permissions-policy", "x-powered-by"];
   const found = Object.fromEntries(names.map((n) => [n, res.headers.get(n)]));
-  return gradeHeaders(found, process.env.NODE_ENV === "production");
+  const production = process.env.NODE_ENV === "production";
+  return gradeHeaders(found, production, production && publicHost() !== null);
 }
 
 function publicHost(): string | null {

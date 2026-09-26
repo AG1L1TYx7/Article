@@ -151,7 +151,13 @@ export function gradeNameservers(answers: Record<string, string[] | null>, expec
  * The response headers of a real page, checked for what this site sets on
  * purpose (src/proxy.ts). A missing header here means a change removed it.
  */
-export function gradeHeaders(headers: Record<string, string | null>, production: boolean): Finding {
+/**
+ * `expectHsts` is separate from `production` because the proxy leaves
+ * Strict-Transport-Security off when the site is configured for
+ * localhost, as it is in the test suite; see headers() in
+ * lib/health/checks.ts.
+ */
+export function gradeHeaders(headers: Record<string, string | null>, production: boolean, expectHsts = production): Finding {
   const h = (name: string) => headers[name.toLowerCase()] ?? null;
   const problems: string[] = [];
   const notes: string[] = [];
@@ -172,7 +178,7 @@ export function gradeHeaders(headers: Record<string, string | null>, production:
   if (h("x-powered-by")) problems.push(`X-Powered-By reveals the framework (${h("x-powered-by")}).`);
 
   const hsts = h("strict-transport-security");
-  if (production) {
+  if (expectHsts) {
     const maxAge = Number(/max-age=(\d+)/.exec(hsts ?? "")?.[1] ?? 0);
     if (!hsts) problems.push("No Strict-Transport-Security, so browsers may use plain HTTP.");
     else if (maxAge < 31_536_000) problems.push(`Strict-Transport-Security lasts only ${Math.round(maxAge / 86_400)} days; a year or more is expected.`);
