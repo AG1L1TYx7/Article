@@ -575,6 +575,7 @@ export const ne: Messages = {
     people: "व्यक्तिहरू",
     auditLog: "अडिट लग",
     settings: "सेटिङ",
+    systemHealth: "प्रणाली स्वास्थ्य",
     manageTwoFactor: "दुई-चरण प्रमाणीकरण व्यवस्थापन",
     setUpTwoFactor: "दुई-चरण प्रमाणीकरण सेट गर्नुहोस्",
     setUpTwoFactorFirst: "पहिले दुई-चरण प्रमाणीकरण सेट गर्नुहोस्",
