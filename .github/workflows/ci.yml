@@ -145,6 +145,10 @@ jobs:
           echo "commit=${GITHUB_SHA}" > cpanel-dist/BUILD_INFO
           echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> cpanel-dist/BUILD_INFO
           du -sh cpanel-dist
+      # Known vulnerabilities in the production packages, for the admin
+      # System health page. Reports only; never blocks the build.
+      - name: Record known vulnerabilities
+        run: node scripts/write-audit-report.mjs cpanel-dist
       - uses: actions/upload-artifact@v4
         with:
           name: cpanel-dist
@@ -332,7 +336,11 @@ jobs:
             echo "node \$(node --version)"
             node setup.js check || echo "(check reported the above; not blocking the deploy)"
             node setup.js migrate
-            mkdir -p tmp && touch tmp/restart.txt            echo "Deployed \$(tr '\n' ' ' < BUILD_INFO)"
+            echo "Deployed \$(tr '\n' ' ' < BUILD_INFO)"
+            # Last, so the app restarts only once everything above is in place.
+            mkdir -p tmp && touch tmp/restart.txt
+            # Leftovers from a deploy that ran touch with extra arguments.
+            rm -f echo Deployed\ commit=*
           EOF
 
       # "Answers 200" is not enough on its own: the old process answers
