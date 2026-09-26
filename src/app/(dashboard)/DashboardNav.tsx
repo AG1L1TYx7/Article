@@ -11,6 +11,7 @@ import {
   PenIcon,
   FlagIcon,
   HeartIcon,
+  PulseIcon,
   ShieldIcon,
   SlidersIcon,
   TagIcon,
@@ -40,6 +41,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/roles", label: "dashboard.roles", icon: ShieldIcon, adminOnly: true },
   { href: "/dashboard/audit-log", label: "dashboard.auditLog", icon: ListIcon, adminOnly: true },
   { href: "/dashboard/settings", label: "dashboard.settings", icon: SlidersIcon, adminOnly: true },
+  { href: "/dashboard/health", label: "dashboard.systemHealth", icon: PulseIcon, adminOnly: true },
 ];
 
 const MFA_HREF = "/dashboard/mfa";
