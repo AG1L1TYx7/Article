@@ -32,7 +32,7 @@ function encryptLikeTheApp(plain: string): string {
 
 /** The SQL fragment that enrols an account in MFA with the shared test secret. */
 export function mfaColumnsSql(): string {
-  return `\`mfaEnabled\` = 1, \`mfaSecret\` = '${encryptLikeTheApp(TEST_MFA_SECRET)}'`;
+  return `\`mfaEnabled\` = 1, \`mfaMethod\` = 'TOTP', \`mfaSecret\` = '${encryptLikeTheApp(TEST_MFA_SECRET)}'`;
 }
 
 export function currentTestCode(): string {

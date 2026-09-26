@@ -201,8 +201,8 @@ export async function loadAnalytics(days: RangeDays, now: Date = new Date()): Pr
       SELECT c.\`name\` AS name, SUM(a.\`viewCount\`) AS n
       FROM \`Article\` a LEFT JOIN \`Category\` c ON c.\`id\` = a.\`categoryId\`
       WHERE a.\`status\` = 'PUBLISHED' GROUP BY c.\`name\` ORDER BY n DESC LIMIT 8`,
-    db.$queryRaw<{ name: string; n: bigint }[]>`
-      SELECT u.\`name\` AS name, SUM(a.\`viewCount\`) AS n
+    db.$queryRaw<{ id: string; name: string; n: bigint }[]>`
+      SELECT u.\`id\` AS id, u.\`name\` AS name, SUM(a.\`viewCount\`) AS n
       FROM \`Article\` a JOIN \`User\` u ON u.\`id\` = a.\`authorId\`
       WHERE a.\`status\` = 'PUBLISHED' GROUP BY u.\`id\`, u.\`name\` ORDER BY n DESC LIMIT 8`,
     db.$queryRaw<{ id: string; slug: string; title: string; author: string; n: bigint }[]>`
@@ -263,7 +263,9 @@ export async function loadAnalytics(days: RangeDays, now: Date = new Date()): Pr
     commentsByDay: fillDays(since, days, comments),
     readersByDay: fillDays(since, days, readers),
     viewsBySection: sectionViews.map((r) => ({ label: r.name ?? "No section", value: num(r.n) })),
-    viewsByAuthor: authorViews.map((r) => ({ label: r.name, value: num(r.n) })),
+    // The id matters: this is already grouped by user, so two writers who
+    // share a display name are two rows with the same label.
+    viewsByAuthor: authorViews.map((r) => ({ id: r.id, label: r.name, value: num(r.n) })),
     engagementMix: [
       { label: "Likes", value: likes },
       { label: "Saves", value: saves },

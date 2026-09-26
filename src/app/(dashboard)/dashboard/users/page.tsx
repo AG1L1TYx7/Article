@@ -37,7 +37,7 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
       : {}),
   };
 
-  const [users, total, activeAdmins, counts] = await Promise.all([
+  const [users, total, activeAdmins, counts, assignableRoles] = await Promise.all([
     db.user.findMany({
       where,
       // Staff first: the enum is READER < MODERATOR < ADMIN, so descending
@@ -51,6 +51,8 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
         email: true,
         handle: true,
         role: true,
+        roleId: true,
+        userRole: { select: { name: true } },
         status: true,
         mfaEnabled: true,
         emailVerifiedAt: true,
@@ -62,6 +64,12 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
     db.user.count({ where }),
     db.user.count({ where: { role: "ADMIN", status: "ACTIVE" } }),
     db.user.groupBy({ by: ["role"], _count: { _all: true } }),
+    // Every role an administrator may put somebody on. Highest access
+    // first, matching the order the roles page lists them in.
+    db.userRole.findMany({
+      select: { id: true, name: true, tier: true, description: true },
+      orderBy: [{ tier: "desc" }, { name: "asc" }],
+    }),
   ]);
 
   const countFor = (r: string) => counts.find((c) => c.role === r)?._count._all ?? 0;
@@ -89,7 +97,7 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
             Roles take effect immediately — changing one signs that person out everywhere.
           </>
         }
-        actions={<InviteUserForm />}
+        actions={<InviteUserForm roles={assignableRoles} />}
       />
 
       <PageBody>
@@ -174,7 +182,8 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
                     name: user.name,
                     email: user.email,
                     handle: user.handle,
-                    role: user.role,
+                    role: user.userRole?.name ?? user.role,
+                    roleId: user.roleId,
                     status: user.status,
                     mfaEnabled: user.mfaEnabled,
                     verified: user.emailVerifiedAt !== null,
@@ -183,6 +192,7 @@ export default async function UsersPage(props: PageProps<"/dashboard/users">) {
                     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
                   }}
                   isSelf={user.id === session.user.id}
+                  roles={assignableRoles}
                 />
               ))}
               {users.length === 0 && (

@@ -343,13 +343,28 @@ async function admin(conn) {
   const generated = !arg("password") && !process.env.STAFF_PASSWORD;
   if (password.length < 12) fail("Password must be at least 12 characters");
 
+  // The role row behind the requested tier. Both are seeded by a
+  // migration and cannot be deleted, so this resolves on any database
+  // that has been migrated — and says so plainly on one that has not.
+  const roleRow = (
+    await conn.query("SELECT id FROM `UserRole` WHERE `key` = ?", [
+      role === "ADMIN" ? "admin" : "moderator",
+    ])
+  )[0];
+  if (!roleRow) {
+    fail(
+      "The built-in roles are missing. Run `node setup.js migrate` first, then try this again."
+    );
+  }
+  const roleId = roleRow.id;
+
   const existing = (await conn.query("SELECT id, role, emailVerifiedAt FROM `User` WHERE email = ?", [email]))[0];
 
   if (existing) {
     // Promote the account they already registered; never touch its password.
     await conn.query(
-      "UPDATE `User` SET role = ?, status = 'ACTIVE', emailVerifiedAt = COALESCE(emailVerifiedAt, UTC_TIMESTAMP(3)), updatedAt = UTC_TIMESTAMP(3) WHERE id = ?",
-      [role, existing.id]
+      "UPDATE `User` SET role = ?, roleId = ?, status = 'ACTIVE', emailVerifiedAt = COALESCE(emailVerifiedAt, UTC_TIMESTAMP(3)), updatedAt = UTC_TIMESTAMP(3) WHERE id = ?",
+      [role, roleId, existing.id]
     );
     console.log("\nPromoted " + email);
     console.log("  role:  " + role);
@@ -366,9 +381,9 @@ async function admin(conn) {
     // mustChangePassword: the site asks for a new password at first
     // sign-in, since this one was made up here rather than chosen.
     await conn.query(
-      "INSERT INTO `User` (id, email, name, handle, passwordHash, role, emailVerifiedAt, mustChangePassword, createdAt, updatedAt) " +
-        "VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))",
-      [cuid(), email, name, handle, passwordHash, role]
+      "INSERT INTO `User` (id, email, name, handle, passwordHash, role, roleId, emailVerifiedAt, mustChangePassword, createdAt, updatedAt) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))",
+      [cuid(), email, name, handle, passwordHash, role, roleId]
     );
     console.log("\nCreated " + email);
     console.log("  role:  " + role);

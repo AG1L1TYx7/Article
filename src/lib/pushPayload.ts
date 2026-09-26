@@ -39,6 +39,52 @@ export function breakingNewsPayload(article: { slug: string; title: string; dek:
   };
 }
 
+/**
+ * A verified report, to the district it concerns.
+ *
+ * The district is named in the title rather than the body because a
+ * notification is often read as one line on a lock screen, and "Rautahat"
+ * is what tells somebody in Rautahat that this is about them.
+ *
+ * The reporter is never named here, whether or not the report is
+ * anonymous. A push notification is the least controllable surface the
+ * platform has — it lands on a lock screen anybody nearby can read.
+ */
+export function issueInDistrictPayload(issue: {
+  slug: string;
+  title: string;
+  districtName: string;
+}): PushPayload {
+  return {
+    title: truncate(`${issue.districtName}: a verified report`, TITLE_MAX),
+    body: truncate(issue.title, BODY_MAX),
+    url: `/issues/${issue.slug}`,
+    tag: `issue-${issue.slug}`,
+  };
+}
+
+/** Something happened to a report this person filed. */
+export function yourIssueUpdatedPayload(issue: {
+  slug: string;
+  title: string;
+  status: string;
+}): PushPayload {
+  const what =
+    issue.status === "PUBLISHED"
+      ? "Your report has been published"
+      : issue.status === "REJECTED"
+        ? "Your report could not be verified"
+        : issue.status === "RESOLVED"
+          ? "Your report was marked resolved"
+          : "Your report has been updated";
+  return {
+    title: truncate(what, TITLE_MAX),
+    body: truncate(issue.title, BODY_MAX),
+    url: `/issues/${issue.slug}`,
+    tag: `issue-own-${issue.slug}`,
+  };
+}
+
 export function commentReplyPayload(input: {
   actorName: string;
   articleSlug: string;

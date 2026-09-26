@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LegalLanguageNotice } from "@/components/LegalLanguageNotice";
 import Link from "next/link";
 import { activeProcessors, LEGAL, LEGAL_COMPLETE, RETENTION } from "@/lib/legal";
+import { getSmtpConfig } from "@/lib/smtp";
 
 export const metadata: Metadata = {
   title: "Privacy policy",
@@ -24,8 +25,13 @@ function Missing({ what }: { what: string }) {
  * can supply — who they are, where, how to reach them — come from the
  * environment and are marked in yellow until they are.
  */
-export default function PrivacyPage() {
-  const processors = activeProcessors();
+export default async function PrivacyPage() {
+  // The mail route is a runtime setting, so the policy has to name
+  // whichever server actually carries verification and reset messages.
+  const smtp = await getSmtpConfig();
+  const processors = activeProcessors({
+    smtpHost: smtp.enabled && smtp.host ? smtp.host : null,
+  });
 
   return (
     <main id="main-content" className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:px-6">

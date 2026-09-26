@@ -14,10 +14,107 @@ datasource db {
 // Identity & access
 // ---------------------------------------------------------------------------
 
+/**
+ * The coarse tier an account sits in.
+ *
+ * Kept, now that roles are editable data, because it is what decides
+ * whether somebody may open /dashboard at all (src/proxy.ts) and whether
+ * two-factor authentication is compulsory — questions that have to be
+ * answerable from the session token on every single request, before any
+ * permission is consulted.
+ *
+ * `User.role` is a denormalised copy of `Role.tier`. There is exactly one
+ * place that writes it — assignRole() in lib/auth/roleAssignment.ts, which
+ * writes both columns in one transaction — so the two cannot drift. Read
+ * it for routing; read permissions for anything about what somebody may
+ * actually do.
+ */
 enum Role {
   READER
   MODERATOR
   ADMIN
+}
+
+/**
+ * A named bundle of permissions, editable by an administrator.
+ *
+ * Three are seeded and marked isSystem: reader, moderator and admin,
+ * reproducing exactly what the hard-coded roles did before. Any number of
+ * others can be built out of the catalogue in lib/auth/permissions.ts —
+ * "sub-editor", "contributor", "community manager".
+ */
+model UserRole {
+  id          String   @id @default(cuid())
+  /** Stable identifier used in code and seeds; immutable for system roles. */
+  key         String   @unique
+  name        String
+  description String?  @db.Text
+  /** Which coarse tier holding this role puts an account in. */
+  tier        Role     @default(READER)
+  /** Seeded with the site. Cannot be deleted; its key cannot change. */
+  isSystem    Boolean  @default(false)
+  /** Additionally cannot lose the permissions that keep the site administrable. */
+  isProtected Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       User[]
+
+  @@index([tier])
+}
+
+/**
+ * One permission granted to one role.
+ *
+ * A row per grant rather than a JSON column, so that "who can publish?"
+ * is a query rather than a scan, and so a permission removed from the
+ * catalogue can be found and cleaned up.
+ */
+model RolePermission {
+  roleId     String
+  /** A key from lib/auth/permissions.ts. Validated on write, never trusted on read. */
+  permission String
+
+  role UserRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@index([permission])
+}
+
+/** How an account proves a second factor. See User.mfaMethod. */
+enum MfaMethod {
+  /** An authenticator app. The only method an administrator may use. */
+  TOTP
+  /** A six-digit code emailed to the address on the account. */
+  EMAIL
+}
+
+/**
+ * The one live email code for an account.
+ *
+ * Its own table rather than a VerificationToken row, for one reason: a
+ * six-digit code has a million possible values, so it can only be safe if
+ * guesses are counted and cut off. `attempts` is that counter, and
+ * VerificationToken — shared with email verification and password reset —
+ * has nowhere to put it.
+ *
+ * One row per account (userId is unique), so asking for a new code
+ * replaces the old one rather than leaving several valid at once.
+ */
+model EmailOtp {
+  userId    String   @id
+  /** HMAC of the code keyed by AUTH_SECRET — never the code itself. */
+  codeHash  String
+  expiresAt DateTime
+  /** Wrong guesses so far. The row is destroyed once this hits the cap. */
+  attempts  Int      @default(0)
+  /** Rate-limits resends without needing a second table. */
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 enum UserStatus {
@@ -47,10 +144,36 @@ model User {
   bio                String?    @db.Text
   handle             String     @unique
   avatarUrl          String?
+  /**
+   * Coarse tier, denormalised from UserRole.tier — see the note on the
+   * Role enum. Written only by assignRole(), alongside roleId.
+   */
   role               Role       @default(READER)
+  /** The role this account holds. Null on accounts made before roles existed. */
+  roleId             String?
+  /**
+   * Where this member says they live.
+   *
+   * What makes "the people around them are told" possible at all. Optional,
+   * and it must stay optional: somebody reporting on their own district may
+   * not want to be listed as living in it, and a platform that demanded a
+   * location before letting anybody read would lose the readers it exists
+   * for.
+   */
+  districtId         String?
   status             UserStatus @default(ACTIVE)
   mfaSecret          String?
   mfaEnabled         Boolean    @default(false)
+  /**
+   * Which second factor this account uses, once mfaEnabled is true.
+   *
+   * TOTP is an authenticator app and is the only method an administrator
+   * may use — mandatory, enforced in src/proxy.ts. EMAIL sends a six-digit
+   * code to the address on the account: weaker, because whoever holds the
+   * mailbox holds the factor, but it asks nothing of a member beyond an
+   * inbox they already have. Null while mfaEnabled is false.
+   */
+  mfaMethod          MfaMethod?
   // One-time codes for a lost authenticator: a JSON array of keyed
   // hashes, each removed as it is used. Shown to the person once, at
   // enrolment. See lib/auth/recoveryCodes.ts.
@@ -92,6 +215,9 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  userRole            UserRole?          @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  district            District?          @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  emailOtp            EmailOtp?
   accounts            Account[]
   sessions            Session[]
   articles            Article[]          @relation("ArticleAuthor")
@@ -107,6 +233,11 @@ model User {
   notifications       Notification[]     @relation("NotificationRecipient")
   causedNotifications Notification[]     @relation("NotificationActor")
   pushSubscriptions   PushSubscription[]
+  /** Reports this member raised, and reports they checked. */
+  issuesReported         Issue[]        @relation("IssueReporter")
+  issuesVerified         Issue[]        @relation("IssueVerifier")
+  contributions          Contribution[] @relation("ContributionDonor")
+  contributionsConfirmed Contribution[] @relation("ContributionConfirmer")
 
   @@index([role])
   @@index([status])
@@ -128,9 +259,18 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
 
+  // When this provider was connected. Shown on the account page ("Google,
+  // connected 3 March"), included in the data export, and the timestamp an
+  // audit entry is checked against if a linking is ever questioned.
+  createdAt DateTime @default(now())
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  // No @@index([userId]) here on purpose. MySQL creates one automatically
+  // for the foreign key above, and declaring it as well makes Prisma
+  // generate a migration that drops the implicit index to rename it —
+  // which MariaDB refuses, because the constraint still needs it.
 }
 
 model Session {
@@ -153,6 +293,86 @@ model VerificationToken {
 // ---------------------------------------------------------------------------
 // Content
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Where things happen
+//
+// Nepal's administrative structure, as the constitution defines it: seven
+// provinces, seventy-seven districts, and 753 local levels beneath them.
+// This is the spine of the platform rather than a lookup table on the side
+// — an issue is raised from a place, members are alerted because of where
+// they are, and any collaboration with a local or provincial government is
+// bounded by one of these.
+//
+// Modelled as real rows, not as free text, for three reasons. Two people
+// typing "Kathmandu" and "काठमाडौँ" must reach the same district or the
+// alerting is silently wrong. A district has to carry both names so the
+// interface can be Nepali without a second table. And a government body
+// that ever receives a report from here will expect the same boundaries it
+// uses itself.
+//
+// Local levels (municipalities and rural municipalities) are modelled but
+// not seeded: there are 753 of them and a half-remembered list is worse
+// than none, because it looks authoritative. District is the finest
+// granularity anything depends on today, and Municipality is here so that
+// adding it later is a seed rather than a migration.
+
+model Province {
+  id        String @id
+  /** English name, as the Election Commission and the gazette write it. */
+  name      String @unique
+  /** Devanagari, for the Nepali interface. */
+  nameNe    String
+  /** Where the provincial government sits. */
+  capital   String
+  /** 1-7, the number the province was known by before it was named. */
+  number    Int    @unique
+
+  districts District[]
+  issues    Issue[]
+
+  @@index([number])
+}
+
+model District {
+  id         String @id
+  name       String
+  nameNe     String
+  provinceId String
+
+  province       Province       @relation(fields: [provinceId], references: [id])
+  municipalities Municipality[]
+  /** Members who say they live here, so an alert can find them. */
+  residents      User[]
+  issues         Issue[]
+
+  @@unique([provinceId, name])
+  @@index([provinceId])
+}
+
+/** A local level: metropolitan, sub-metropolitan, municipality or rural municipality. */
+model Municipality {
+  id         String           @id
+  name       String
+  nameNe     String
+  kind       MunicipalityKind
+  districtId String
+  /** How many wards it is divided into; a ward number above this is invalid. */
+  wards      Int              @default(0)
+
+  district District @relation(fields: [districtId], references: [id])
+  issues   Issue[]
+
+  @@unique([districtId, name])
+  @@index([districtId])
+}
+
+enum MunicipalityKind {
+  METROPOLITAN
+  SUB_METROPOLITAN
+  MUNICIPALITY
+  RURAL_MUNICIPALITY
+}
 
 enum ArticleStatus {
   DRAFT
@@ -246,6 +466,8 @@ model Category {
   description String?
   articles    Article[]
   follows     Follow[]
+  /** The same taxonomy serves both: one "corruption" section, not two. */
+  issues      Issue[]
 }
 
 model Tag {
@@ -330,6 +552,7 @@ model Media {
   // A written version of audio or video, for readers who cannot hear it
   // and for search engines. Optional but strongly encouraged.
   transcript        String?       @db.Text
+  issues            IssueMedia[]
 
   uploadedBy User      @relation(fields: [uploadedById], references: [id])
   articles   Article[] @relation("ArticleMedia")
@@ -472,6 +695,10 @@ enum NotificationType {
   COMMENT_REPLY
   COMMENT_APPROVED
   BREAKING_NEWS
+  /** A verified report was published in the district this member lives in. */
+  ISSUE_IN_YOUR_DISTRICT
+  /** Something happened to a report this member filed themselves. */
+  YOUR_ISSUE_UPDATED
 }
 
 // Tells a reader that something happened to their contribution: someone
@@ -483,6 +710,270 @@ enum NotificationType {
 // Site-wide settings an admin changes from the dashboard: one row per
 // key, JSON value. Read through lib/settings.ts, which supplies defaults
 // and a short cache, never directly.
+// ---------------------------------------------------------------------------
+// Issues raised by people
+//
+// The core loop this platform exists for: somebody reports something where
+// they live, it is checked before anybody else sees it, and once published
+// the people around them are told.
+//
+// Deliberately NOT an Article with a flag. An article is written by staff
+// and published because staff decided to; an issue is submitted by a member
+// who is not trusted yet, must be verified before it is visible, carries a
+// location that decides who hears about it, and can be resolved later. The
+// two share almost nothing but a title and a body, and folding them
+// together would mean every article query carries "and not an unverified
+// report from the public" — the kind of condition somebody eventually
+// forgets, on the query where forgetting it publishes an unchecked
+// accusation.
+//
+// Nothing here reaches the public until status is PUBLISHED, and that is
+// enforced in one module rather than hoped for at each call site.
+
+enum IssueStatus {
+  /** Submitted by a member. Visible to the reporter and to verifiers only. */
+  SUBMITTED
+  /** A verifier has taken it on, so two people do not chase the same thing. */
+  UNDER_REVIEW
+  /** Checked out. Ready to publish, but not yet public. */
+  VERIFIED
+  /** Public, and the district has been told. */
+  PUBLISHED
+  /** Could not be substantiated. The reporter is told why. */
+  REJECTED
+  /** The thing complained about was actually dealt with. */
+  RESOLVED
+}
+
+model Issue {
+  id        String @id @default(cuid())
+  /** Stable public reference somebody can quote to an official. */
+  reference String @unique
+  slug      String @unique
+  title     String
+  body      String @db.Text
+
+  /**
+   * Who raised it.
+   *
+   * Kept even when the report is published anonymously - see `anonymous`.
+   * A verifier has to be able to ask a follow-up question, and a report
+   * nobody can go back to cannot be verified at all.
+   */
+  reporterId String
+  /**
+   * Publish without the reporter's name attached.
+   *
+   * A safety feature, not a preference. Somebody reporting corruption in
+   * their own municipality can be identified by their neighbours from a
+   * byline alone. When this is set, no public surface may render the
+   * reporter - enforced in lib/issues.ts, which is the only module that
+   * decides what leaves the server.
+   */
+  anonymous  Boolean @default(false)
+
+  /** Which of the platform's sectors this belongs to. */
+  categoryId String?
+
+  /** Where it happened. District is required: it is what alerting uses. */
+  provinceId     String
+  districtId     String
+  municipalityId String?
+  /** Ward number within the municipality, when the reporter knows it. */
+  ward           Int?
+
+  status IssueStatus @default(SUBMITTED)
+
+  /** Who checked it, when, and what they concluded. */
+  verifiedById String?
+  verifiedAt   DateTime?
+  /** Shown to the reporter on a rejection; internal otherwise. */
+  reviewNote   String?   @db.Text
+
+  publishedAt    DateTime?
+  resolvedAt     DateTime?
+  resolutionNote String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reporter     User          @relation("IssueReporter", fields: [reporterId], references: [id])
+  verifiedBy   User?         @relation("IssueVerifier", fields: [verifiedById], references: [id])
+  category     Category?     @relation(fields: [categoryId], references: [id])
+  province     Province      @relation(fields: [provinceId], references: [id])
+  district     District      @relation(fields: [districtId], references: [id])
+  municipality Municipality? @relation(fields: [municipalityId], references: [id])
+  media        IssueMedia[]
+  notifications Notification[]
+
+  /** The verifier queue reads by status; the public list reads by district. */
+  @@index([status, createdAt])
+  @@index([districtId, status])
+  @@index([provinceId, status])
+  @@index([reporterId])
+}
+
+/**
+ * Photographs and video attached to a report.
+ *
+ * Its own join rather than a column on Media, because evidence belongs to
+ * the issue and Media is already shared by articles and avatars. Every
+ * file still goes through the same pipeline - magic-byte typing, a sharp
+ * re-encode that strips EXIF, and the malware scan where one is
+ * configured. Stripping EXIF matters more here than anywhere else on the
+ * site: a photograph of something somebody was not supposed to photograph
+ * usually carries the coordinates of where they stood to take it.
+ */
+model IssueMedia {
+  issueId String
+  mediaId String
+  sort    Int    @default(0)
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, mediaId])
+  @@index([mediaId])
+}
+
+// ---------------------------------------------------------------------------
+// Membership and donations
+//
+// Money, which is unlike everything else in this schema in three ways that
+// shape all of it.
+//
+// **Amounts are integers, in paisa.** Never a float, never a decimal
+// column read into a JavaScript number. 0.1 + 0.2 is not 0.3 in binary
+// floating point, and a platform that collects donations and cannot add
+// them up is finished before anybody audits it. One rupee is 100 paisa;
+// every amount here is paisa and every display divides at the edge.
+//
+// **No card details, ever.** Not encrypted, not hashed, not "just the last
+// four". This schema holds a provider name and the reference that provider
+// gave back, and nothing else — which is what keeps the platform out of
+// PCI scope entirely rather than merely compliant with it.
+//
+// **Records outlive accounts.** A contribution is a financial record, and
+// an organisation collecting money has to be able to account for what it
+// received long after a donor closes their account. So `userId` is
+// nullable and set null on deletion rather than cascading, and the
+// donor's name is copied onto the row at the time — see `donorName`.
+
+enum ContributionKind {
+  /** A single gift. */
+  ONE_OFF
+  /** A membership payment, covering a period. */
+  MEMBERSHIP
+}
+
+enum ContributionStatus {
+  /** Recorded, money not yet confirmed. Every contribution starts here. */
+  PENDING
+  /** Money received. The only status that counts towards any total. */
+  CONFIRMED
+  /** The payment did not complete. */
+  FAILED
+  /** Confirmed and later returned. Kept, never deleted. */
+  REFUNDED
+}
+
+/**
+ * A membership somebody can buy.
+ *
+ * Rows rather than constants, because what a movement asks for changes —
+ * and because a tier that existed when somebody paid must keep existing
+ * afterwards, so contributions can still name it. Deactivated rather than
+ * deleted for that reason.
+ */
+model MembershipTier {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  name        String
+  description String? @db.Text
+  /** In paisa. 50000 is Rs 500. */
+  amountPaisa Int
+  currency    String  @default("NPR")
+  /** How long one payment covers. 12 is a yearly membership. */
+  intervalMonths Int  @default(12)
+  isActive    Boolean @default(true)
+  sort        Int     @default(0)
+
+  contributions Contribution[]
+
+  @@index([isActive, sort])
+}
+
+model Contribution {
+  id        String @id @default(cuid())
+  /** Quotable on a receipt and in a bank narration. */
+  reference String @unique
+
+  kind   ContributionKind
+  status ContributionStatus @default(PENDING)
+
+  /**
+   * The contributor's account, when they had one.
+   *
+   * Nullable and SetNull on deletion: somebody may give without
+   * registering, and somebody who deletes their account does not thereby
+   * erase the organisation's record of money it received. What is erased
+   * is the link; `donorName` below is what remains, and a donor who asked
+   * to be anonymous has nothing to erase because nothing was stored.
+   */
+  userId String?
+
+  /**
+   * The name to show and to put on the receipt, copied at the time.
+   *
+   * Copied rather than read through the relation because a receipt must
+   * say what it said when it was issued, and because the account may be
+   * gone. Null when the contribution is anonymous.
+   */
+  donorName String?
+  /** Do not show this contributor's name anywhere public. */
+  anonymous Boolean @default(false)
+  /** For a receipt, when the contributor is not a registered member. */
+  donorEmail String?
+
+  /** In paisa. Always positive; a refund is a status, not a sign. */
+  amountPaisa Int
+  currency    String @default("NPR")
+
+  tierId String?
+  /** Membership only: the period this payment covers. */
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  /**
+   * How the money arrived: "manual" for a bank transfer somebody confirmed
+   * by hand, or a gateway's name once one is connected.
+   */
+  provider    String
+  /** The gateway's own transaction id, or a bank reference typed in. */
+  providerRef String?
+
+  /** Anything the contributor wrote, and anything staff noted. */
+  message   String? @db.Text
+  staffNote String? @db.Text
+
+  /** Who confirmed the money arrived, for a payment confirmed by hand. */
+  confirmedById String?
+  confirmedAt   DateTime?
+  refundedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User?           @relation("ContributionDonor", fields: [userId], references: [id], onDelete: SetNull)
+  confirmedBy User?           @relation("ContributionConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  tier        MembershipTier? @relation(fields: [tierId], references: [id])
+
+  /** The queue reads by status; a member's own history reads by user. */
+  @@index([status, createdAt])
+  @@index([userId, status])
+  @@index([provider, providerRef])
+}
+
 model SiteSetting {
   key       String   @id
   value     Json
@@ -549,6 +1040,7 @@ model Notification {
   actorId   String?
   articleId String?
   commentId String?
+  issueId   String?
   readAt    DateTime?
   createdAt DateTime         @default(now())
 
@@ -556,6 +1048,7 @@ model Notification {
   actor   User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
   article Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
   comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  issue   Issue?   @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   // Idempotency, not just tidiness: a comment can reach APPROVED more than
   // once (held, approved, edited back to held, approved again), and each
@@ -567,6 +1060,10 @@ model Notification {
   // repeat in a unique index. Someone following both an author and the
   // section they published in would otherwise be told twice.
   @@unique([userId, type, articleId])
+  // Same reasoning as the two above: a report can be published, resolved
+  // and corrected, and each path tries to tell the district. One row per
+  // person per report per kind.
+  @@unique([userId, type, issueId])
   @@index([userId, readAt])
   @@index([userId, createdAt])
 }

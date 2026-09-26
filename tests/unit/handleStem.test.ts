@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+import { handleStem } from "@/lib/auth/handleStem";
+
+/**
+ * The public @name derived for somebody who signed up with Google.
+ *
+ * Worth testing as its own unit because the result is published on every
+ * comment they write, and because the rule it has to satisfy is enforced
+ * by a unique index and a regex elsewhere — a stem that breaks either one
+ * fails at sign-up, which is the worst possible moment to find out.
+ */
+describe("handleStem", () => {
+  it("turns a name into a slug", () => {
+    expect(handleStem("Ana Sharma")).toBe("ana-sharma");
+  });
+
+  it("folds accents to ASCII rather than dropping the letters", () => {
+    // "Émile Zolá" must not become "mile-zol".
+    expect(handleStem("Émile Zolá")).toBe("emile-zola");
+  });
+
+  it("drops apostrophes instead of turning them into separators", () => {
+    expect(handleStem("O'Brien")).toBe("obrien");
+    expect(handleStem("O’Brien")).toBe("obrien");
+  });
+
+  it("collapses runs of punctuation and trims the ends", () => {
+    expect(handleStem("  --John   Q.  Public--  ")).toBe("john-q-public");
+  });
+
+  it("returns nothing usable for a name with no ASCII form", () => {
+    // Devanagari and Han have no sensible transliteration here, and
+    // publishing mojibake would be worse than falling back.
+    expect(handleStem("प्रबिन")).toBe("");
+    expect(handleStem("张伟")).toBe("");
+    expect(handleStem("🙂")).toBe("");
+  });
+
+  it("handles a missing name", () => {
+    expect(handleStem(null)).toBe("");
+    expect(handleStem(undefined)).toBe("");
+    expect(handleStem("")).toBe("");
+  });
+
+  it("never exceeds the length a handle is allowed to be", () => {
+    // 30 is the maximum; the stem is capped below it to leave room for
+    // the "-1234" a collision adds.
+    const stem = handleStem("Bartholomew Montgomery Fitzwilliam Wellington the Third");
+    expect(stem.length).toBeLessThanOrEqual(25);
+    expect(stem.endsWith("-")).toBe(false);
+  });
+
+  it("only ever produces characters a handle may contain", () => {
+    const rule = /^[a-z0-9_-]*$/;
+    for (const name of [
+      "Ana Sharma",
+      "Émile Zolá",
+      "O'Brien",
+      "J. R. R. Tolkien",
+      "Æthelred the Unready",
+      "user@example.com",
+      "<script>alert(1)</script>",
+      "Ana\u0000Sharma",
+    ]) {
+      expect(handleStem(name)).toMatch(rule);
+    }
+  });
+
+  it("does not let a name smuggle markup into a public identifier", () => {
+    expect(handleStem("<script>alert(1)</script>")).toBe("script-alert-1-script");
+  });
+});

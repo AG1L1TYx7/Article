@@ -7,7 +7,7 @@ import { answerMfaIfPrompted, mfaColumnsSql } from "./support/staff";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteTo(role: "ADMIN" | "MODERATOR", email: string) {
-  sql(`UPDATE \`User\` SET role = '${role}'${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('${role}') SET u.role = '${role}', u.roleId = r.id${role === "MODERATOR" ? `, ${mfaColumnsSql()}` : ""} WHERE u.email = '${email}';`);
 }
 
 function markEmailVerified(email: string) {

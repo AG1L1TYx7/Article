@@ -51,9 +51,12 @@ export async function recordAuthEvent(entry: {
     | "auth.login.blocked"
     | "auth.mfa.device_trusted"
     | "auth.mfa.device_forgotten"
+    | "auth.mfa.enabled"
+    | "auth.mfa.disabled"
     // A recovery code was used in place of the authenticator. Worth
     // noticing: either the phone is lost, or someone has the codes.
-    | "auth.mfa.recovery_used";
+    | "auth.mfa.recovery_used"
+    | "auth.sessions.revoked";
   metadata?: Prisma.InputJsonValue;
   ip?: string | null;
 }): Promise<void> {

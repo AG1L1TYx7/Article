@@ -86,3 +86,59 @@ export async function guardAction<T>(
     throw err;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Permissions
+//
+// Roles became editable data (prisma/schema.prisma, lib/auth/permissions.ts),
+// so what somebody may do is no longer answerable from their tier alone. New
+// code should gate on a permission; requireRole above is kept because the
+// tier still decides two things a permission cannot — whether /dashboard
+// opens at all, and whether two-factor is compulsory — and because changing
+// three dozen call sites in one go would be a poor trade for a feature whose
+// whole point is that it can be adopted gradually.
+//
+// The permission list rides on the session token, refreshed from the database
+// by the jwt callback on every request exactly as the role is, so a permission
+// taken away takes effect on the very next request rather than whenever the
+// token happens to expire. That is the same guarantee revoking a role has, and
+// it is why these checks cost no extra query.
+
+/** Whether this session holds a permission. No database call. */
+export function sessionHas(
+  session: { user?: { permissions?: string[] } } | null,
+  permission: string
+): boolean {
+  return session?.user?.permissions?.includes(permission) ?? false;
+}
+
+/**
+ * Server-side permission gate. Call it at the top of every server action and
+ * route handler that mutates privileged state.
+ *
+ * Pass several to require any one of them — "article.edit.any" OR
+ * "article.edit.own", say, where the caller then narrows by ownership.
+ */
+export async function requirePermission(...permissions: string[]) {
+  const session = await auth();
+  if (!session?.user) throw new UnauthorizedError();
+  const held = session.user.permissions ?? [];
+  if (!permissions.some((p) => held.includes(p))) {
+    throw new ForbiddenError("You do not have permission to do that.");
+  }
+  return session;
+}
+
+/**
+ * Permission gate plus a confirmed email address, for the actions an
+ * unverified account must not be able to take — publishing, uploading media,
+ * commenting. See requireVerifiedEmail above for why emailConfirmed is free
+ * to read here.
+ */
+export async function requireVerifiedPermission(...permissions: string[]) {
+  const session = await requirePermission(...permissions);
+  if (!session.user.emailConfirmed) {
+    throw new ForbiddenError("Verify your email address before doing that.");
+  }
+  return session;
+}

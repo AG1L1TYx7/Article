@@ -9,6 +9,7 @@ import { createToken } from "@/lib/auth/tokens";
 import { sendEmail, verificationEmail } from "@/lib/email";
 import { getBaseUrl } from "@/lib/url";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { defaultRoleId } from "@/lib/auth/roleService";
 
 export interface RegisterResult {
   ok: boolean;
@@ -74,7 +75,16 @@ export async function registerUser(formData: FormData): Promise<RegisterResult> 
   const passwordHash = await hashPassword(password);
 
   await db.user.create({
-    data: { name, handle, email, passwordHash, termsAcceptedAt: new Date() },
+    data: {
+      name,
+      handle,
+      email,
+      passwordHash,
+      termsAcceptedAt: new Date(),
+      // Without a role an account holds no permissions at all — it could
+      // not even comment, and nothing on screen would explain why.
+      roleId: await defaultRoleId(),
+    },
   });
 
   const token = await createToken("email-verify", email, EMAIL_VERIFY_TTL_MS);

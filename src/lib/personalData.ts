@@ -65,6 +65,13 @@ export async function exportPersonalData(userId: string) {
       reports: { select: { reason: true, status: true, createdAt: true, commentId: true, articleId: true } },
       notifications: { select: { type: true, createdAt: true, readAt: true } },
       pushSubscriptions: { select: { endpoint: true, createdAt: true, lastUsedAt: true } },
+      // Which external sign-in methods are connected, and since when.
+      // Deliberately not the tokens beside them: an access or id token is
+      // a live credential for somebody else's system, and handing one to
+      // whoever downloads this file — over email, onto a shared drive —
+      // would be creating a risk, not serving a right. Same reasoning as
+      // the password hash and the MFA secret above.
+      accounts: { select: { provider: true, createdAt: true } },
       articles: { select: { title: true, slug: true, status: true, publishedAt: true } },
       auditLogs: {
         orderBy: { createdAt: "desc" },

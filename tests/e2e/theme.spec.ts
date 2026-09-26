@@ -76,10 +76,10 @@ test.describe("Theme", () => {
 
   test("the choice is translated with the rest of the interface", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("contentinfo").getByRole("button", { name: "Español" }).click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "es");
-    const toggle = page.getByRole("contentinfo").getByRole("radiogroup", { name: "Tema" });
-    await expect(toggle.getByRole("radio", { name: "Oscuro" })).toBeVisible();
+    await page.getByRole("contentinfo").getByRole("button", { name: "नेपाली" }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "ne");
+    const toggle = page.getByRole("contentinfo").getByRole("radiogroup", { name: "थिम" });
+    await expect(toggle.getByRole("radio", { name: "अँध्यारो" })).toBeVisible();
     // And the language switch is now in the masthead too, back to English.
     await expect(page.getByRole("banner").getByRole("button", { name: "English" })).toBeVisible();
   });

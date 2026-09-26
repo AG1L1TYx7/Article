@@ -18,11 +18,12 @@ const daysAgo = (days: number, now: Date) => new Date(now.getTime() - days * 24 
 
 export async function runRetention(
   now: Date = new Date()
-): Promise<{ auditLogs: number; notifications: number; ips: number; tokens: number; pushSubscriptions: number } | null> {
+): Promise<{ auditLogs: number; notifications: number; ips: number; tokens: number; pushSubscriptions: number; signInCodes: number; rejectedIssues: number } | null> {
   if (now.getTime() - lastRun < MIN_INTERVAL_MS) return null;
   lastRun = now.getTime();
 
-  const [auditLogs, notifications, ips, tokens, pushSubscriptions] = await Promise.all([
+  const [auditLogs, notifications, ips, tokens, pushSubscriptions, signInCodes, rejectedIssues] =
+    await Promise.all([
     db.auditLog.deleteMany({ where: { createdAt: { lt: daysAgo(RETENTION.auditLogDays, now) } } }),
     db.notification.deleteMany({ where: { createdAt: { lt: daysAgo(RETENTION.notificationDays, now) } } }),
     // The IP of a sign-in months ago tells nobody anything useful.
@@ -35,6 +36,19 @@ export async function runRetention(
     db.verificationToken.deleteMany({ where: { expires: { lt: daysAgo(1, now) } } }),
     // A device the push service has rejected for a month is not coming back.
     db.pushSubscription.deleteMany({ where: { failedAt: { lt: daysAgo(RETENTION.pushFailedDays, now) } } }),
+    // Sign-in codes live ten minutes. An expired one is already refused
+    // by lib/auth/emailOtp.ts; this is so the rows do not accumulate
+    // forever for people who asked for a code and then wandered off.
+    db.emailOtp.deleteMany({ where: { expiresAt: { lt: now } } }),
+    // A report nobody could verify, deleted outright rather than
+    // anonymised. Anonymising keeps the accusation and loses only the
+    // reporter; here the accusation is the thing that was never
+    // substantiated, so keeping it would leave an unchecked claim about a
+    // named official sitting in the database indefinitely. The reporter
+    // has already been told why. See RETENTION.rejectedIssueDays.
+    db.issue.deleteMany({
+      where: { status: "REJECTED", updatedAt: { lt: daysAgo(RETENTION.rejectedIssueDays, now) } },
+    }),
   ]);
 
   return {
@@ -43,5 +57,7 @@ export async function runRetention(
     ips: ips.count,
     tokens: tokens.count,
     pushSubscriptions: pushSubscriptions.count,
+    signInCodes: signInCodes.count,
+    rejectedIssues: rejectedIssues.count,
   };
 }

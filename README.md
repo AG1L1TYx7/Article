@@ -45,8 +45,27 @@ the sitemap, the RSS feed and every share card use to build absolute URLs.
 (`SITE_URL` overrides it if the two ever need to differ.)
 
 `AUTH_SECRET` can be generated with `openssl rand -base64 32`. It also keys
-the encryption of stored MFA secrets, so changing it invalidates every
-enrolled authenticator.
+the encryption of stored MFA secrets and the signed tokens behind Google
+sign-in, so changing it invalidates every enrolled authenticator and any
+sign-in half-way through.
+
+**Sign in with Google** is optional and off until you set
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The redirect URI Google
+needs is the full callback path — `https://your-domain/api/auth/callback/google`,
+not the origin — and [docs/google-sign-in.md](docs/google-sign-in.md)
+covers the rest, including why an existing account is only ever linked when
+both sides have verified the address.
+
+### Two-factor: an app for admins, an emailed code for everyone else
+
+Two methods. An **authenticator app** is required for administrators and
+optional for everyone else. An **emailed six-digit code** is available to
+members and moderators, and refused to administrators — whoever holds the
+mailbox holds that factor, which is not enough for an account that can
+publish on behalf of the platform. Nobody is forced into either except
+administrators. See [docs/two-factor.md](docs/two-factor.md), and note
+that the emailed code makes `RESEND_API_KEY` a sign-in dependency for
+anybody who turns it on.
 
 ### Staff must enrol MFA
 
@@ -79,6 +98,8 @@ before you have signed up for a single third-party service:
 | `S3_*` | Uploads are stored in `./.local-uploads` |
 | `UPSTASH_REDIS_REST_*` | Rate limiting uses an in-process counter |
 | `TURNSTILE_*` | The registration CAPTCHA is skipped |
+| `RESEND_API_KEY` (again) | Sign-in codes go to the log file too — so the emailed second factor cannot be used for real |
+| `GOOGLE_CLIENT_*` | "Sign in with Google" is not offered; email and password only |
 | `CLAMAV_HOST` | Uploads are not malware-scanned; the re-encode is the control (see [docs/media.md](docs/media.md)) |
 | `FFMPEG_PATH` | The `ffmpeg-static` binary from `npm install` re-encodes video and audio; with neither, those uploads are refused |
 
@@ -191,16 +212,44 @@ locks, with the lock doubling on each further attempt from two minutes up to a
 day — per account, so rotating accounts does not dodge it, and per IP at the
 rate-limit layer, so rotating targets does not either.
 
-TOTP MFA, mandatory for every newsroom account (moderators as well as
-admins), with secrets encrypted at rest (AES-256-GCM). Ten one-time
-recovery codes are issued at enrolment and stored only as keyed hashes;
-an admin can reset another account's second factor from the People page,
-which signs it out everywhere and forces a fresh enrolment. Readers are
-asked to confirm their email address but never blocked from reading,
-saving or following; only commenting and publishing require it. Sessions are JWTs, but every request re-reads the user's role,
+A second factor is mandatory for every newsroom account (moderators as
+well as admins), with authenticator secrets encrypted at rest
+(AES-256-GCM). Administrators must use the authenticator app in
+particular — whoever holds the mailbox holds an emailed factor, and an
+administrator can change what everybody else may do. For members and
+moderators an emailed six-digit code is a lighter alternative:
+HMAC-stored, single use, five guesses then destroyed, and never sent
+until the password has already been accepted. Ten one-time recovery
+codes are issued at enrolment and stored only as keyed hashes; an admin
+can reset another account's second factor from the People page, which
+signs it out everywhere and forces a fresh enrolment. Readers are asked
+to confirm their email address but never blocked from reading, saving or
+following; only commenting and publishing require it. Sessions are JWTs, but every request re-reads the user's role,
 status and `sessionVersion` from the database — so banning an account, or
 "log out everywhere", takes effect on the very next request rather than
 whenever the token happens to expire.
+
+**Membership and donations**, collected by bank transfer and confirmed by
+hand — no gateway, no card data, no PCI scope. Amounts are integers in
+paisa throughout, and only contributions a treasurer has confirmed against
+the bank count towards any published total. Collecting public donations in
+Nepal has legal prerequisites the code cannot satisfy; see
+[docs/support.md](docs/support.md).
+
+**Reported issues.** Members raise something happening where they live;
+nothing is published until somebody has checked it; once it is, people in
+that district are told. Verifying and publishing are separate permissions
+so one account cannot put an unchecked accusation in front of a district
+on its own, and an anonymous reporter's name never leaves the queue. See
+[docs/issues.md](docs/issues.md).
+
+**Roles are editable.** An administrator builds roles out of a fixed
+catalogue of permissions at `/dashboard/roles` and assigns them from the
+People page — "issue verifier" who can publish but not rewrite, "section
+moderator", "contributor". Three are seeded and cannot be deleted, and the
+rules that stop somebody removing the last account able to administer the
+site are in `lib/auth/roleService.ts`. See
+[docs/roles-and-permissions.md](docs/roles-and-permissions.md).
 
 **Authorization** is checked on the server for every mutation, in the server
 action or route handler itself. `src/proxy.ts` gates routes as well, but it is
@@ -266,7 +315,6 @@ soft-removed via status flags, never hard-deleted, so the trail survives.
 
 Stated plainly so nobody assumes otherwise:
 
-- **Google OAuth** is not scaffolded — it needs a Google Cloud OAuth client.
 - **Email, object storage, Redis rate limiting and the CAPTCHA** all run on
   local fallbacks until their keys are in `.env` (see `.env.example`).
 - **Malware scanning needs ClamAV running as a daemon** — the Docker setup

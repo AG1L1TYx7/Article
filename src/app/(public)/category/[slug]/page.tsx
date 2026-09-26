@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth/config";
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { FollowCategoryButton } from "./FollowCategoryButton";
+import { IssueCard } from "@/app/(public)/issues/IssueCard";
+import { listPublishedIssues } from "@/lib/issues";
 import { getI18n } from "@/i18n/server";
 
 const getCategory = cache(async (slug: string) =>
@@ -32,11 +35,11 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
   const category = await getCategory(slug);
   if (!category) notFound();
 
-  const { t, n } = await getI18n();
+  const { t, n, formatDate } = await getI18n();
   const session = await auth();
   const viewerId = session?.user?.id;
 
-  const [articles, followerCount, following] = await Promise.all([
+  const [articles, issues, followerCount, following] = await Promise.all([
     db.article.findMany({
       where: { categoryId: category.id, status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
@@ -54,6 +57,11 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
         coverImage: { select: { url: true, altText: true } },
       },
     }),
+    // A section is a place on this platform, not a shelf of articles.
+    // "Youth against corruption" means the reporting staff published *and*
+    // what people in the districts reported and had verified — showing one
+    // without the other would make half the work invisible.
+    listPublishedIssues({ categorySlug: slug, take: 10 }),
     db.follow.count({ where: { categoryId: category.id } }),
     viewerId
       ? db.follow.findFirst({ where: { followerId: viewerId, categoryId: category.id }, select: { id: true } })
@@ -81,7 +89,9 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
         />
       </header>
 
-      {!lead && <p className="mt-8 text-ink-2">{t("category.nothingYet")}</p>}
+      {!lead && issues.length === 0 && (
+        <p className="mt-8 text-ink-2">{t("category.nothingYet")}</p>
+      )}
 
       {lead && (
         <ul className="mt-8">
@@ -95,6 +105,25 @@ export default async function CategoryPage(props: PageProps<"/category/[slug]">)
             <ArticleCard key={article.id} article={article} variant="row" />
           ))}
         </ul>
+      )}
+
+      {issues.length > 0 && (
+        <section className="mt-12 border-t border-line pt-8" aria-labelledby="section-issues">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id="section-issues" className="section-title">
+              {t("category.reportedHere")}
+            </h2>
+            <Link href={`/issues`} className="text-sm text-link">
+              {t("category.allReports")}
+            </Link>
+          </div>
+          <p className="mt-1 text-sm text-ink-2">{t("category.reportedHereBlurb")}</p>
+          <div className="mt-5 grid gap-4">
+            {issues.map((issue) => (
+              <IssueCard key={issue.id} issue={issue} formatDate={formatDate} />
+            ))}
+          </div>
+        </section>
       )}
     </main>
   );

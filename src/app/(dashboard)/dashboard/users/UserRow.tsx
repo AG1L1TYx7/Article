@@ -12,7 +12,10 @@ export interface ManagedUser {
   name: string;
   email: string;
   handle: string;
+  /** Display name of the role they hold, e.g. "Section moderator". */
   role: string;
+  /** Id of that role — what the select submits. */
+  roleId: string | null;
   status: string;
   mfaEnabled: boolean;
   verified: boolean;
@@ -21,9 +24,22 @@ export interface ManagedUser {
   lastLoginAt: string | null;
 }
 
-const ROLES = ["READER", "MODERATOR", "ADMIN"];
+/** Every role that can be assigned, from the database. See RoleOption. */
+export interface RoleOption {
+  id: string;
+  name: string;
+  tier: string;
+}
 
-export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }) {
+export function UserRow({
+  user,
+  isSelf,
+  roles,
+}: {
+  user: ManagedUser;
+  isSelf: boolean;
+  roles: RoleOption[];
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +89,7 @@ export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }
         </label>
         <select
           id={`role-${user.id}`}
-          value={user.role}
+          value={user.roleId ?? ""}
           // Changing your own role is the one way to lock yourself out of
           // this page, so the control is not offered at all rather than
           // being offered and then refused.
@@ -81,9 +97,13 @@ export function UserRow({ user, isSelf }: { user: ManagedUser; isSelf: boolean }
           onChange={(e) => run(() => setUserRole(user.id, e.target.value))}
           className="input w-auto py-1 text-xs"
         >
-          {ROLES.map((role) => (
-            <option key={role} value={role}>
-              {role}
+          {/* Only reachable for an account that predates roles and was
+              somehow never backfilled. Shown so the select has something
+              to display rather than silently picking the first role. */}
+          {!user.roleId && <option value="">No role</option>}
+          {roles.map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.name}
             </option>
           ))}
         </select>

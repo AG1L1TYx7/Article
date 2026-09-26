@@ -14,7 +14,7 @@ import { answerMfaIfPrompted, mfaColumnsSql } from "./support/staff";
 const PASSWORD = "correct-horse-battery-staple";
 
 function promoteToModerator(email: string) {
-  sql(`UPDATE \`User\` SET role = 'MODERATOR', ${mfaColumnsSql()} WHERE email = '${email}';`);
+  sql(`UPDATE \`User\` u JOIN \`UserRole\` r ON r.\`key\` = LOWER('MODERATOR') SET u.role = 'MODERATOR', u.roleId = r.id, ${mfaColumnsSql()} WHERE u.email = '${email}';`);
 }
 
 function bumpSessionVersion(email: string) {

@@ -83,6 +83,16 @@ next-env.d.ts
 /backups/
 *.sql.gz
 
+# Local cPanel deploy toolkit (contains live credentials) - never commit
+/pp.virtualhost.at/
+
+# Playwright run logs written when capturing full output by hand.
+/e2e-*.log
+
+# An unrelated project that happens to live in this working directory on
+# one developer's machine. Ignored so `git add .` cannot pull a second
+# codebase into this repository; also ignored by ESLint (eslint.config.mjs).
+/donttouch/
 # SSH deploy key for GitHub Actions. The private half goes into a GitHub
 # secret and must never be committed.
 .deploy-key-tmp/
@@ -93,3 +103,7 @@ cpanel-dist.zip
 
 # Runtime state: the deploy restart marker (src/lib/restartOnDeploy.ts).
 /tmp/
+
+# Logs written when the suite starts a production server by hand.
+/.prod-server.log
+/.guard-test.log
