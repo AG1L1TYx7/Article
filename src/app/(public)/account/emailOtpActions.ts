@@ -79,6 +79,7 @@ export async function enableEmailOtp(): Promise<MfaMethodResult> {
   });
 
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }
 
@@ -111,5 +112,6 @@ export async function disableEmailOtp(): Promise<MfaMethodResult> {
   });
 
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }

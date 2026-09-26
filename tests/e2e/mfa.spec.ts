@@ -143,7 +143,7 @@ test.describe("MFA enrollment and TOTP login", () => {
     await expect(page.getByRole("heading", { name: "Enter your code" })).toHaveCount(0);
 
     // The account page knows, and can undo it.
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await expect(page.getByText("This browser is remembered")).toBeVisible();
     await page.getByRole("button", { name: "Forget this device" }).click();
     await expect(page.getByText("This browser is not remembered.")).toBeVisible();

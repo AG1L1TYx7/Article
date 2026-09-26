@@ -496,7 +496,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           owner.anonymisedAt ||
           owner.sessionVersion !== connect.sessionVersion
         ) {
-          return "/account?google=failed";
+          return "/account/settings?google=failed";
         }
 
         const alreadyLinked = await db.account.findUnique({
@@ -512,8 +512,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Connecting it here would either be a no-op or would quietly
           // move somebody else's sign-in method onto this account.
           return alreadyLinked.userId === owner.id
-            ? "/account?google=connected"
-            : "/account?google=taken";
+            ? "/account/settings?google=connected"
+            : "/account/settings?google=taken";
         }
 
         try {
@@ -524,9 +524,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ip,
           });
         } catch {
-          return "/account?google=failed";
+          return "/account/settings?google=failed";
         }
-        return "/account?google=connected";
+        return "/account/settings?google=connected";
       }
 
       const decision = await decideLinking({

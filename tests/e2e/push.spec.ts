@@ -135,7 +135,7 @@ test.describe("Push alerts", () => {
     const enabled = await pushEnabled(page.request);
     const stamp = Date.now();
     await registerAndLogin(page, `pushui+${stamp}@example.com`, `pushui${stamp}`);
-    await page.goto("/account");
+    await page.goto("/account/settings");
 
     await expect(page.getByRole("heading", { name: "Alerts on this device" })).toBeVisible();
     // Scoped to the section: the footer carries a second copy of the toggle.
