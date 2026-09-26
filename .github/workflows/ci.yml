@@ -175,7 +175,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       # Build only: proves the Dockerfile still works. Pushing to a
       # registry is a one-line addition once there is one to push to.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: false
