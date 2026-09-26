@@ -77,6 +77,7 @@ export async function updateProfile(input: {
     ip: await getClientIp(),
   });
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true, name };
 }
 
@@ -140,6 +141,7 @@ export async function requestEmailChange(input: {
     ip: await getClientIp(),
   });
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }
 
@@ -194,6 +196,7 @@ export async function startPhoneVerification(input: {
     ip: await getClientIp(),
   });
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true, masked: maskPhone(e164) };
 }
 
@@ -234,6 +237,7 @@ export async function confirmPhone(input: { code: string }): Promise<{ ok: boole
     ip: await getClientIp(),
   });
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }
 
@@ -259,6 +263,7 @@ export async function removePhone(): Promise<{ ok: boolean }> {
     ip: await getClientIp(),
   });
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }
 
@@ -308,7 +313,7 @@ export async function connectGoogle(): Promise<void> {
     maxAge: 10 * 60,
   });
 
-  await signIn("google", { redirectTo: "/account?google=connected" });
+  await signIn("google", { redirectTo: "/account/settings?google=connected" });
 }
 
 /**
@@ -356,6 +361,7 @@ export async function disconnectGoogle(): Promise<{ ok: boolean; error?: string 
   });
 
   revalidatePath("/account");
+  revalidatePath("/account/settings");
   return { ok: true };
 }
 

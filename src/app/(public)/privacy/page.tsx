@@ -264,7 +264,7 @@ export default async function PrivacyPage() {
         <h2>Your rights</h2>
         <p>
           Wherever you are, you can do all of the following yourself from{" "}
-          <Link href="/account">your account page</Link>, without asking us:
+          <Link href="/account/settings#privacy">your account settings</Link>, without asking us:
         </p>
         <ul>
           <li>

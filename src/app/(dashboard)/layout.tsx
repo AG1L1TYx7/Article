@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/Wordmark";
 import { initials } from "@/lib/format";
 import { DashboardNav } from "./DashboardNav";
 import { CommandPalette } from "@/components/dashboard/CommandPalette";
-import { ExternalIcon, LogoutIcon } from "@/components/icons";
+import { ArrowRightIcon, ExternalIcon, LogoutIcon, UserIcon } from "@/components/icons";
 import { getI18n } from "@/i18n/server";
 import { getTheme } from "@/theme/server";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -48,18 +48,27 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="mt-auto border-t border-line px-3 py-2 md:p-4">
           {/* Who is signed in — on a phone the nav row is enough, and this
               would push the page's own title below the fold. */}
-          <div className="hidden items-center gap-3 md:flex">
+          <Link
+            href="/account"
+            title={t("account.profileKicker")}
+            className="group -mx-2 hidden items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 transition-colors hover:border-line hover:bg-surface-2 md:flex"
+          >
             <span className="avatar h-9 w-9 text-xs">{initials(name ?? email ?? "?")}</span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{name}</p>
-              <p className="truncate text-xs text-ink-3">{email}</p>
-            </div>
-          </div>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{name}</span>
+              <span className="block truncate text-xs text-ink-3">{email}</span>
+            </span>
+            <ArrowRightIcon size={14} className="shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />
+          </Link>
           <div className="hidden items-center justify-between gap-2 md:mt-3 md:flex">
             <ThemeToggle initial={theme} />
             <LanguageSwitcher variant="compact" />
           </div>
           <div className="flex items-center gap-2 md:mt-3">
+            {/* On a phone the name block above is hidden; this is the way to the profile there. */}
+            <Link href="/account" className="btn btn-ghost btn-sm gap-1.5 md:hidden" aria-label={t("account.profileKicker")}>
+              <UserIcon size={14} />
+            </Link>
             <Link href="/" className="btn btn-ghost btn-sm flex-1 justify-start gap-1.5">
               <ExternalIcon size={14} /> {t("dashboard.viewSite")}
             </Link>

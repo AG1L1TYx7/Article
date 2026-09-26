@@ -49,7 +49,7 @@ export default async function MfaSettingsPage(props: PageProps<"/dashboard/mfa">
             municipality, that name is the most dangerous thing here — so a stolen password must
             not be enough to reach it. Set up either method and the queue unlocks. An emailed
             code is fine if you would rather not install an app; you can turn that on from your{" "}
-            <a href="/account" className="text-link">account page</a>.
+            <a href="/account/settings#security" className="text-link">account settings</a>.
           </p>
         )}
         {!session.user.mfaEnabled && (

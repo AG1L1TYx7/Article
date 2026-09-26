@@ -88,7 +88,7 @@ test.describe("Access and rectification", () => {
   test("a reader can set their first, last and preferred name and an about text", async ({ page }) => {
     const email = await register(page, "prname");
     await login(page, email);
-    await page.goto("/account");
+    await page.goto("/account/settings");
 
     const section = page.getByRole("region", { name: "Personal information" });
     await section.getByRole("button", { name: "Edit details" }).click();
@@ -117,7 +117,7 @@ test.describe("Access and rectification", () => {
   test("a profile needs a first name or a preferred name", async ({ page }) => {
     const email = await register(page, "prnoname");
     await login(page, email);
-    await page.goto("/account");
+    await page.goto("/account/settings");
     const section = page.getByRole("region", { name: "Personal information" });
     await section.getByRole("button", { name: "Edit details" }).click();
     await section.getByLabel("First name").fill("");
@@ -138,7 +138,7 @@ test.describe("Erasure", () => {
     // Personal details on the row, so erasure has something to erase.
     sql(`UPDATE \`User\` SET firstName = 'Erase', lastName = 'Me', preferredName = 'EM', bio = 'about' WHERE id = '${id}';`);
 
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await page.getByRole("button", { name: "Delete account" }).click();
     await page.getByLabel(/Type/).fill("delete my account");
     await page.getByLabel("Your password").fill(PASSWORD);
@@ -146,7 +146,7 @@ test.describe("Erasure", () => {
     await page.waitForURL(/\/\?deleted=1/);
 
     // Signed out, and nothing personal left on the row.
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await expect(page).toHaveURL(/\/login/);
     expect(scalar(`SELECT coalesce(id, '') FROM \`User\` WHERE email = '${email}';`)).toBeFalsy();
     expect(
@@ -166,7 +166,7 @@ test.describe("Erasure", () => {
   test("deletion needs the password", async ({ page }) => {
     const email = await register(page, "prdelpw");
     await login(page, email);
-    await page.goto("/account");
+    await page.goto("/account/settings");
     await page.getByRole("button", { name: "Delete account" }).click();
     await page.getByLabel(/Type/).fill("delete my account");
     await page.getByLabel("Your password").fill("not-the-password-at-all");

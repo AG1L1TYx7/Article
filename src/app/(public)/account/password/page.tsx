@@ -48,7 +48,7 @@ export default async function ChangePasswordPage(props: PageProps<"/account/pass
         }
         footer={
           required ? undefined : (
-            <Link href="/account" className="text-link">
+            <Link href="/account/settings#security" className="text-link">
               {t("password.backToAccount")}
             </Link>
           )
